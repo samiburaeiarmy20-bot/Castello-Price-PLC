@@ -1050,6 +1050,19 @@ const loginForm = document.getElementById('loginForm');
 const loginError = document.getElementById('loginError');
 const VALID_USER = 'Admin';
 const VALID_PASS = 'Castello';
+const VISIT_LOG_URL = 'https://script.google.com/macros/s/AKfycby84jIkBtOcNIo9wkx9N1pa83i5f918xSMaFfLiF4y8FwruwMvskWX-VolSLuyR3OxO/exec';
+
+function logVisit(name){
+  if(!VISIT_LOG_URL) return;
+  try{
+    fetch(VISIT_LOG_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ name: name, device: navigator.userAgent })
+    }).catch(()=>{ /* logging is best-effort; never block access on it */ });
+  } catch(err){ /* logging is best-effort; never block access on it */ }
+}
 
 function showBlocked(title, msg){
   gate.style.display = 'none';
@@ -1078,6 +1091,7 @@ loginForm.addEventListener('submit', e=>{
     gate.style.display = 'none';
     root.classList.add('visible');
     loginError.textContent = '';
+    logVisit(u);
   } else {
     loginError.textContent = 'Incorrect username or password.';
   }
