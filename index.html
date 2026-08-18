@@ -4,11 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Castello Development — Portfolio Price List</title>
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('castelloTheme') || 'midnight-gold';
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme', 'midnight-gold'); }
+})();
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-:root{
+:root, html[data-theme="midnight-gold"]{
   --bg: #0c100f;
+  --bg-rgb: 12,16,15;
   --bg-alt: #101513;
   --surface: #161c19;
   --surface-2: #1b2220;
@@ -23,6 +32,86 @@
   --stone: #a39a8a;
   --stone-dim: #6f6a5f;
   --shadow: 0 20px 50px rgba(0,0,0,0.45);
+}
+
+/* Ivory Bronze — light, warm ivory paper with antique bronze accents */
+html[data-theme="ivory-bronze"]{
+  --bg: #f7f1e6;
+  --bg-rgb: 247,241,230;
+  --bg-alt: #f1e9d9;
+  --surface: #fdfaf3;
+  --surface-2: #f5eddb;
+  --line: rgba(139,94,52,0.22);
+  --line-soft: rgba(40,30,20,0.09);
+  --gold: #a3702f;
+  --gold-bright: #c98f42;
+  --gold-dim: #7c5a2a;
+  --teal: #2f6b63;
+  --teal-bright: #3f8177;
+  --cream: #2a2116;
+  --stone: #6b5f4e;
+  --stone-dim: #a2947d;
+  --shadow: 0 20px 50px rgba(60,40,20,0.14);
+}
+
+/* Marina — deep navy-teal, Red Sea nautical, aqua primary */
+html[data-theme="marina"]{
+  --bg: #071820;
+  --bg-rgb: 7,24,32;
+  --bg-alt: #0b1f28;
+  --surface: #112830;
+  --surface-2: #153039;
+  --line: rgba(79,195,183,0.2);
+  --line-soft: rgba(230,244,242,0.08);
+  --gold: #4fc3b7;
+  --gold-bright: #7fe0d4;
+  --gold-dim: #2f8478;
+  --teal: #d4a24a;
+  --teal-bright: #e8bd6e;
+  --cream: #eaf6f4;
+  --stone: #9db8b5;
+  --stone-dim: #5f7a77;
+  --shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+/* Desert Sand — light, warm sandstone with terracotta and oasis green */
+html[data-theme="desert-sand"]{
+  --bg: #f6ede0;
+  --bg-rgb: 246,237,224;
+  --bg-alt: #efe1c9;
+  --surface: #fffaf2;
+  --surface-2: #f7ead3;
+  --line: rgba(179,90,44,0.24);
+  --line-soft: rgba(60,35,15,0.09);
+  --gold: #c1592f;
+  --gold-bright: #de7546;
+  --gold-dim: #8c3f1e;
+  --teal: #3c7a6e;
+  --teal-bright: #4f9a8c;
+  --cream: #2e2013;
+  --stone: #6b5642;
+  --stone-dim: #a68f74;
+  --shadow: 0 20px 50px rgba(80,40,10,0.14);
+}
+
+/* Onyx Emerald — dark jewel tone, gold and emerald */
+html[data-theme="onyx-emerald"]{
+  --bg: #0a0f0c;
+  --bg-rgb: 10,15,12;
+  --bg-alt: #0d1410;
+  --surface: #121a15;
+  --surface-2: #16201a;
+  --line: rgba(72,157,110,0.22);
+  --line-soft: rgba(230,240,232,0.08);
+  --gold: #c9a659;
+  --gold-bright: #e4c57e;
+  --gold-dim: #8f7942;
+  --teal: #2f8f5e;
+  --teal-bright: #4bb37e;
+  --cream: #eef2ee;
+  --stone: #9fb0a4;
+  --stone-dim: #5f6f64;
+  --shadow: 0 20px 50px rgba(0,0,0,0.5);
 }
 
 *{box-sizing:border-box; margin:0; padding:0;}
@@ -112,7 +201,7 @@ section.projects{ padding: 56px 0 20px; }
 /* ---------- FILTER BAR ---------- */
 .filterbar{
   position:sticky; top:0; z-index:20; margin-top:44px;
-  background: rgba(12,16,15,0.92); backdrop-filter: blur(10px);
+  background: rgba(var(--bg-rgb), 0.92); backdrop-filter: blur(10px);
   border-top:1px solid var(--line); border-bottom:1px solid var(--line-soft);
   padding:16px 0;
 }
@@ -207,6 +296,40 @@ footer{ border-top:1px solid var(--line-soft); padding: 26px 0 40px; }
 }
 @media (prefers-reduced-motion: reduce){
   *{ transition:none !important; animation:none !important; }
+}
+
+/* ---------- THEME SWITCHER ---------- */
+.theme-fab{
+  position:fixed; bottom:24px; right:24px; z-index:300;
+  width:48px; height:48px; border-radius:50%; background:var(--surface); border:1px solid var(--line);
+  color:var(--gold); display:flex; align-items:center; justify-content:center; cursor:pointer;
+  box-shadow:var(--shadow); transition: transform .2s ease, border-color .2s ease;
+}
+.theme-fab:hover{ transform: translateY(-2px) scale(1.05); border-color:var(--gold-dim); }
+.theme-panel{
+  position:fixed; bottom:82px; right:24px; z-index:300; width:236px;
+  background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow);
+  padding:14px; display:none; opacity:0; transform:translateY(6px); transition: opacity .18s ease, transform .18s ease;
+}
+.theme-panel.open{ display:block; opacity:1; transform:translateY(0); }
+.tp-title{ font-size:10.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--stone-dim); margin-bottom:10px; padding:0 4px; }
+.theme-opt{
+  display:flex; align-items:center; gap:10px; padding:8px 8px; border-radius:8px; cursor:pointer;
+  transition: background .15s ease;
+}
+.theme-opt:hover{ background:var(--surface-2); }
+.theme-opt.active{ background:var(--surface-2); box-shadow:0 0 0 1px var(--gold-dim) inset; }
+.theme-swatch{
+  width:26px; height:26px; border-radius:50%; flex-shrink:0; border:1px solid rgba(0,0,0,0.15);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.06);
+}
+.theme-opt .to-name{ font-size:12.5px; color:var(--cream); font-family:'Inter'; }
+.theme-opt .to-check{ margin-left:auto; color:var(--gold); font-size:12px; opacity:0; }
+.theme-opt.active .to-check{ opacity:1; }
+
+@media (max-width: 480px){
+  .theme-fab{ bottom:16px; right:16px; }
+  .theme-panel{ bottom:74px; right:16px; width:calc(100vw - 32px); }
 }
 
 /* ---------- LOGIN GATE ---------- */
@@ -363,6 +486,14 @@ table.pp-schedule tbody tr:hover{ background:var(--surface); }
 </style>
 </head>
 <body>
+
+<div class="theme-fab" id="themeFab" title="Change theme" aria-label="Change theme">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1 0-.9.7-1.6 1.6-1.6H16c3.3 0 6-2.7 6-6 0-4.4-4.5-8-10-8z"/></svg>
+</div>
+<div class="theme-panel" id="themePanel">
+  <div class="tp-title">Choose a theme</div>
+  <div id="themeList"></div>
+</div>
 
 <div id="loginGate">
   <div class="login-card">
@@ -1032,6 +1163,50 @@ function renderPPSchedule(){
   document.getElementById('ppScheduleBody').innerHTML = rows.join('');
 }
 
+/* ================= THEME SWITCHER ================= */
+const THEMES = [
+  { id:'midnight-gold', name:'Midnight Gold', a:'#0c100f', b:'#c9a659' },
+  { id:'ivory-bronze',  name:'Ivory Bronze',  a:'#f7f1e6', b:'#a3702f' },
+  { id:'marina',        name:'Marina',        a:'#071820', b:'#4fc3b7' },
+  { id:'desert-sand',   name:'Desert Sand',   a:'#f6ede0', b:'#c1592f' },
+  { id:'onyx-emerald',  name:'Onyx Emerald',  a:'#0a0f0c', b:'#2f8f5e' },
+];
+
+function currentTheme(){
+  try{ return localStorage.getItem('castelloTheme') || 'midnight-gold'; }catch(e){ return 'midnight-gold'; }
+}
+function applyTheme(id){
+  document.documentElement.setAttribute('data-theme', id);
+  try{ localStorage.setItem('castelloTheme', id); }catch(e){}
+  renderThemeList();
+}
+function renderThemeList(){
+  const active = currentTheme();
+  document.getElementById('themeList').innerHTML = THEMES.map(t => `
+    <div class="theme-opt ${t.id===active?'active':''}" data-id="${t.id}">
+      <span class="theme-swatch" style="background:linear-gradient(135deg, ${t.a} 50%, ${t.b} 50%);"></span>
+      <span class="to-name">${t.name}</span>
+      <span class="to-check">✓</span>
+    </div>
+  `).join('');
+  document.querySelectorAll('.theme-opt').forEach(el=>{
+    el.addEventListener('click', ()=> applyTheme(el.dataset.id));
+  });
+}
+renderThemeList();
+
+const themeFab = document.getElementById('themeFab');
+const themePanel = document.getElementById('themePanel');
+themeFab.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  themePanel.classList.toggle('open');
+});
+document.addEventListener('click', (e)=>{
+  if(themePanel.classList.contains('open') && !themePanel.contains(e.target) && e.target!==themeFab){
+    themePanel.classList.remove('open');
+  }
+});
+
 /* ================= ACCESS CONTROL ================= */
 // 1) Hardcoded fallback expiry — works with no internet connection.
 const ACCESS_EXPIRY = '2027-08-12'; // dashboard stops working after this date regardless of network
@@ -1048,8 +1223,30 @@ const blocked = document.getElementById('accessBlocked');
 const root = document.getElementById('dashboardRoot');
 const loginForm = document.getElementById('loginForm');
 const loginError = document.getElementById('loginError');
-const VALID_USER = 'Admin';
-const VALID_PASS = 'Castello';
+const USERS = {
+  'admin': 'Castello@1212',
+  'ahmed.hesham': 'BlueCar27!',
+  'ahmed.refaei': 'MoonStar34!',
+  'ahmed.helal': 'PalmTree51!',
+  'mohamed.helmy': 'RedSea62!',
+  'aya.khaled': 'SunnyDay18!',
+  'amany.wageh': 'GreenSky43!',
+  'yousef.mansour': 'OceanBlue76!',
+  'julia': 'GoldenSun29!',
+  'andrey': 'HappyDay84!',
+  'elena': 'SeaView35!',
+  'pola': 'StarFish47!',
+  'yassin': 'PalmBeach53!',
+  'hanen': 'BlueSky68!',
+  'aya.mahmoud': 'RedMoon24!',
+  'josphina': 'Sunset91!',
+  'esraa.basha': 'OceanWave37!',
+  'ehab.eshak': 'GoldenSea58!',
+  'amir.eshak': 'GreenPalm73!',
+  'hossam': 'BlueWave46!',
+  'amir': 'RedStar82!',
+  'alaa.ehab': 'SunnySea64!',
+};
 const VISIT_LOG_URL = 'https://script.google.com/macros/s/AKfycby84jIkBtOcNIo9wkx9N1pa83i5f918xSMaFfLiF4y8FwruwMvskWX-VolSLuyR3OxO/exec';
 
 function logVisit(name){
@@ -1084,14 +1281,16 @@ function startLoginFlow(){
 
 loginForm.addEventListener('submit', e=>{
   e.preventDefault();
-  const u = document.getElementById('loginUser').value.trim();
+  const uRaw = document.getElementById('loginUser').value.trim();
+  const u = uRaw.toLowerCase();
   const p = document.getElementById('loginPass').value;
-  if(u === VALID_USER && p === VALID_PASS){
+  if(USERS.hasOwnProperty(u) && USERS[u] === p){
     sessionStorage.setItem('castelloAuthed', 'yes');
+    sessionStorage.setItem('castelloAuthedUser', uRaw);
     gate.style.display = 'none';
     root.classList.add('visible');
     loginError.textContent = '';
-    logVisit(u);
+    logVisit(uRaw);
   } else {
     loginError.textContent = 'Incorrect username or password.';
   }
