@@ -250,7 +250,7 @@ section.projects{ padding: 56px 0 20px; }
 
 /* ---------- TABLE ---------- */
 .table-scroll{ overflow-x:auto; border:1px solid var(--line-soft); border-radius:10px; margin-bottom:60px;}
-table{ width:100%; border-collapse:collapse; font-size:13px; min-width:920px;}
+.table-scroll table{ width:100%; border-collapse:collapse; font-size:13px; min-width:920px;}
 thead th{
   text-align:left; padding:13px 16px; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase;
   color:var(--stone-dim); background:var(--surface); border-bottom:1px solid var(--line); white-space:nowrap;
@@ -426,11 +426,11 @@ td.actions-cell{
 .roi-results{ margin-top:28px; border-top:1px solid var(--line); padding-top:24px; display:none; }
 .roi-results.show{ display:block; }
 .roi-results h4{ font-family:'Cormorant Garamond', serif; font-size:18px; font-weight:500; margin-bottom:14px; }
-.roi-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:18px; }
+.roi-table{ width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; margin-bottom:18px; }
 .roi-table tr{ border-bottom:1px solid var(--line-soft); }
 .roi-table td{ padding:9px 4px; }
-.roi-table td:first-child{ color:var(--stone); }
-.roi-table td:last-child{ text-align:right; font-family:'JetBrains Mono', monospace; color:var(--cream); font-weight:500; }
+.roi-table td:first-child{ width:60%; color:var(--stone); padding-left:6px; padding-right:10px; white-space:normal; word-wrap:break-word; }
+.roi-table td:last-child{ width:40%; text-align:right; font-family:'JetBrains Mono', monospace; color:var(--cream); font-weight:500; padding-right:20px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .roi-table tr.hl td{ color:var(--gold-bright) !important; font-weight:700; font-size:13.5px; }
 .roi-table tr.hl td:first-child{ color:var(--gold) !important; font-weight:600; }
 .roi-verdict{
