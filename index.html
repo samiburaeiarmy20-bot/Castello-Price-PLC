@@ -441,6 +441,31 @@ td.actions-cell{
 .roi-verdict.low{ border-color: rgba(217,167,87,0.4); background: rgba(217,167,87,0.08); color:#d9a757; }
 .roi-verdict b{ display:block; margin-bottom:4px; font-size:13.5px; }
 
+/* ---------- ROI Guide (help) ---------- */
+.roi-help-btn{
+  width:26px; height:26px; border-radius:50%; border:1px solid var(--gold-dim); background:rgba(201,166,89,0.08);
+  color:var(--gold); font-size:13px; font-weight:700; cursor:pointer; margin-left:10px; flex-shrink:0;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.roi-help-btn:hover{ background:rgba(201,166,89,0.18); }
+.guide-lang-row{ display:flex; gap:8px; margin-bottom:20px; }
+.guide-lang-btn{
+  font-size:11.5px; padding:8px 14px; border-radius:8px; border:1px solid var(--line-soft);
+  background:var(--bg-alt); color:var(--stone); cursor:pointer; font-family:'Inter';
+}
+.guide-lang-btn.active{ background:var(--gold); color:#1a1610; border-color:var(--gold); font-weight:600; }
+.guide-body{ font-size:13px; line-height:1.8; color:var(--cream); }
+.guide-body[dir="rtl"]{ text-align:right; }
+.guide-body h4{ font-family:'Cormorant Garamond', serif; font-size:16.5px; color:var(--gold-bright); margin:20px 0 8px; font-weight:600; }
+.guide-body h4:first-child{ margin-top:0; }
+.guide-body p{ margin-bottom:8px; color:var(--stone); }
+.guide-body ul{ margin:0 0 8px 0; padding-left:20px; color:var(--stone); }
+.guide-body[dir="rtl"] ul{ padding-left:0; padding-right:20px; }
+.guide-body li{ margin-bottom:4px; }
+.guide-body code{ font-family:'JetBrains Mono', monospace; background:var(--bg-alt); padding:1px 6px; border-radius:4px; color:var(--gold-bright); font-size:12px; }
+.guide-lang{ display:none; }
+.guide-lang.active{ display:block; }
+
 /* ---------- Payment Plan modal ---------- */
 .pp-contract-row{ display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:22px; }
 .pp-contract-row .roi-field{ max-width:220px; }
@@ -620,9 +645,12 @@ table.pp-schedule tbody tr:hover{ background:var(--surface); }
 <div class="modal-overlay" id="roiOverlay">
   <div class="modal-card">
     <div class="modal-head">
-      <div>
-        <h3>ROI Calculator</h3>
-        <div class="msub" id="roiUnitLabel">—</div>
+      <div style="display:flex; align-items:flex-start;">
+        <div>
+          <h3>ROI Calculator</h3>
+          <div class="msub" id="roiUnitLabel">—</div>
+        </div>
+        <button class="roi-help-btn" id="roiHelpBtn" title="How to use this calculator">?</button>
       </div>
       <button class="modal-close" id="roiClose">&times;</button>
     </div>
@@ -702,6 +730,196 @@ table.pp-schedule tbody tr:hover{ background:var(--surface); }
   </div>
 </div>
 
+<div class="modal-overlay" id="guideOverlay">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="guideTitle">ROI Calculator Guide</h3>
+        <div class="msub" id="guideSub">How to use it &amp; how figures are calculated</div>
+      </div>
+      <button class="modal-close" id="guideClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="guide-lang-row">
+        <div class="guide-lang-btn active" data-lang="en">English</div>
+        <div class="guide-lang-btn" data-lang="ar">العربية</div>
+        <div class="guide-lang-btn" data-lang="ru">Русский</div>
+        <div class="guide-lang-btn" data-lang="de">Deutsch</div>
+      </div>
+
+      <div class="guide-body">
+        <div class="guide-lang active" data-lang="en" dir="ltr">
+          <h4>Overview</h4>
+          <p>This calculator estimates the return on investment for a unit based on figures the client gives you — purchase terms, expected rent, costs, and how long they plan to hold the property. Fill in what the client tells you; leave the rest at 0 if unknown.</p>
+          <h4>Input Fields</h4>
+          <ul>
+            <li><b>Purchase Price</b> — the unit's price, pre-filled from the price list.</li>
+            <li><b>Down Payment</b> — cash paid upfront, due on the contract date.</li>
+            <li><b>Payment Plan (years)</b> — shown for reference only; it does not affect the calculation.</li>
+            <li><b>Additional Purchase Costs</b> — registration, brokerage, legal fees, etc.</li>
+            <li><b>Furnishing Cost</b> — if the client plans to furnish the unit.</li>
+            <li><b>Annual Maintenance / Service</b> — yearly service charges to the developer/compound.</li>
+            <li><b>Expected Monthly Rent</b> — what the unit could rent for per month.</li>
+            <li><b>Occupancy Rate (%)</b> — % of the year the unit is expected to be rented (e.g. 85%).</li>
+            <li><b>Management Fee (% of rent)</b> — if a property manager takes a cut of rental income.</li>
+            <li><b>Utilities / Other Annual Opex</b> — any other yearly running costs.</li>
+            <li><b>Annual Appreciation (%)</b> — expected yearly price growth of the property.</li>
+            <li><b>Holding Period (years)</b> — how long the client plans to keep the unit before selling.</li>
+            <li><b>Expected Selling Price</b> — leave blank to auto-estimate from the appreciation rate.</li>
+          </ul>
+          <h4>How the Numbers Are Calculated</h4>
+          <ul>
+            <li><code>Total Investment = Purchase Price + Additional Costs + Furnishing</code></li>
+            <li><code>Cash Invested = Down Payment + Additional Costs + Furnishing</code></li>
+            <li><code>Annual Gross Rent = Monthly Rent × 12 × Occupancy%</code></li>
+            <li><code>Annual Net Rent = Gross Rent − Management Fee − Maintenance − Opex</code></li>
+            <li><code>Rental Yield % = Net Rent ÷ Total Investment × 100</code></li>
+            <li><code>Selling Price (if blank) = Price × (1 + Appreciation%) ^ Holding Years</code></li>
+            <li><code>Total Profit = (Selling Price − Total Investment) + (Net Rent × Holding Years)</code></li>
+            <li><code>ROI % = Total Profit ÷ Total Investment × 100</code></li>
+            <li><code>Avg. Annual ROI = ROI% ÷ Holding Years</code></li>
+            <li><code>Cash-on-Cash Return % = Net Rent ÷ Cash Invested × 100</code></li>
+            <li><code>Break-even Period = Total Investment ÷ (Net Rent + Annual Appreciation EGP)</code></li>
+          </ul>
+          <h4>Reading the Verdict</h4>
+          <ul>
+            <li><b>15%+ avg. annual ROI</b> — highly attractive investment.</li>
+            <li><b>8–15%</b> — attractive, solid regional performance.</li>
+            <li><b>4–8%</b> — moderate, in line with typical market returns.</li>
+            <li><b>Below 4%</b> — below market; consider adjusting price, rent, or holding period.</li>
+          </ul>
+        </div>
+
+        <div class="guide-lang" data-lang="ar" dir="rtl">
+          <h4>نظرة عامة</h4>
+          <p>تُستخدم هذه الأداة لتقدير عائد الاستثمار على الوحدة بناءً على البيانات التي يقدمها العميل — شروط الشراء، الإيجار المتوقع، التكاليف، ومدة الاحتفاظ بالوحدة. أدخل ما يذكره العميل، واترك الباقي عند صفر إذا لم يكن معروفًا.</p>
+          <h4>حقول الإدخال</h4>
+          <ul>
+            <li><b>سعر الشراء</b> — سعر الوحدة، يُملأ تلقائيًا من قائمة الأسعار.</li>
+            <li><b>الدفعة المقدمة</b> — المبلغ المدفوع نقدًا عند توقيع العقد.</li>
+            <li><b>خطة السداد (بالسنوات)</b> — للعرض فقط، ولا تؤثر على الحساب.</li>
+            <li><b>تكاليف الشراء الإضافية</b> — رسوم التسجيل، السمسرة، الأتعاب القانونية، إلخ.</li>
+            <li><b>تكلفة التأثيث</b> — إذا كان العميل ينوي تأثيث الوحدة.</li>
+            <li><b>الصيانة السنوية / الخدمات</b> — رسوم الخدمة السنوية للمطور/الكمبوند.</li>
+            <li><b>الإيجار الشهري المتوقع</b> — القيمة الإيجارية الشهرية المتوقعة للوحدة.</li>
+            <li><b>معدل الإشغال (%)</b> — النسبة المئوية من العام التي يُتوقع أن تكون فيها الوحدة مؤجرة.</li>
+            <li><b>رسوم الإدارة (% من الإيجار)</b> — إذا كانت هناك شركة إدارة تأخذ نسبة من دخل الإيجار.</li>
+            <li><b>المرافق / مصاريف تشغيلية أخرى سنويًا</b> — أي تكاليف تشغيل سنوية أخرى.</li>
+            <li><b>معدل الارتفاع السنوي (%)</b> — النمو السنوي المتوقع لسعر العقار.</li>
+            <li><b>مدة الاحتفاظ (بالسنوات)</b> — المدة التي ينوي العميل الاحتفاظ بالوحدة قبل البيع.</li>
+            <li><b>سعر البيع المتوقع</b> — اتركه فارغًا ليتم تقديره تلقائيًا بناءً على معدل الارتفاع.</li>
+          </ul>
+          <h4>كيف يتم حساب الأرقام</h4>
+          <ul>
+            <li><code>إجمالي الاستثمار = سعر الشراء + التكاليف الإضافية + التأثيث</code></li>
+            <li><code>النقد المستثمر = الدفعة المقدمة + التكاليف الإضافية + التأثيث</code></li>
+            <li><code>إجمالي الإيجار السنوي = الإيجار الشهري × 12 × نسبة الإشغال%</code></li>
+            <li><code>صافي الإيجار السنوي = الإيجار الإجمالي − رسوم الإدارة − الصيانة − المصاريف التشغيلية</code></li>
+            <li><code>عائد الإيجار% = صافي الإيجار ÷ إجمالي الاستثمار × 100</code></li>
+            <li><code>سعر البيع (إذا كان فارغًا) = السعر × (1 + معدل الارتفاع%) ^ سنوات الاحتفاظ</code></li>
+            <li><code>إجمالي الربح = (سعر البيع − إجمالي الاستثمار) + (صافي الإيجار × سنوات الاحتفاظ)</code></li>
+            <li><code>نسبة العائد على الاستثمار% = إجمالي الربح ÷ إجمالي الاستثمار × 100</code></li>
+            <li><code>متوسط العائد السنوي = نسبة العائد% ÷ سنوات الاحتفاظ</code></li>
+            <li><code>العائد النقدي% = صافي الإيجار ÷ النقد المستثمر × 100</code></li>
+            <li><code>فترة استرداد رأس المال = إجمالي الاستثمار ÷ (صافي الإيجار + الارتفاع السنوي بالجنيه)</code></li>
+          </ul>
+          <h4>قراءة النتيجة النهائية</h4>
+          <ul>
+            <li><b>15% فأكثر متوسط سنوي</b> — استثمار جذاب للغاية.</li>
+            <li><b>8–15%</b> — جذاب، أداء قوي بالنسبة للمنطقة.</li>
+            <li><b>4–8%</b> — متوسط، يتماشى مع عوائد السوق المعتادة.</li>
+            <li><b>أقل من 4%</b> — أقل من السوق؛ يُنصح بتعديل السعر أو الإيجار أو مدة الاحتفاظ.</li>
+          </ul>
+        </div>
+
+        <div class="guide-lang" data-lang="ru" dir="ltr">
+          <h4>Обзор</h4>
+          <p>Этот калькулятор оценивает доходность инвестиций в объект на основе данных, которые предоставляет клиент — условия покупки, ожидаемая арендная плата, расходы и срок владения недвижимостью. Заполните то, что сообщает клиент; остальное оставьте равным 0, если неизвестно.</p>
+          <h4>Поля ввода</h4>
+          <ul>
+            <li><b>Цена покупки</b> — цена объекта, заполняется автоматически из прайс-листа.</li>
+            <li><b>Первоначальный взнос</b> — сумма, оплачиваемая наличными при подписании контракта.</li>
+            <li><b>План платежей (лет)</b> — только для справки, не влияет на расчёт.</li>
+            <li><b>Дополнительные расходы на покупку</b> — регистрация, брокерские, юридические услуги и т.д.</li>
+            <li><b>Стоимость меблировки</b> — если клиент планирует меблировать объект.</li>
+            <li><b>Годовое обслуживание</b> — ежегодная плата за обслуживание застройщику/комплексу.</li>
+            <li><b>Ожидаемая месячная аренда</b> — по какой цене можно сдавать объект в месяц.</li>
+            <li><b>Заполняемость (%)</b> — процент года, когда объект предположительно будет сдан в аренду.</li>
+            <li><b>Комиссия управляющей компании (% от аренды)</b> — если управляющий берёт долю от арендного дохода.</li>
+            <li><b>Коммунальные / прочие годовые расходы</b> — любые другие ежегодные эксплуатационные расходы.</li>
+            <li><b>Годовой прирост стоимости (%)</b> — ожидаемый ежегодный рост цены недвижимости.</li>
+            <li><b>Срок владения (лет)</b> — сколько лет клиент планирует владеть объектом до продажи.</li>
+            <li><b>Ожидаемая цена продажи</b> — оставьте пустым для автоматического расчёта на основе прироста стоимости.</li>
+          </ul>
+          <h4>Как рассчитываются показатели</h4>
+          <ul>
+            <li><code>Общие инвестиции = Цена покупки + Доп. расходы + Меблировка</code></li>
+            <li><code>Вложенные наличные = Первоначальный взнос + Доп. расходы + Меблировка</code></li>
+            <li><code>Годовой валовой доход от аренды = Месячная аренда × 12 × Заполняемость%</code></li>
+            <li><code>Годовой чистый доход = Валовой доход − Комиссия − Обслуживание − Прочие расходы</code></li>
+            <li><code>Доходность от аренды% = Чистый доход ÷ Общие инвестиции × 100</code></li>
+            <li><code>Цена продажи (если пусто) = Цена × (1 + Прирост%) ^ Срок владения</code></li>
+            <li><code>Общая прибыль = (Цена продажи − Общие инвестиции) + (Чистый доход × Срок владения)</code></li>
+            <li><code>ROI% = Общая прибыль ÷ Общие инвестиции × 100</code></li>
+            <li><code>Средний годовой ROI = ROI% ÷ Срок владения</code></li>
+            <li><code>Cash-on-Cash Return% = Чистый доход ÷ Вложенные наличные × 100</code></li>
+            <li><code>Срок окупаемости = Общие инвестиции ÷ (Чистый доход + Годовой прирост в EGP)</code></li>
+          </ul>
+          <h4>Как читать итоговую оценку</h4>
+          <ul>
+            <li><b>15%+ среднегодовой ROI</b> — очень привлекательная инвестиция.</li>
+            <li><b>8–15%</b> — привлекательная, хороший результат для региона.</li>
+            <li><b>4–8%</b> — умеренная, соответствует типичной доходности рынка.</li>
+            <li><b>Ниже 4%</b> — ниже рынка; стоит пересмотреть цену, аренду или срок владения.</li>
+          </ul>
+        </div>
+
+        <div class="guide-lang" data-lang="de" dir="ltr">
+          <h4>Überblick</h4>
+          <p>Dieser Rechner schätzt die Investitionsrendite einer Einheit anhand der Angaben des Kunden — Kaufbedingungen, erwartete Miete, Kosten und geplante Haltedauer. Tragen Sie ein, was der Kunde mitteilt; lassen Sie den Rest auf 0, wenn unbekannt.</p>
+          <h4>Eingabefelder</h4>
+          <ul>
+            <li><b>Kaufpreis</b> — der Preis der Einheit, automatisch aus der Preisliste übernommen.</li>
+            <li><b>Anzahlung</b> — die bei Vertragsunterzeichnung fällige Barzahlung.</li>
+            <li><b>Zahlungsplan (Jahre)</b> — nur zur Information, beeinflusst die Berechnung nicht.</li>
+            <li><b>Zusätzliche Kaufkosten</b> — Registrierung, Maklergebühr, Rechtskosten usw.</li>
+            <li><b>Möblierungskosten</b> — falls der Kunde die Einheit möblieren möchte.</li>
+            <li><b>Jährliche Instandhaltung / Service</b> — jährliche Servicegebühren an den Entwickler/die Anlage.</li>
+            <li><b>Erwartete Monatsmiete</b> — zu welchem Preis die Einheit vermietet werden könnte.</li>
+            <li><b>Auslastung (%)</b> — Anteil des Jahres, in dem die Einheit voraussichtlich vermietet ist.</li>
+            <li><b>Verwaltungsgebühr (% der Miete)</b> — falls eine Hausverwaltung einen Anteil der Mieteinnahmen erhält.</li>
+            <li><b>Nebenkosten / sonstige jährliche Betriebskosten</b> — alle weiteren jährlichen laufenden Kosten.</li>
+            <li><b>Jährliche Wertsteigerung (%)</b> — erwartetes jährliches Preiswachstum der Immobilie.</li>
+            <li><b>Haltedauer (Jahre)</b> — wie lange der Kunde die Einheit vor dem Verkauf behalten möchte.</li>
+            <li><b>Erwarteter Verkaufspreis</b> — leer lassen, um ihn automatisch aus der Wertsteigerung zu schätzen.</li>
+          </ul>
+          <h4>Wie die Zahlen berechnet werden</h4>
+          <ul>
+            <li><code>Gesamtinvestition = Kaufpreis + Zusatzkosten + Möblierung</code></li>
+            <li><code>Investiertes Bargeld = Anzahlung + Zusatzkosten + Möblierung</code></li>
+            <li><code>Jährliche Bruttomiete = Monatsmiete × 12 × Auslastung%</code></li>
+            <li><code>Jährliche Nettomiete = Bruttomiete − Verwaltungsgebühr − Instandhaltung − Nebenkosten</code></li>
+            <li><code>Mietrendite% = Nettomiete ÷ Gesamtinvestition × 100</code></li>
+            <li><code>Verkaufspreis (falls leer) = Preis × (1 + Wertsteigerung%) ^ Haltedauer</code></li>
+            <li><code>Gesamtgewinn = (Verkaufspreis − Gesamtinvestition) + (Nettomiete × Haltedauer)</code></li>
+            <li><code>ROI% = Gesamtgewinn ÷ Gesamtinvestition × 100</code></li>
+            <li><code>Durchschn. jährlicher ROI = ROI% ÷ Haltedauer</code></li>
+            <li><code>Cash-on-Cash-Rendite% = Nettomiete ÷ Investiertes Bargeld × 100</code></li>
+            <li><code>Amortisationszeit = Gesamtinvestition ÷ (Nettomiete + Jährliche Wertsteigerung in EGP)</code></li>
+          </ul>
+          <h4>Das Ergebnis richtig lesen</h4>
+          <ul>
+            <li><b>15%+ durchschn. jährlicher ROI</b> — sehr attraktive Investition.</li>
+            <li><b>8–15%</b> — attraktiv, solide Leistung für die Region.</li>
+            <li><b>4–8%</b> — moderat, im Einklang mit typischen Marktrenditen.</li>
+            <li><b>Unter 4%</b> — unter Marktniveau; Preis, Miete oder Haltedauer überdenken.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="ppOverlay">
   <div class="modal-card">
     <div class="modal-head">
@@ -754,11 +972,11 @@ const UNITS = [{"project": "Atlantis Resort", "subtitle": "Phase One", "sheet": 
 const PLANS = {
   'Atlantis PH1': { cashDiscount: 20, options: [
       { label:'20% DP · 4 Years', dp:20, years:4, discount:0 },
-      { label:'20% DP · 1 Year (15% Discount)', dp:20, years:1, discount:15 },
+      { label:'40% DP · 1 Year (15% Discount)', dp:40, years:1, discount:15 },
   ]},
   'Atlantis PH2': { cashDiscount: 20, options: [
       { label:'20% DP · 5 Years', dp:20, years:5, discount:0 },
-      { label:'20% DP · 1 Year (15% Discount)', dp:20, years:1, discount:15 },
+      { label:'40% DP · 1 Year (15% Discount)', dp:40, years:1, discount:15 },
   ]},
   'Atlantis Commercial': { cashDiscount: 0, options: [
       { label:'50% DP · 1.5 Years', dp:50, years:1.5, discount:0 },
@@ -990,6 +1208,22 @@ function closeRoiModal(){ roiOverlay.classList.remove('open'); }
 document.getElementById('roiClose').addEventListener('click', closeRoiModal);
 roiOverlay.addEventListener('click', e=>{ if(e.target===roiOverlay) closeRoiModal(); });
 document.getElementById('roiResetBtn').addEventListener('click', ()=>{ if(currentUnit) openRoiModal(currentUnit); });
+
+/* ---- ROI Guide (multi-language help) ---- */
+const guideOverlay = document.getElementById('guideOverlay');
+document.getElementById('roiHelpBtn').addEventListener('click', ()=>{ guideOverlay.classList.add('open'); });
+document.getElementById('guideClose').addEventListener('click', ()=>{ guideOverlay.classList.remove('open'); });
+guideOverlay.addEventListener('click', e=>{ if(e.target===guideOverlay) guideOverlay.classList.remove('open'); });
+document.querySelectorAll('.guide-lang-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const lang = btn.dataset.lang;
+    document.querySelectorAll('.guide-lang-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.guide-lang').forEach(g=>{
+      g.classList.toggle('active', g.dataset.lang === lang);
+    });
+  });
+});
 
 document.getElementById('roiCalcBtn').addEventListener('click', ()=>{
   const price = eur(document.getElementById('f_price').value);
