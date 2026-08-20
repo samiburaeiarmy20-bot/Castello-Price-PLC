@@ -1438,6 +1438,9 @@ function render(){
     });
   }
 
+  // Held units always float to the top, on top of whatever sort is active.
+  rows.sort((a,b)=> (isHeld(unitKey(b))?1:0) - (isHeld(unitKey(a))?1:0));
+
   document.getElementById('resCount').textContent = rows.length;
 
   const tbody = document.getElementById('tbody');
