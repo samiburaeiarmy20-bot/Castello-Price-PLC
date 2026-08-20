@@ -420,31 +420,36 @@ table.compare-table td.cmp-price{ font-family:'JetBrains Mono', monospace; color
 .wa-share-btn.print-btn{ border-color:var(--gold-dim); background:rgba(201,166,89,0.08); color:var(--gold); }
 .wa-share-btn.print-btn:hover{ background:rgba(201,166,89,0.18); }
 
-/* ---------- print export ---------- */
+/* ---------- print export (styling is unconditional so html2canvas PDF capture
+   sees the exact same look as a real browser print -- only visibility/layout
+   switches are gated behind @media print) ---------- */
 #printArea{ display:none; }
+#printArea, #printArea *{ box-sizing:border-box; }
+#printArea{ padding:24px; color:#000; background:#fff; font-family:'Inter', sans-serif; }
+#printArea .print-logo{ height:48px; margin-bottom:14px; }
+#printArea .print-header{ border-bottom:2px solid #c9a659; padding-bottom:12px; margin-bottom:18px; }
+#printArea .print-header h1{ font-family:'Cormorant Garamond', serif; font-size:24px; color:#111; margin:0; }
+#printArea .print-header .print-meta{ font-size:11px; color:#555; margin-top:4px; }
+#printArea .print-unit{ border:1px solid #ccc; border-radius:8px; padding:14px 16px; margin-bottom:12px; page-break-inside:avoid; break-inside:avoid; }
+#printArea .print-unit h3{ font-family:'Cormorant Garamond', serif; font-size:16px; color:#111; margin:0 0 6px; }
+#printArea .print-unit table{ width:100%; border-collapse:collapse; font-size:11.5px; }
+#printArea .print-unit td{ padding:3px 0; color:#333; }
+#printArea .print-unit td.pl{ color:#777; width:40%; }
+#printArea .print-footer{ margin-top:16px; font-size:10px; color:#888; }
+#printArea .print-summary{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px; }
+#printArea .print-summary .ps-cell{ border:1px solid #ddd; border-radius:6px; padding:10px 12px; }
+#printArea .print-summary .ps-lbl{ font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:#888; }
+#printArea .print-summary .ps-val{ font-size:15px; font-weight:600; color:#111; margin-top:3px; }
+#printArea table.print-schedule{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:16px; }
+#printArea table.print-schedule th{ text-align:left; padding:7px 10px; background:#f2ede0; color:#555; font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid #ccc; }
+#printArea table.print-schedule td{ padding:7px 10px; border-bottom:1px solid #e5e5e5; color:#222; }
+#printArea table.print-schedule tr{ page-break-inside:avoid; break-inside:avoid; background:#fff; }
+#printArea table.print-schedule tr:first-child td{ font-weight:700; color:#000; }
+
 @media print{
   #dashboardRoot, #loginGate, #accessBlocked, .theme-fab, .theme-panel, .shortlist-fab, .shortlist-panel, .modal-overlay{ display:none !important; }
   html, body{ height:auto !important; background:#fff !important; }
-  #printArea{ display:block; position:static; width:100%; padding:24px; color:#000; background:#fff; }
-  .print-logo{ height:48px; margin-bottom:14px; }
-  .print-header{ border-bottom:2px solid #c9a659; padding-bottom:12px; margin-bottom:18px; }
-  .print-header h1{ font-family:'Cormorant Garamond', serif; font-size:24px; color:#111; }
-  .print-header .print-meta{ font-size:11px; color:#555; margin-top:4px; }
-  .print-unit{ border:1px solid #ccc; border-radius:8px; padding:14px 16px; margin-bottom:12px; page-break-inside:avoid; }
-  .print-unit h3{ font-family:'Cormorant Garamond', serif; font-size:16px; color:#111; margin-bottom:6px; }
-  .print-unit table{ width:100%; border-collapse:collapse; font-size:11.5px; }
-  .print-unit td{ padding:3px 0; color:#333; }
-  .print-unit td.pl{ color:#777; width:40%; }
-  .print-footer{ margin-top:16px; font-size:10px; color:#888; }
-  .print-summary{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px; }
-  .print-summary .ps-cell{ border:1px solid #ddd; border-radius:6px; padding:10px 12px; }
-  .print-summary .ps-lbl{ font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:#888; }
-  .print-summary .ps-val{ font-size:15px; font-weight:600; color:#111; margin-top:3px; }
-  table.print-schedule{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:16px; }
-  table.print-schedule th{ text-align:left; padding:7px 10px; background:#f2ede0; color:#555; font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid #ccc; }
-  table.print-schedule td{ padding:7px 10px; border-bottom:1px solid #e5e5e5; color:#222; }
-  table.print-schedule tr{ page-break-inside:avoid; break-inside:avoid; background:#fff; }
-  table.print-schedule tr:first-child td{ font-weight:700; color:#000; }
+  #printArea{ display:block; position:static; width:100%; }
 }
 
 /* ---------- LOGIN GATE ---------- */
@@ -713,6 +718,7 @@ table.pp-schedule tbody tr:hover{ background:var(--surface); }
   <div id="shortlistItems"></div>
   <div class="sp-actions">
     <button class="sp-btn" id="spCompareBtn" disabled>Compare</button>
+    <button class="sp-btn" id="spPrintTextBtn" disabled>🖨️ Print</button>
     <button class="sp-btn" id="spPrintBtn" disabled>⬇ Download PDF</button>
     <button class="sp-btn wa" id="spWaBtn" disabled>Send via WhatsApp</button>
   </div>
@@ -1291,6 +1297,7 @@ table.pp-schedule tbody tr:hover{ background:var(--surface); }
       </div>
       <div class="pp-action-row">
         <button class="wa-share-btn" id="ppWaBtn">💬 Send via WhatsApp</button>
+        <button class="wa-share-btn print-btn" id="ppPrintTextBtn">🖨️ Print</button>
         <button class="wa-share-btn print-btn" id="ppPrintBtn">⬇️ Download PDF</button>
       </div>
     </div>
@@ -2004,6 +2011,10 @@ function renderPPPrintArea(){
   html += `<div class="print-footer">Castello Development · www.castelloeg.com · Hotline 15423 · Prices subject to change without notice</div>`;
   document.getElementById('printArea').innerHTML = html;
 }
+document.getElementById('ppPrintTextBtn').addEventListener('click', ()=>{
+  renderPPPrintArea();
+  window.print();
+});
 document.getElementById('ppPrintBtn').addEventListener('click', (e)=>{
   renderPPPrintArea();
   const unitNo = ppUnit ? ppUnit.unit_no : 'plan';
@@ -2242,6 +2253,7 @@ function renderShortlistUI(){
     });
   }
   document.getElementById('spCompareBtn').disabled = count < 2;
+  document.getElementById('spPrintTextBtn').disabled = count < 1;
   document.getElementById('spPrintBtn').disabled = count < 1;
   document.getElementById('spWaBtn').disabled = count < 1;
 }
@@ -2351,6 +2363,10 @@ async function downloadPdfFromPrintArea(filename, triggerBtn){
   }
 }
 
+document.getElementById('spPrintTextBtn').addEventListener('click', ()=>{
+  renderPrintArea();
+  window.print();
+});
 document.getElementById('spPrintBtn').addEventListener('click', (e)=>{
   renderPrintArea();
   const agent = sessionStorage.getItem('castelloAuthedUser') || 'shortlist';
