@@ -413,6 +413,10 @@ table.compare-table td.cmp-price{ font-family:'JetBrains Mono', monospace; color
   background:rgba(47,107,99,0.08); color:var(--teal-bright); cursor:pointer; font-family:'Inter'; display:inline-flex; align-items:center; gap:6px;
 }
 .wa-share-btn:hover{ background:rgba(47,107,99,0.18); }
+.pp-action-row{ display:flex; gap:10px; flex-wrap:wrap; }
+.pp-action-row .wa-share-btn{ margin-top:0; flex:1; min-width:180px; justify-content:center; }
+.wa-share-btn.print-btn{ border-color:var(--gold-dim); background:rgba(201,166,89,0.08); color:var(--gold); }
+.wa-share-btn.print-btn:hover{ background:rgba(201,166,89,0.18); }
 
 /* ---------- print export ---------- */
 #printArea{ display:none; }
@@ -430,6 +434,15 @@ table.compare-table td.cmp-price{ font-family:'JetBrains Mono', monospace; color
   .print-unit td{ padding:3px 0; color:#333; }
   .print-unit td.pl{ color:#777; width:40%; }
   .print-footer{ margin-top:16px; font-size:10px; color:#888; }
+  .print-summary{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px; }
+  .print-summary .ps-cell{ border:1px solid #ddd; border-radius:6px; padding:10px 12px; }
+  .print-summary .ps-lbl{ font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:#888; }
+  .print-summary .ps-val{ font-size:15px; font-weight:600; color:#111; margin-top:3px; }
+  table.print-schedule{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:16px; }
+  table.print-schedule th{ text-align:left; padding:7px 10px; background:#f2ede0; color:#555; font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid #ccc; }
+  table.print-schedule td{ padding:7px 10px; border-bottom:1px solid #e5e5e5; color:#222; }
+  table.print-schedule tr{ page-break-inside:avoid; break-inside:avoid; background:#fff; }
+  table.print-schedule tr:first-child td{ font-weight:700; color:#000; }
 }
 
 /* ---------- LOGIN GATE ---------- */
@@ -1251,7 +1264,10 @@ table.pp-schedule tbody tr:hover{ background:var(--surface); }
           <tbody id="ppScheduleBody"></tbody>
         </table>
       </div>
-      <button class="wa-share-btn" id="ppWaBtn">💬 Send this plan via WhatsApp</button>
+      <div class="pp-action-row">
+        <button class="wa-share-btn" id="ppWaBtn">💬 Send via WhatsApp</button>
+        <button class="wa-share-btn print-btn" id="ppPrintBtn">🖨️ Print Payment Plan</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1799,9 +1815,10 @@ document.getElementById('roiCalcBtn').addEventListener('click', ()=>{
 document.getElementById('roiWaBtn').addEventListener('click', ()=>{
   if(!lastRoiCalc) return;
   const { unit, totalInvestment, rentalYield, roiPct, avgAnnualRoi, cashOnCash, breakEven } = lastRoiCalc;
-  let text = `Castello Development — Investment Summary\n\n`;
+  const curNote = currency==='EGP' ? '' : ` (approx. in ${currency})`;
+  let text = `Castello Development — Investment Summary${curNote}\n\n`;
   text += `${unit.project}${unit.subtitle?' · '+unit.subtitle:''} — Unit ${unit.unit_no} (${unit.unit_type||''})\n\n`;
-  text += `Total Investment: ${fmt(totalInvestment)} EGP\n`;
+  text += `Total Investment: ${fmtCur(totalInvestment)}\n`;
   text += `Rental Yield: ${fmtPct(rentalYield)}\n`;
   text += `ROI (over holding period): ${fmtPct(roiPct)}\n`;
   text += `Avg. Annual ROI: ${fmtPct(avgAnnualRoi)}\n`;
@@ -1882,14 +1899,43 @@ document.getElementById('pp_contractDate').addEventListener('change', renderPPSc
 document.getElementById('ppWaBtn').addEventListener('click', ()=>{
   if(!lastPPCalc) return;
   const { unit, plan, effPrice, dpAmt, installmentAmt, n } = lastPPCalc;
-  let text = `Castello Development — Payment Plan\n\n`;
+  const curNote = currency==='EGP' ? '' : ` (approx. in ${currency})`;
+  let text = `Castello Development — Payment Plan${curNote}\n\n`;
   text += `${unit.project}${unit.subtitle?' · '+unit.subtitle:''} — Unit ${unit.unit_no} (${unit.unit_type||''})\n`;
   text += `Plan: ${plan.label}\n`;
-  text += `Price${plan.discount?' after discount':''}: ${fmt(effPrice)} EGP\n`;
-  text += `Down Payment: ${fmt(dpAmt)} EGP\n`;
-  text += `${n} Quarterly Installments of ${fmt(installmentAmt)} EGP\n\n`;
+  text += `Price${plan.discount?' after discount':''}: ${fmtCur(effPrice)}\n`;
+  text += `Down Payment: ${fmtCur(dpAmt)}\n`;
+  text += `${n} Quarterly Installments of ${fmtCur(installmentAmt)}\n\n`;
   text += `Castello Development · www.castelloeg.com · Hotline 15423`;
   waSend(text);
+});
+
+function renderPPPrintArea(){
+  if(!lastPPCalc || !lastPPCalc.scheduleRows) return;
+  const { unit, plan, effPrice, dpAmt, installmentAmt, n, scheduleRows } = lastPPCalc;
+  const agent = sessionStorage.getItem('castelloAuthedUser') || '';
+  const today = new Date().toLocaleDateString('en-GB');
+  const curNote = currency==='EGP' ? '' : ` (approx. in ${currency})`;
+
+  let html = `<div class="print-header"><img class="print-logo" src="${LOGOS.company}"><h1>Payment Plan</h1><div class="print-meta">${unit.project}${unit.subtitle?' · '+unit.subtitle:''} — Unit ${unit.unit_no} (${unit.unit_type||''})<br>Plan: ${plan.label} · Prepared by ${agent} on ${today}${curNote}</div></div>`;
+
+  html += `<div class="print-summary">
+    <div class="ps-cell"><div class="ps-lbl">Price${plan.discount?' after discount':''}</div><div class="ps-val">${fmtCur(effPrice)}</div></div>
+    <div class="ps-cell"><div class="ps-lbl">Down Payment (${plan.dp}%)</div><div class="ps-val">${fmtCur(dpAmt)}</div></div>
+    <div class="ps-cell"><div class="ps-lbl">Quarterly Installment</div><div class="ps-val">${fmtCur(installmentAmt)}</div></div>
+    <div class="ps-cell"><div class="ps-lbl">No. of Installments</div><div class="ps-val">${n}</div></div>
+  </div>`;
+
+  html += `<table class="print-schedule"><thead><tr><th>#</th><th>Due Date</th><th>Description</th><th>Amount</th></tr></thead><tbody>`;
+  html += scheduleRows.map(r=>`<tr><td>${r.num}</td><td>${r.date}</td><td>${r.desc}</td><td>${fmtCur(r.amount)}</td></tr>`).join('');
+  html += `</tbody></table>`;
+
+  html += `<div class="print-footer">Castello Development · www.castelloeg.com · Hotline 15423 · Prices subject to change without notice</div>`;
+  document.getElementById('printArea').innerHTML = html;
+}
+document.getElementById('ppPrintBtn').addEventListener('click', ()=>{
+  renderPPPrintArea();
+  window.print();
 });
 
 function renderPPSchedule(){
@@ -1916,11 +1962,14 @@ function renderPPSchedule(){
     <div class="s-cell"><div class="s-lbl">No. of Installments</div><div class="s-val">${n}</div></div>
   `;
 
-  const rows = [`<tr><td>—</td><td>${fmtDate(contractDate)}</td><td>Down Payment</td><td>${fmtCur(dpAmt)}</td></tr>`];
+  const scheduleRows = [{ num:'—', date: fmtDate(contractDate), desc:'Down Payment', amount: dpAmt }];
   for(let i=1;i<=n;i++){
     const d = addMonths(contractDate, 3*i);
-    rows.push(`<tr><td>${i}</td><td>${fmtDate(d)}</td><td>Quarterly Installment</td><td>${fmtCur(installmentAmt)}</td></tr>`);
+    scheduleRows.push({ num:String(i), date: fmtDate(d), desc:'Quarterly Installment', amount: installmentAmt });
   }
+  lastPPCalc.scheduleRows = scheduleRows;
+
+  const rows = scheduleRows.map(r=>`<tr><td>${r.num}</td><td>${r.date}</td><td>${r.desc}</td><td>${fmtCur(r.amount)}</td></tr>`);
   document.getElementById('ppScheduleBody').innerHTML = rows.join('');
 }
 
@@ -2006,7 +2055,7 @@ document.getElementById('ratesSaveBtn').addEventListener('click', ()=>{
 });
 function refreshAdminUI(){
   const isAdmin = ADMIN_USERS.includes((sessionStorage.getItem('castelloAuthedUser')||'').toLowerCase());
-  document.getElementById('curEditBtn').style.display = isAdmin ? 'inline-flex' : 'none';
+  document.getElementById('curEditBtn').style.display = 'inline-flex'; // everyone can set exchange rates
   document.getElementById('adminAnalyticsBtn').classList.toggle('show', isAdmin);
 }
 refreshAdminUI();
@@ -2164,7 +2213,8 @@ function renderPrintArea(){
   const units = [...shortlist].map(i=>UNITS[i]);
   const today = new Date().toLocaleDateString('en-GB');
   const agent = sessionStorage.getItem('castelloAuthedUser') || '';
-  let html = `<div class="print-header"><img class="print-logo" src="${LOGOS.company}"><h1>Castello Development — Shortlist</h1><div class="print-meta">Prepared by ${agent} on ${today}</div></div>`;
+  const curNote = currency==='EGP' ? '' : ` · Prices shown in ${currency} (approx.)`;
+  let html = `<div class="print-header"><img class="print-logo" src="${LOGOS.company}"><h1>Castello Development — Shortlist</h1><div class="print-meta">Prepared by ${agent} on ${today}${curNote}</div></div>`;
   units.forEach(u=>{
     html += `<div class="print-unit"><h3>${u.project}${u.subtitle?' · '+u.subtitle:''} — Unit ${u.unit_no}</h3>
       <table>
@@ -2172,8 +2222,8 @@ function renderPrintArea(){
         <tr><td class="pl">Floor</td><td>${u.floor||'—'}</td></tr>
         <tr><td class="pl">View</td><td>${u.view||'—'}</td></tr>
         <tr><td class="pl">Area</td><td>${u.area ?? '—'} m²</td></tr>
-        <tr><td class="pl">Price / m²</td><td>${fmt(u.price_m2)} EGP</td></tr>
-        <tr><td class="pl">Unit Price</td><td>${fmt(u.price)} EGP</td></tr>
+        <tr><td class="pl">Price / m²</td><td>${fmtCur(u.price_m2)}</td></tr>
+        <tr><td class="pl">Unit Price</td><td>${fmtCur(u.price)}</td></tr>
       </table></div>`;
   });
   html += `<div class="print-footer">Castello Development · www.castelloeg.com · Hotline 15423 · Prices subject to change without notice</div>`;
@@ -2222,7 +2272,7 @@ document.getElementById('spWaBtn').addEventListener('click', ()=>{
   const units = [...shortlist].map(i=>UNITS[i]);
   let text = 'Castello Development — Shortlist\n\n';
   units.forEach(u=>{
-    text += `• ${u.project}${u.subtitle?' ('+u.subtitle+')':''} — Unit ${u.unit_no}, ${u.unit_type||''}, ${u.area??''}m², ${fmt(u.price)} EGP\n`;
+    text += `• ${u.project}${u.subtitle?' ('+u.subtitle+')':''} — Unit ${u.unit_no}, ${u.unit_type||''}, ${u.area??''}m², ${fmtCur(u.price)}\n`;
   });
   text += '\nCastello Development · www.castelloeg.com · Hotline 15423';
   waSend(text);
