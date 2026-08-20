@@ -1508,7 +1508,8 @@ let holdsMap = {}; // unitKey -> {heldBy, expiresAt}
 let reservedMap = {}; // unitKey -> {reservedBy, reservedAt}
 function unitKey(u){ return u.sheet + '::' + u.unit_no; }
 function currentAgentName(){ return sessionStorage.getItem('castelloAuthedUser') || ''; }
-function isAdminUser(){ return currentAgentName().toLowerCase() === 'admin'; }
+const ADMIN_USERS = ['admin', 'alaa.ehab'];
+function isAdminUser(){ return ADMIN_USERS.includes(currentAgentName().toLowerCase()); }
 
 function isHeld(key){
   const h = holdsMap[key];
@@ -2001,7 +2002,7 @@ document.getElementById('ratesSaveBtn').addEventListener('click', ()=>{
   if(typeof renderPPSchedule==='function' && ppUnit) renderPPSchedule();
 });
 function refreshAdminUI(){
-  const isAdmin = (sessionStorage.getItem('castelloAuthedUser')||'').toLowerCase() === 'admin';
+  const isAdmin = ADMIN_USERS.includes((sessionStorage.getItem('castelloAuthedUser')||'').toLowerCase());
   document.getElementById('curEditBtn').style.display = isAdmin ? 'inline-flex' : 'none';
   document.getElementById('adminAnalyticsBtn').classList.toggle('show', isAdmin);
 }
