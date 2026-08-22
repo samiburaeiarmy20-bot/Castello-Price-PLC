@@ -1628,11 +1628,12 @@ function render(){
     });
   }
 
-  // Held units, and units reserved specifically for the viewer, always float to the top.
+  // Held units, reserved units, and units reserved specifically for the
+  // viewer, always float to the top -- regardless of whatever sort is active.
   rows.sort((a,b)=>{
     const key_a = unitKey(a), key_b = unitKey(b);
-    const boostA = (isHeld(key_a) || isResponsibleFor(key_a)) ? 1 : 0;
-    const boostB = (isHeld(key_b) || isResponsibleFor(key_b)) ? 1 : 0;
+    const boostA = (isHeld(key_a) || isReserved(key_a) || isResponsibleFor(key_a)) ? 1 : 0;
+    const boostB = (isHeld(key_b) || isReserved(key_b) || isResponsibleFor(key_b)) ? 1 : 0;
     return boostB - boostA;
   });
 
