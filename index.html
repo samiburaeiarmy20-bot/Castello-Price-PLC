@@ -442,6 +442,21 @@ table.compare-table td.cmp-price{ font-family:'JetBrains Mono', monospace; color
    switches are gated behind @media print) ---------- */
 #printArea{ display:none; }
 #printArea, #printArea *{ box-sizing:border-box; }
+#updateBanner{
+  position:fixed; top:0; left:0; right:0; z-index:500; display:none;
+  align-items:center; justify-content:center; gap:14px; padding:11px 16px;
+  background:var(--gold); color:#1a1610; font-size:12.5px; font-weight:500;
+  box-shadow:0 2px 10px rgba(0,0,0,0.25);
+}
+#updateBanner.show{ display:flex; }
+#updateBanner button{ font-family:'Inter'; font-size:12px; cursor:pointer; border-radius:6px; border:none; }
+#updateRefreshBtn{ background:#1a1610; color:var(--gold-bright); padding:6px 14px; font-weight:600; }
+#updateRefreshBtn:hover{ background:#2a231a; }
+#updateDismissBtn{ background:transparent; color:#1a1610; font-size:18px; line-height:1; padding:0 4px; opacity:.6; }
+#updateDismissBtn:hover{ opacity:1; }
+@media (max-width:600px){
+  #updateBanner{ flex-wrap:wrap; text-align:center; }
+}
 #printArea{ padding:24px; color:#000; background:#fff; font-family:'Inter', sans-serif; }
 #printArea .print-logo{ height:48px; margin-bottom:14px; }
 #printArea .print-header{ border-bottom:2px solid #c9a659; padding-bottom:12px; margin-bottom:18px; }
@@ -592,6 +607,8 @@ td.actions-cell{
 .act-btn.act-reserve:hover{ background:rgba(217,90,90,0.16); }
 .act-btn.act-request-reserve{ border-color: rgba(77,144,137,0.4); color:var(--teal-bright); background:rgba(47,107,99,0.06); }
 .act-btn.act-request-reserve:hover{ background:rgba(47,107,99,0.16); }
+.act-btn.act-edit-unit{ border-color: rgba(140,150,220,0.4); color:#a3aef0; background:rgba(140,150,220,0.06); }
+.act-btn.act-edit-unit:hover{ background:rgba(140,150,220,0.16); }
 .act-btn.act-reserve.is-reserved{ border-color: rgba(217,90,90,0.55); color:#e88; background:rgba(217,90,90,0.14); font-weight:600; }
 
 /* ---------- held / reserved row states ---------- */
@@ -828,6 +845,12 @@ table.pp-schedule tbody tr:hover{ background:var(--surface); }
 
 <div id="printArea"></div>
 
+<div id="updateBanner">
+  <span>🔄 A newer version of this dashboard is available.</span>
+  <button id="updateRefreshBtn">Refresh Now</button>
+  <button id="updateDismissBtn" title="Dismiss">&times;</button>
+</div>
+
 <div class="modal-overlay" id="assignOverlay">
   <div class="modal-card reauth-card">
     <div class="modal-head">
@@ -951,6 +974,39 @@ table.pp-schedule tbody tr:hover{ background:var(--surface); }
       <div class="reauth-actions">
         <button class="reauth-cancel" id="addUnitCancelBtn">Cancel</button>
         <button class="reauth-confirm" id="addUnitSubmitBtn">Add Unit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editUnitOverlay">
+  <div class="modal-card reauth-card">
+    <div class="modal-head">
+      <div>
+        <h3>Edit Unit</h3>
+        <div class="msub" id="editUnitSub">Saved permanently to the database</div>
+      </div>
+      <button class="modal-close" id="editUnitClose">&times;</button>
+    </div>
+    <div class="reauth-body">
+      <div class="roi-grid" style="margin-bottom:0;">
+        <div class="roi-field"><label>Section</label><input type="text" id="eu_section"></div>
+        <div class="roi-field"><label>Unit No.</label><input type="text" id="eu_unitNo"></div>
+        <div class="roi-field"><label>Type</label><input type="text" id="eu_unitType"></div>
+        <div class="roi-field"><label>Floor</label><input type="text" id="eu_floor"></div>
+        <div class="roi-field"><label>View</label><input type="text" id="eu_view"></div>
+        <div class="roi-field"><label>Area (m²)</label><input type="text" id="eu_area"></div>
+        <div class="roi-field"><label>Price / m² (EGP)</label><input type="text" id="eu_priceM2"></div>
+        <div class="roi-field"><label>Unit Price (EGP)</label><input type="text" id="eu_price"></div>
+      </div>
+      <div style="margin-top:16px; margin-bottom:12px;">
+        <label style="display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone-dim); margin-bottom:6px;">Confirm Your Password</label>
+        <input type="password" id="eu_password" style="width:100%; background:var(--bg-alt); border:1px solid var(--line-soft); border-radius:8px; padding:10px 12px; color:var(--cream); font-size:13px;">
+      </div>
+      <div class="reauth-error" id="editUnitError"></div>
+      <div class="reauth-actions">
+        <button class="reauth-cancel" id="editUnitCancelBtn">Cancel</button>
+        <button class="reauth-confirm" id="editUnitSubmitBtn">Save Changes</button>
       </div>
     </div>
   </div>
@@ -1703,8 +1759,9 @@ function render(){
         ${holdButtonHtml(u)}
         ${isAdminUser() ? reserveButtonHtml(u) : ''}
         <button class="act-btn act-request-reserve" data-idx="${u.__idx}" title="Request Reserved">📝 Request Res.</button>
+        ${isAdminUser() ? `<button class="act-btn act-edit-unit" data-idx="${u.__idx}">✏️ Edit</button>` : ''}
         <button class="act-btn act-plan" data-idx="${u.__idx}">Payment Plan</button>
-        <button class="act-btn act-roi ${isAdminUser()?'span-full':''}" data-idx="${u.__idx}">ROI Calc</button>
+        <button class="act-btn act-roi" data-idx="${u.__idx}">ROI Calc</button>
         <span class="roi-badge" id="roiBadge_${u.__idx}"></span>
       </td>
     </tr>
@@ -1718,6 +1775,9 @@ function render(){
   });
   tbody.querySelectorAll('.act-request-reserve').forEach(btn=>{
     btn.addEventListener('click', ()=> handleRequestReservedClick(UNITS[Number(btn.dataset.idx)]));
+  });
+  tbody.querySelectorAll('.act-edit-unit').forEach(btn=>{
+    btn.addEventListener('click', ()=> openEditUnitModal(UNITS[Number(btn.dataset.idx)]));
   });
   tbody.querySelectorAll('.act-roi').forEach(btn=>{
     btn.addEventListener('click', ()=> openRoiModal(UNITS[Number(btn.dataset.idx)]));
@@ -2476,6 +2536,104 @@ document.getElementById('addUnitSubmitBtn').addEventListener('click', async ()=>
   }
 });
 
+const EDIT_UNIT_FUNCTION_URL = 'https://nzojoticksiiidvzmlvx.supabase.co/functions/v1/edit-unit';
+const editUnitOverlay = document.getElementById('editUnitOverlay');
+let editUnitTarget = null;
+
+function openEditUnitModal(u){
+  editUnitTarget = u;
+  document.getElementById('editUnitSub').textContent = `${u.project}${u.subtitle?' · '+u.subtitle:''} — Unit ${u.unit_no}`;
+  document.getElementById('eu_section').value = u.section || '';
+  document.getElementById('eu_unitNo').value = u.unit_no || '';
+  document.getElementById('eu_unitType').value = u.unit_type || '';
+  document.getElementById('eu_floor').value = u.floor || '';
+  document.getElementById('eu_view').value = u.view || '';
+  document.getElementById('eu_area').value = u.area ?? '';
+  document.getElementById('eu_priceM2').value = u.price_m2 ?? '';
+  document.getElementById('eu_price').value = u.price ?? '';
+  document.getElementById('eu_password').value = '';
+  document.getElementById('editUnitError').textContent = '';
+  editUnitOverlay.classList.add('open');
+}
+document.getElementById('editUnitClose').addEventListener('click', ()=> editUnitOverlay.classList.remove('open'));
+document.getElementById('editUnitCancelBtn').addEventListener('click', ()=> editUnitOverlay.classList.remove('open'));
+editUnitOverlay.addEventListener('click', e=>{ if(e.target===editUnitOverlay) editUnitOverlay.classList.remove('open'); });
+
+document.getElementById('editUnitSubmitBtn').addEventListener('click', async ()=>{
+  if(!editUnitTarget) return;
+  const errEl = document.getElementById('editUnitError');
+  const unitNo = document.getElementById('eu_unitNo').value.trim();
+  const price = eur(document.getElementById('eu_price').value);
+  const password = document.getElementById('eu_password').value;
+
+  if(!unitNo || !price){
+    errEl.textContent = 'Unit No. and Unit Price are required.';
+    return;
+  }
+  if(!password){
+    errEl.textContent = 'Please confirm your password.';
+    return;
+  }
+
+  const oldUnitKey = unitKey(editUnitTarget);
+  const payload = {
+    username: currentAgentName(),
+    password,
+    unitKey: oldUnitKey,
+    section: document.getElementById('eu_section').value.trim(),
+    unitNo,
+    unitType: document.getElementById('eu_unitType').value.trim(),
+    floor: document.getElementById('eu_floor').value.trim(),
+    view: document.getElementById('eu_view').value.trim(),
+    area: eur(document.getElementById('eu_area').value) || null,
+    priceM2: eur(document.getElementById('eu_priceM2').value) || null,
+    price
+  };
+
+  const btn = document.getElementById('editUnitSubmitBtn');
+  const originalLabel = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Saving…'; errEl.textContent = '';
+
+  try{
+    const res = await fetch(EDIT_UNIT_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_PUBLISHABLE_KEY,
+        'apikey': SUPABASE_PUBLISHABLE_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!res.ok){
+      errEl.textContent = data.error || 'Could not save changes.';
+      return;
+    }
+    // Reflect the change immediately in this browser's own view.
+    editUnitTarget.section = payload.section;
+    editUnitTarget.unit_no = payload.unitNo;
+    editUnitTarget.unit_type = payload.unitType;
+    editUnitTarget.floor = payload.floor;
+    editUnitTarget.view = payload.view;
+    editUnitTarget.area = payload.area;
+    editUnitTarget.price_m2 = payload.priceM2;
+    editUnitTarget.price = payload.price;
+    // If this unit's key changes (unit_no changed), update any hold/reservation map keys too.
+    const newUnitKey = unitKey(editUnitTarget);
+    if(newUnitKey !== oldUnitKey){
+      if(holdsMap[oldUnitKey]){ holdsMap[newUnitKey] = holdsMap[oldUnitKey]; delete holdsMap[oldUnitKey]; }
+      if(reservedMap[oldUnitKey]){ reservedMap[newUnitKey] = reservedMap[oldUnitKey]; delete reservedMap[oldUnitKey]; }
+    }
+    editUnitOverlay.classList.remove('open');
+    render();
+    alert(`Unit ${payload.unitNo} updated and saved to the database.\n\nNote: this shows up in your browser now, but your sales team's copies of the dashboard won't see it until the file is regenerated and re-uploaded.`);
+  } catch(err){
+    errEl.textContent = 'Network error -- could not reach the server.';
+  } finally {
+    btn.disabled = false; btn.textContent = originalLabel;
+  }
+});
+
 document.getElementById('analyticsClose').addEventListener('click', ()=> analyticsOverlay.classList.remove('open'));
 analyticsOverlay.addEventListener('click', e=>{ if(e.target===analyticsOverlay) analyticsOverlay.classList.remove('open'); });
 
@@ -2818,6 +2976,11 @@ document.getElementById('reauthPassword').addEventListener('keydown', e=>{
 // 1) Hardcoded fallback expiry — works with no internet connection.
 const ACCESS_EXPIRY = '2027-08-12'; // dashboard stops working after this date regardless of network
 
+// This dashboard's build stamp. Bump it (any new unique string) every time a new
+// version is uploaded, and update the matching "version" field in the same Gist
+// used for the kill switch below -- that's what lets open tabs detect an update.
+const BUILD_VERSION = '2026-08-21T00';
+
 // 2) Remote kill switch — a tiny JSON file you control, e.g. a GitHub Gist raw URL.
 //    Format expected: {"enabled": true, "message": ""}
 //    If enabled is explicitly false, the dashboard shows blockedMsg (or a default) instead of loading.
@@ -2943,12 +3106,33 @@ document.getElementById('signOutBtn').addEventListener('click', ()=>{
       } else {
         startLoginFlow();
       }
+      checkForUpdate(cfg);
     })
     .catch(()=>{
       clearTimeout(timer);
       startLoginFlow(); // fail open if the remote switch can't be reached
     });
 })();
+
+function checkForUpdate(cfg){
+  if(cfg && cfg.version && cfg.version !== BUILD_VERSION){
+    document.getElementById('updateBanner').classList.add('show');
+  }
+}
+document.getElementById('updateRefreshBtn').addEventListener('click', ()=> location.reload());
+document.getElementById('updateDismissBtn').addEventListener('click', ()=>{
+  document.getElementById('updateBanner').classList.remove('show');
+});
+// Re-check periodically too, so a tab left open for a while still notices --
+// not just at the moment the page was first loaded.
+setInterval(()=>{
+  if(!ACCESS_GIST_URL || ACCESS_GIST_URL.indexOf('REPLACE_WITH') === 0) return;
+  const bustUrl2 = ACCESS_GIST_URL + (ACCESS_GIST_URL.indexOf('?') > -1 ? '&' : '?') + 'cb=' + Date.now();
+  fetch(bustUrl2, { cache: 'no-store' })
+    .then(r => r.json())
+    .then(cfg => checkForUpdate(cfg))
+    .catch(()=>{});
+}, 5 * 60 * 1000);
 </script>
 
 </div>
