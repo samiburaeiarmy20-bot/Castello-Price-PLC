@@ -1700,7 +1700,7 @@ function pillClass(t){
 
 function render(){
   let rows = UNITS.filter(u=>{
-    if(!isAdminUser() && isReserved(unitKey(u)) && !isResponsibleFor(unitKey(u))) return false;
+    if(!hasFullVisibility() && isReserved(unitKey(u)) && !isResponsibleFor(unitKey(u))) return false;
     if(!state.projects.has(u.sheet)) return false;
     if(state.types.size>0 && !state.types.has(u.unit_type)) return false;
     if(state.view && u.view !== state.view) return false;
@@ -1756,9 +1756,9 @@ function render(){
       <td class="mono price-m2-cell" data-egp="${u.price_m2||0}">${fmtCur(u.price_m2)}</td>
       <td class="price price-cell" data-egp="${u.price||0}">${fmtCur(u.price)}</td>
       <td class="actions-cell">
-        ${holdButtonHtml(u)}
+        ${isTestUser() ? '' : holdButtonHtml(u)}
         ${isAdminUser() ? reserveButtonHtml(u) : ''}
-        <button class="act-btn act-request-reserve" data-idx="${u.__idx}" title="Request Reserved">📝 Request Res.</button>
+        ${isTestUser() ? '' : `<button class="act-btn act-request-reserve" data-idx="${u.__idx}" title="Request Reserved">📝 Request Res.</button>`}
         ${isAdminUser() ? `<button class="act-btn act-edit-unit" data-idx="${u.__idx}">✏️ Edit</button>` : ''}
         <button class="act-btn act-plan" data-idx="${u.__idx}">Payment Plan</button>
         <button class="act-btn act-roi" data-idx="${u.__idx}">ROI Calc</button>
@@ -1810,6 +1810,10 @@ let reservedMap = {}; // unitKey -> {reservedBy, reservedAt}
 function unitKey(u){ return u.sheet + '::' + u.unit_no; }
 function currentAgentName(){ return sessionStorage.getItem('castelloAuthedUser') || ''; }
 function isAdminUser(){ return (sessionStorage.getItem('castelloRole')||'') === 'admin'; }
+function isTestUser(){ return (sessionStorage.getItem('castelloRole')||'') === 'test'; }
+// "Full visibility" = sees everything an admin sees (reserved units, holder names,
+// analytics) -- but isAdminUser() alone still gates every actual WRITE action.
+function hasFullVisibility(){ return isAdminUser() || isTestUser(); }
 
 // Usernames only -- no passwords live in this file anymore. Real credential
 // checking happens server-side (Supabase). This list only populates the
@@ -2429,8 +2433,10 @@ document.getElementById('ratesSaveBtn').addEventListener('click', ()=>{
 });
 function refreshAdminUI(){
   const isAdmin = isAdminUser();
-  document.getElementById('curEditBtn').style.display = 'inline-flex'; // everyone can set exchange rates
-  document.getElementById('adminAnalyticsBtn').classList.toggle('show', isAdmin);
+  // Everyone can set exchange rates -- except a test/view-only account, since
+  // that's a real action that affects what everyone else sees.
+  document.getElementById('curEditBtn').style.display = isTestUser() ? 'none' : 'inline-flex';
+  document.getElementById('adminAnalyticsBtn').classList.toggle('show', hasFullVisibility());
   document.getElementById('adminAddUnitBtn').classList.toggle('show', isAdmin);
 }
 refreshAdminUI();
