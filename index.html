@@ -3719,12 +3719,13 @@ document.getElementById('signOutBtn').addEventListener('click', ()=>{
     .then(r => r.json())
     .then(cfg => {
       clearTimeout(timer);
+      const suspended = checkForUpdate(cfg);
+      if(suspended) return;
       if(cfg && cfg.enabled === false){
         showBlocked('Access Disabled', cfg.message || 'Access to this dashboard has been temporarily disabled by Castello Development.');
       } else {
         startLoginFlow();
       }
-      checkForUpdate(cfg);
     })
     .catch(()=>{
       clearTimeout(timer);
@@ -3734,15 +3735,24 @@ document.getElementById('signOutBtn').addEventListener('click', ()=>{
 
 function checkForUpdate(cfg){
   if(cfg && cfg.version && cfg.version !== BUILD_VERSION){
-    document.getElementById('updateBanner').classList.add('show');
+    // A newer version has been published -- this copy is now suspended,
+    // not just "notified". This applies whether it's the very first load
+    // or a tab that's been open since before the new version went out.
+    showBlocked('New Version Available', 'A newer version of this dashboard has been published. Please close this tab and open the current link from Castello Development.');
+    if(holdsPollTimer){ clearInterval(holdsPollTimer); holdsPollTimer = null; }
+    if(inventoryPollTimer){ clearInterval(inventoryPollTimer); inventoryPollTimer = null; }
+    return true;
   }
+  return false;
 }
 document.getElementById('updateRefreshBtn').addEventListener('click', ()=> location.reload());
 document.getElementById('updateDismissBtn').addEventListener('click', ()=>{
   document.getElementById('updateBanner').classList.remove('show');
 });
 // Re-check periodically too, so a tab left open for a while still notices --
-// not just at the moment the page was first loaded.
+// not just at the moment the page was first loaded. If a new version has
+// gone out while this tab was open, it gets suspended immediately, exactly
+// like a fresh page load would be.
 setInterval(()=>{
   if(!ACCESS_GIST_URL || ACCESS_GIST_URL.indexOf('REPLACE_WITH') === 0) return;
   const bustUrl2 = ACCESS_GIST_URL + (ACCESS_GIST_URL.indexOf('?') > -1 ? '&' : '?') + 'cb=' + Date.now();
