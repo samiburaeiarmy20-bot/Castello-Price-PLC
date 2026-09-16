@@ -786,6 +786,15 @@ td.actions-cell{
 /* ---------- held / reserved row states ---------- */
 tbody tr.tr-held{ background: rgba(217,167,87,0.055); }
 tbody tr.tr-held:hover{ background: rgba(217,167,87,0.1); }
+tbody tr.tr-new{ background: rgba(52,168,120,0.09); box-shadow: inset 3px 0 0 #2ecc71; }
+tbody tr.tr-new:hover{ background: rgba(52,168,120,0.15); }
+tbody tr.tr-new.tr-held{ background: rgba(217,167,87,0.08); box-shadow: inset 3px 0 0 #2ecc71; }
+.new-tag{
+  font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; font-weight:700; color:#0d1a13;
+  background:#2ecc71; border-radius:20px; padding:2px 8px; display:inline-block; margin-left:6px;
+  animation:newPulse 2.2s ease-in-out infinite;
+}
+@keyframes newPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(46,204,113,0.55); } 50%{ box-shadow:0 0 0 6px rgba(46,204,113,0); } }
 .hold-flash{
   display:inline-block; margin-left:6px; font-size:12px; animation: flashPulse 1.4s ease-in-out infinite;
 }
@@ -2007,11 +2016,12 @@ function render(){
   tbody.innerHTML = rows.map(u=>{
     const key = unitKey(u);
     const held = isHeld(key);
-    const trClass = held ? 'tr-held' : '';
+    const isNew = isNewUnit(u);
+    const trClass = [held ? 'tr-held' : '', isNew ? 'tr-new' : ''].filter(Boolean).join(' ');
     return `
     <tr class="${trClass}">
       <td class="star-cell"><button class="star-btn ${shortlist.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to shortlist">${shortlist.has(u.__idx)?'★':'☆'}</button></td>
-      <td class="proj"><span class="proj-inner"><img src="${LOGOS[u.sheet]}" alt=""><span><span class="pj-name">${u.project}${held?'<span class="hold-flash" title="On hold">⚡</span>':''}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
+      <td class="proj"><span class="proj-inner"><img src="${LOGOS[u.sheet]}" alt=""><span><span class="pj-name">${u.project}${isNew?'<span class="new-tag" title="Added in the last 48 hours">NEW</span>':''}${held?'<span class="hold-flash" title="On hold">⚡</span>':''}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
       <td class="mono">${u.section||'—'}</td>
       <td class="mono">${u.unit_no}</td>
       <td><span class="pill ${pillClass(u.unit_type)}">${u.unit_type||'—'}</span></td>
@@ -2123,6 +2133,16 @@ function isHeld(key){
   const h = holdsMap[key];
   return !!(h && h.expiresAt && new Date(h.expiresAt).getTime() > Date.now());
 }
+// A unit counts as NEW for this many hours after it first appears via the
+// Excel sync. first_seen_at is stamped by the database on insert only.
+const NEW_UNIT_HOURS = 48;
+function isNewUnit(u){
+  if(!u.first_seen_at) return false;
+  const t = new Date(u.first_seen_at).getTime();
+  if(isNaN(t)) return false;
+  return (Date.now() - t) < NEW_UNIT_HOURS * 60 * 60 * 1000;
+}
+
 function holdButtonHtml(u){
   const key = unitKey(u);
   const h = holdsMap[key];
@@ -2180,6 +2200,7 @@ async function loadLiveInventory(){
         cash_price: null, cash_savings: null,
         down_payment: null, down_payment_pct: null,
         archived: !!r.archived,
+        first_seen_at: r.first_seen_at || null,
         cash_only: !!r.cash_only,
         maintenance_fee: r.maintenance_fee != null ? r.maintenance_fee : (r.price != null ? Math.round(r.price * 0.10) : null)
       };
