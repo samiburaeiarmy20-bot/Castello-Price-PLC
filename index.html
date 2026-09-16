@@ -2133,12 +2133,15 @@ function isHeld(key){
   const h = holdsMap[key];
   return !!(h && h.expiresAt && new Date(h.expiresAt).getTime() > Date.now());
 }
-// A unit counts as NEW for this many hours after it first appears via the
-// Excel sync. first_seen_at is stamped by the database on insert only.
+// A unit counts as NEW for this many hours after it enters the market --
+// brand new, or back from Reserved/Blocked. released_at is stamped by the
+// sync only at that moment, so a unit that's simply still on sale won't
+// re-trigger it.
 const NEW_UNIT_HOURS = 48;
 function isNewUnit(u){
-  if(!u.first_seen_at) return false;
-  const t = new Date(u.first_seen_at).getTime();
+  const stamp = u.released_at || u.first_seen_at;
+  if(!stamp) return false;
+  const t = new Date(stamp).getTime();
   if(isNaN(t)) return false;
   return (Date.now() - t) < NEW_UNIT_HOURS * 60 * 60 * 1000;
 }
@@ -2175,7 +2178,7 @@ async function loadLiveInventory(){
   try{
     const [projRes, unitsRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/projects?select=*`, { headers, cache:'no-store' }),
-      fetch(`${SUPABASE_URL}/rest/v1/units?select=*,projects(key,name,subtitle,logo_url,cash_discount_pct)&status=not.in.(sold,blocked)${archiveFilter}`, { headers, cache:'no-store' })
+      fetch(`${SUPABASE_URL}/rest/v1/units?select=*,projects(key,name,subtitle,logo_url,cash_discount_pct)&status=eq.released${archiveFilter}`, { headers, cache:'no-store' })
     ]);
     if(!projRes.ok || !unitsRes.ok) throw new Error('fetch failed');
 
@@ -2201,6 +2204,7 @@ async function loadLiveInventory(){
         down_payment: null, down_payment_pct: null,
         archived: !!r.archived,
         first_seen_at: r.first_seen_at || null,
+        released_at: r.released_at || null,
         cash_only: !!r.cash_only,
         maintenance_fee: r.maintenance_fee != null ? r.maintenance_fee : (r.price != null ? Math.round(r.price * 0.10) : null)
       };
