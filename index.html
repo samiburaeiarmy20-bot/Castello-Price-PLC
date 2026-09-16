@@ -3554,9 +3554,28 @@ function showBlocked(title, msg){
   blocked.style.display = 'flex';
 }
 
+let latestAccessCfg = null;
+
+// "Admin only" mode: set "adminOnly": true in the Gist during updates.
+// Admins keep full access; everyone else sees a maintenance screen -- both
+// at login and, for already-open sessions, within the next 5-minute check.
+function enforceAdminOnly(cfg){
+  if(!cfg || cfg.adminOnly !== true) return false;
+  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return false;
+  if(isAdminUser()) return false;
+  const msg = (cfg.maintenanceMessage && String(cfg.maintenanceMessage).trim())
+    ? String(cfg.maintenanceMessage).trim()
+    : 'The dashboard is being updated and is temporarily available to admins only. Please try again shortly.';
+  showBlocked('Under Maintenance', msg);
+  if(holdsPollTimer){ clearInterval(holdsPollTimer); holdsPollTimer = null; }
+  if(inventoryPollTimer){ clearInterval(inventoryPollTimer); inventoryPollTimer = null; }
+  return true;
+}
+
 function startLoginFlow(){
   blocked.style.display = 'none';
   if(sessionStorage.getItem('castelloAuthed') === 'yes'){
+    if(enforceAdminOnly(latestAccessCfg)) return;
     gate.style.display = 'none';
     root.classList.add('visible');
     refreshAdminUI();
@@ -3586,6 +3605,7 @@ loginForm.addEventListener('submit', async (e)=>{
     sessionStorage.setItem('castelloAuthed', 'yes');
     sessionStorage.setItem('castelloAuthedUser', result.username);
     sessionStorage.setItem('castelloRole', result.role || 'sales');
+    if(enforceAdminOnly(latestAccessCfg)) return;
     gate.style.display = 'none';
     root.classList.add('visible');
     loginError.textContent = '';
@@ -3642,6 +3662,7 @@ document.getElementById('signOutBtn').addEventListener('click', ()=>{
     .then(r => r.json())
     .then(cfg => {
       clearTimeout(timer);
+      latestAccessCfg = cfg;
       const suspended = checkForUpdate(cfg);
       if(suspended) return;
       if(cfg && cfg.enabled === false){
@@ -3661,7 +3682,11 @@ function checkForUpdate(cfg){
     // A newer version has been published -- this copy is now suspended,
     // not just "notified". This applies whether it's the very first load
     // or a tab that's been open since before the new version went out.
-    showBlocked('New Version Available', 'A newer version of this dashboard has been published. Please close this tab and open the current link from Castello Development.');
+    // The message comes from the Gist's "updateMessage" field, so a custom
+    // note can be written with each release. Falls back to a generic one.
+    const defaultMsg = 'A newer version of this dashboard has been published. Please close this tab and open the current link from Castello Development.';
+    const msg = (cfg.updateMessage && String(cfg.updateMessage).trim()) ? String(cfg.updateMessage).trim() : defaultMsg;
+    showBlocked('New Version Available', msg);
     if(holdsPollTimer){ clearInterval(holdsPollTimer); holdsPollTimer = null; }
     if(inventoryPollTimer){ clearInterval(inventoryPollTimer); inventoryPollTimer = null; }
     return true;
@@ -3681,7 +3706,7 @@ setInterval(()=>{
   const bustUrl2 = ACCESS_GIST_URL + (ACCESS_GIST_URL.indexOf('?') > -1 ? '&' : '?') + 'cb=' + Date.now();
   fetch(bustUrl2, { cache: 'no-store' })
     .then(r => r.json())
-    .then(cfg => checkForUpdate(cfg))
+    .then(cfg => { latestAccessCfg = cfg; if(!checkForUpdate(cfg)) enforceAdminOnly(cfg); })
     .catch(()=>{});
 }, 5 * 60 * 1000);
 </script>
