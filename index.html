@@ -4401,6 +4401,49 @@ setInterval(()=>{
   .cx-pin, .cx-pin::after, .cx-ripple{ animation:none !important; }
   .cx-ripple{ display:none; }
 }
+
+/* ===== Mobile: modals as top-anchored full-screen sheets (fixes the
+   Payment Plan being cut off / unscrollable on phones). Applies to every
+   modal -- Payment Plan, ROI, Shortlist, Analytics -- since they share
+   the same overlay. ===== */
+@media (max-width:760px){
+  .modal-overlay{ align-items:flex-start !important; padding:0 !important; overflow-y:auto !important; -webkit-overflow-scrolling:touch; }
+  .modal-card{ width:100% !important; max-width:none !important; min-height:100dvh; margin:0 !important; border-radius:0 !important; }
+  /* header: keep it sticky, but opaque so scrolled content never shows through it */
+  .modal-head{ position:sticky; top:0; z-index:5; padding:14px 16px 12px !important;
+    background:rgba(var(--bg-rgb),0.96) !important; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line-soft); gap:10px; }
+  .modal-head h3{ font-size:19px; }
+  .modal-head .msub{ font-size:11px; line-height:1.45; }
+  /* extra bottom room so the last row can scroll clear of the floating theme button */
+  .modal-body{ padding:16px 16px calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
+
+  /* Payment Plan specifics */
+  .pp-contract-row .roi-field{ flex:1 1 100%; }
+  .pp-expiry-badge{ font-size:9.5px; padding:3px 8px; }
+  .pp-summary{ gap:10px; margin-bottom:16px; }
+  .pp-summary .s-cell{ padding:10px 12px; }
+  .pp-summary .s-val{ font-size:15px; }
+  .pp-adjust-row{ gap:10px; }
+  .pp-adjust-row .roi-field{ flex:1 1 100%; min-width:0; }
+  .pp-add-quarter-btn{ width:100%; }
+
+  /* schedule: drop the # column, let descriptions wrap, keep the amount readable */
+  .pp-schedule-wrap{ max-height:none; overflow-x:auto; }
+  .pp-schedule{ table-layout:fixed; font-size:11.5px; min-width:0; }
+  .pp-schedule th:nth-child(1), .pp-schedule td:nth-child(1){ display:none; }
+  .pp-schedule th:nth-child(2), .pp-schedule td:nth-child(2){ width:78px; white-space:nowrap; }
+  .pp-schedule th:nth-child(3), .pp-schedule td:nth-child(3){ white-space:normal; line-height:1.3; }
+  .pp-schedule th:nth-child(4), .pp-schedule td:nth-child(4){ width:96px; white-space:nowrap; text-align:right; }
+  .pp-schedule th:nth-child(4){ white-space:normal; line-height:1.25; }
+  .pp-schedule th, .pp-schedule td{ padding:9px 8px; }
+  .pp-qtr-input{ width:100%; max-width:96px; padding:5px 6px; font-size:11.5px; }
+
+  /* actions: WhatsApp full width, Print + PDF side by side */
+  .pp-action-row{ display:grid !important; grid-template-columns:1fr 1fr; gap:10px; }
+  .pp-action-row .wa-share-btn:not(.print-btn){ grid-column:1 / -1; }
+  .pp-action-row > *{ width:100%; justify-content:center; margin:0; }
+}
 </style>
 
 <script id="cxSceneScript">
