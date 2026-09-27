@@ -4009,6 +4009,58 @@ function enforceAdminOnly(cfg){
   return true;
 }
 
+let sessionCheckTimer = null;
+
+// Ends the session and returns to the login screen, optionally with a reason.
+function forceSignOut(message){
+  ['castelloAuthed','castelloAuthedUser','castelloRole','castelloPerms','castelloUserId'].forEach(k=> sessionStorage.removeItem(k));
+  if(holdsPollTimer){ clearInterval(holdsPollTimer); holdsPollTimer = null; }
+  if(inventoryPollTimer){ clearInterval(inventoryPollTimer); inventoryPollTimer = null; }
+  if(sessionCheckTimer){ clearInterval(sessionCheckTimer); sessionCheckTimer = null; }
+  document.querySelectorAll('.modal-overlay.open').forEach(m=> m.classList.remove('open'));
+  root.classList.remove('visible');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  loginError.textContent = message || '';
+  gate.style.display = 'flex';
+}
+
+// Re-verifies the account with the server: suspended accounts are signed out
+// immediately, and any role/permission changes an admin made are applied
+// live. Network hiccups are ignored (fail open); only an explicit "not
+// active" or "no such account" answer ends the session.
+async function verifySession(){
+  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return;
+  const id = sessionStorage.getItem('castelloUserId');
+  if(!id){ forceSignOut('Please sign in again.'); return; }   // session predates this check
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/session_state`, {
+      method:'POST', cache:'no-store',
+      headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify({ p_user_id: id })
+    });
+    if(!res.ok) return;
+    const rows = await res.json();
+    const st = Array.isArray(rows) ? rows[0] : rows;
+    if(!st || st.is_active === false){
+      forceSignOut('This account has been suspended. Please contact your administrator.');
+      return;
+    }
+    const newPerms = JSON.stringify({ can_hold: st.can_hold, can_archive: st.can_archive, can_export: st.can_export, can_view_analytics: st.can_view_analytics });
+    const changed = (st.role && st.role !== sessionStorage.getItem('castelloRole')) || newPerms !== sessionStorage.getItem('castelloPerms');
+    if(changed){
+      if(st.role) sessionStorage.setItem('castelloRole', st.role);
+      sessionStorage.setItem('castelloPerms', newPerms);
+      refreshAdminUI();
+      render();
+    }
+  }catch(e){ /* offline or transient -- keep the session, try again next minute */ }
+}
+function startSessionCheck(){
+  if(sessionCheckTimer) return;
+  sessionCheckTimer = setInterval(verifySession, 60 * 1000);
+}
+
 function startLoginFlow(){
   blocked.style.display = 'none';
   if(sessionStorage.getItem('castelloAuthed') === 'yes'){
@@ -4022,6 +4074,8 @@ function startLoginFlow(){
     fetchHolds();
     startHoldsPolling();
     startInventoryPolling();
+    verifySession();        // a refreshed page re-checks suspension/permissions right away
+    startSessionCheck();
   } else {
     gate.style.display = 'flex';
   }
@@ -4047,6 +4101,7 @@ loginForm.addEventListener('submit', async (e)=>{
     sessionStorage.setItem('castelloAuthedUser', result.username);
     sessionStorage.setItem('castelloRole', result.role || 'sales');
     sessionStorage.setItem('castelloPerms', JSON.stringify(result.permissions || {}));
+    sessionStorage.setItem('castelloUserId', String(result.id || ''));
     if(enforceAdminOnly(latestAccessCfg)) return;
     gate.style.display = 'none';
     root.classList.add('visible');
@@ -4059,6 +4114,7 @@ loginForm.addEventListener('submit', async (e)=>{
     fetchHolds();
     startHoldsPolling();
     startInventoryPolling();
+    startSessionCheck();
   } else {
     loginError.textContent = 'Incorrect username or password.';
   }
@@ -4070,16 +4126,7 @@ function updateSessionLabel(){
 }
 document.getElementById('signOutBtn').addEventListener('click', ()=>{
   if(!confirm('Sign out of the dashboard?')) return;
-  sessionStorage.removeItem('castelloAuthed');
-  sessionStorage.removeItem('castelloAuthedUser');
-  sessionStorage.removeItem('castelloRole');
-  if(holdsPollTimer){ clearInterval(holdsPollTimer); holdsPollTimer = null; }
-  if(inventoryPollTimer){ clearInterval(inventoryPollTimer); inventoryPollTimer = null; }
-  root.classList.remove('visible');
-  document.getElementById('loginUser').value = '';
-  document.getElementById('loginPass').value = '';
-  loginError.textContent = '';
-  gate.style.display = 'flex';
+  forceSignOut('');
 });
 
 (function checkAccess(){
