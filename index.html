@@ -3614,6 +3614,47 @@ function rsvDate(v){
   if(!isNaN(n) && n > 20000 && n < 80000){ const d = new Date(Math.round((n-25569)*86400000)); return d.toISOString().slice(0,10); }
   return rsvEsc(v);
 }
+
+function rsvFmt(v){ return rsvDate(v); }
+function rsvTeamName(t){ return t==='Alaraby' ? 'Mohamed Alaraby' : (t||'—'); }
+function rsvRender(){
+  const body = document.getElementById('reservedBody'); body.className = '';
+  const all = window.__rsvList || [];
+  const q = (document.getElementById('rsvSearch')?.value || '').trim().toLowerCase();
+  const tf = document.getElementById('rsvTeam')?.value || '';
+  const list = all.filter(r=> (!tf || r.team===tf) && (!q || [r.unit_no,r.project,r.consultant,r.client_name,r.channel_name].join(' ').toLowerCase().includes(q)));
+  const teams = {}; all.forEach(r=>{ const k = r.team||'—'; teams[k]=(teams[k]||0)+1; });
+  const total = all.reduce((a,r)=>a+(Number(r.price)||0),0);
+  const stats = `<div class="rsv-stats">
+    <div class="rsv-stat"><b>${all.length}</b><span>Reserved units</span></div>
+    <div class="rsv-stat"><b>${(total/1e6).toFixed(1)}M</b><span>Total value (EGP)</span></div>
+    ${Object.keys(teams).map(k=>`<div class="rsv-stat"><b>${teams[k]}</b><span>${rsvTeamName(k)}</span></div>`).join('')}
+  </div>
+  <div class="rsv-tools"><input id="rsvSearch" placeholder="Search unit, client, agent…" value="${rsvEsc(q)}">
+    <select id="rsvTeam"><option value="">All teams</option><option value="Hossam" ${tf==='Hossam'?'selected':''}>Hossam</option><option value="Alaraby" ${tf==='Alaraby'?'selected':''}>Mohamed Alaraby</option></select></div>`;
+  const byProj = {}; list.forEach(r=> (byProj[r.project]=byProj[r.project]||[]).push(r));
+  const cards = Object.keys(byProj).map(pn=>`<div class="rsv-proj">${rsvEsc(pn)} <span>${byProj[pn].length}</span></div><div class="rsv-grid">` +
+    byProj[pn].map(r=>`<div class="rsv-card">
+      <div class="rsv-top"><div class="rsv-unit">${rsvEsc(r.unit_no)}</div>
+        <div class="rsv-price">${r.price!=null?Number(r.price).toLocaleString('en-US'):'—'}<small>EGP</small></div></div>
+      <div class="rsv-meta">${[r.unit_type, r.area?r.area+' m²':'', r.floor].filter(Boolean).map(rsvEsc).join(' · ')}</div>
+      <div class="rsv-pills">
+        ${r.team?`<span class="rsv-pill team-${rsvEsc(r.team)}">${rsvTeamName(r.team)}</span>`:''}
+        ${r.reservation_flag?`<span class="rsv-pill flag">⚑ ${rsvEsc(r.reservation_flag)}</span>`:''}
+        ${r.closure?`<span class="rsv-pill closure">✔ Closure: ${rsvFmt(r.closure)}</span>`:''}
+      </div>
+      <div class="rsv-rows">
+        <div><span>Client</span><b>${rsvEsc(r.client_name)||'—'}</b></div>
+        <div><span>Sales agent</span><b>${rsvEsc(r.consultant)||'—'}</b></div>
+        <div><span>Reserved on</span><b>${rsvFmt(r.reservation_date)}</b></div>
+        <div><span>Channel</span><b>${rsvEsc([r.channel,r.channel_name].filter(Boolean).join(' · '))||'—'}</b></div>
+      </div></div>`).join('') + '</div>').join('');
+  const keepFocus = document.activeElement && document.activeElement.id === 'rsvSearch';
+  body.innerHTML = stats + (cards || '<div class="analytics-loading">No reserved units match.</div>');
+  document.getElementById('rsvSearch').addEventListener('input', rsvRender);
+  document.getElementById('rsvTeam').addEventListener('change', rsvRender);
+  if(keepFocus){ const el = document.getElementById('rsvSearch'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+}
 document.getElementById('reservedClose').addEventListener('click', ()=> document.getElementById('reservedOverlay').classList.remove('open'));
 document.getElementById('adminReservedBtn').addEventListener('click', ()=>{
   if(!canViewReserved()) return;
@@ -3629,9 +3670,7 @@ document.getElementById('adminReservedBtn').addEventListener('click', ()=>{
       const list = (data.reserved || []).slice().sort(unitDefaultCompare ? (a,b)=> unitDefaultCompare({project:a.project,section:a.section,unit_no:a.unit_no},{project:b.project,section:b.section,unit_no:b.unit_no}) : undefined);
       document.getElementById('reservedSub').textContent = (data.team ? (data.team==='Alaraby'?'Mohamed Alaraby':data.team)+' team · ' : 'All teams · ') + list.length + ' reserved units';
       body.className = '';
-      body.innerHTML = list.length ? `<div style="overflow-x:auto"><table class="um-table" style="width:100%"><thead><tr><th>Project</th><th>Unit</th><th>Type</th><th class="num">Area m²</th><th class="num">Price</th><th>Sales agent</th><th>Team</th><th>Client</th><th>Channel</th><th>Reserved on</th></tr></thead><tbody>` +
-        list.map(r=>`<tr><td>${rsvEsc(r.project)}</td><td class="mono">${rsvEsc(r.unit_no)}</td><td>${rsvEsc(r.unit_type)}</td><td class="num">${rsvEsc(r.area)}</td><td class="num">${r.price!=null?Number(r.price).toLocaleString('en-US'):'—'}</td><td>${rsvEsc(r.consultant)||'—'}</td><td>${r.team==='Alaraby'?'Mohamed Alaraby':rsvEsc(r.team)||'—'}</td><td>${rsvEsc(r.client_name)||'—'}</td><td>${rsvEsc([r.channel,r.channel_name].filter(Boolean).join(' · '))||'—'}</td><td>${rsvDate(r.reservation_date)}</td></tr>`).join('') + '</tbody></table></div>'
-        : 'No reserved units to show.';
+      window.__rsvList = list; rsvRender();
     }catch(err){ body.textContent = 'Network error — could not reach the server.'; }
   });
 });
@@ -4896,6 +4935,32 @@ setInterval(()=>{
 .um-add-btn{ height:38px; white-space:nowrap; }
 .um-msg{ min-height:16px; font-size:12px; margin-top:8px; }
 .um-msg.ok{ color:#2ecc71; } .um-msg.err{ color:#e08a8a; }
+
+.rsv-stats{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.rsv-stat{ flex:1; min-width:110px; border:1px solid var(--line-soft); border-radius:12px; padding:12px 14px; background:linear-gradient(145deg,rgba(201,162,39,0.10),rgba(255,255,255,0.02)); }
+.rsv-stat b{ display:block; font-size:22px; font-weight:600; color:var(--gold-bright,#e6c35c); }
+.rsv-stat span{ font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--stone-dim); }
+.rsv-tools{ display:flex; gap:10px; margin-bottom:6px; }
+.rsv-tools input,.rsv-tools select{ background:rgba(255,255,255,0.04); border:1px solid var(--line-soft); color:inherit; border-radius:10px; padding:9px 12px; font:inherit; font-size:13px; }
+.rsv-tools input{ flex:1; }
+.rsv-proj{ margin:18px 0 8px; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-bright,#e6c35c); display:flex; align-items:center; gap:8px; }
+.rsv-proj span{ background:rgba(201,162,39,.18); border-radius:20px; padding:1px 8px; font-size:11px; }
+.rsv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:12px; }
+.rsv-card{ border:1px solid var(--line-soft); border-radius:14px; padding:14px 15px; background:rgba(255,255,255,0.025); border-left:3px solid var(--gold-dim,#a8842a); }
+.rsv-top{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.rsv-unit{ font-size:20px; font-weight:600; letter-spacing:.02em; }
+.rsv-price{ font-size:15px; font-weight:600; color:var(--gold-bright,#e6c35c); }
+.rsv-price small{ font-size:9px; margin-left:3px; opacity:.6; }
+.rsv-meta{ font-size:11.5px; color:var(--stone-dim); margin:2px 0 10px; }
+.rsv-pills{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; min-height:4px; }
+.rsv-pill{ font-size:10.5px; padding:3px 9px; border-radius:20px; border:1px solid var(--line-soft); }
+.rsv-pill.team-Hossam{ background:rgba(79,140,255,.15); color:#8db6ff; border-color:rgba(79,140,255,.35); }
+.rsv-pill.team-Alaraby{ background:rgba(46,190,140,.15); color:#6fdcb5; border-color:rgba(46,190,140,.35); }
+.rsv-pill.flag{ background:rgba(240,160,60,.15); color:#f2b25f; border-color:rgba(240,160,60,.35); }
+.rsv-pill.closure{ background:rgba(60,200,110,.15); color:#6fe0a0; border-color:rgba(60,200,110,.35); }
+.rsv-rows{ display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; border-top:1px solid var(--line-soft); padding-top:10px; }
+.rsv-rows span{ display:block; font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--stone-dim); }
+.rsv-rows b{ font-size:12.5px; font-weight:500; word-break:break-word; }
 .um-table td{ vertical-align:middle; }
 .um-status{ font-size:10px; letter-spacing:0.06em; text-transform:uppercase; border-radius:20px; padding:2px 8px; display:inline-block; }
 .um-status.active{ color:#2ecc71; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.35); }
