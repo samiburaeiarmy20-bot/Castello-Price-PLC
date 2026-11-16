@@ -1466,7 +1466,7 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
         </div>
         <div class="pp-schedule-wrap" style="max-height:none;">
           <table class="pp-schedule um-table">
-            <thead><tr><th>Username</th><th>Name</th><th>Role &amp; permissions</th><th>Manager / Team</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Username</th><th>Name</th><th>Role &amp; permissions</th><th>Title &amp; Team</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="usersBody"></tbody>
           </table>
         </div>
@@ -2419,7 +2419,7 @@ function userPerms(){ try{ return JSON.parse(sessionStorage.getItem('castelloPer
 function canHold(){ return isAdminUser() || (!isTestUser() && userPerms().can_hold !== false); }
 function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms().can_archive === true); }
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
-function canViewReserved(){ return isAdminUser() || (!isTestUser() && userPerms().can_view_reserved === true); }
+function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
 function canViewAnalytics(){ return hasFullVisibility() || userPerms().can_view_analytics === true; }
 // Payment Plan + ROI Calc are always present (2). Hold is present unless
 // test-viewing. Archive is admin-or-hossam. Edit/Remove no longer exist --
@@ -3560,10 +3560,14 @@ function umRenderUsers(users){
       <td>${isMe ? `<span class="mono">${u.role}</span>` : `<select class="um-role" data-user="${u.username}">
         ${['admin','sales','test'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${r}</option>`).join('')}</select>`}
         <div class="um-perms">${u.role==='admin' ? '<span class="um-perm-note">All permissions</span>' : (u.role==='test' ? '<span class="um-perm-note">View only</span>' :
-          [['can_hold','Hold'],['can_archive','Archive'],['can_export','Export PDF'],['can_view_analytics','Analytics'],['can_view_reserved','Reserved details']].map(([k,l])=>
+          [['can_hold','Hold'],['can_archive','Archive'],['can_export','Export PDF'],['can_view_analytics','Analytics']].map(([k,l])=>
             `<label><input type="checkbox" class="um-perm" data-user="${u.username}" data-perm="${k}" ${u[k]?'checked':''}> ${l}</label>`).join(''))}</div>
       </td>
-      <td>${u.role==='test' ? '<span class="um-perm-note">—</span>' : `<select class="um-team" data-user="${u.username}">
+      <td>${u.role==='test' ? '<span class="um-perm-note">—</span>' : `<select class="um-title" data-user="${u.username}" title="Title (reservations access)">
+        <option value="" ${!u.title?'selected':''}>No title</option>
+        <option value="Sales Manager" ${u.title==='Sales Manager'?'selected':''}>Sales Manager</option>
+        <option value="Sales Director" ${u.title==='Sales Director'?'selected':''}>Sales Director</option></select>
+        <select class="um-team" data-user="${u.username}">
         <option value="" ${!u.team?'selected':''}>No team</option>
         <option value="Hossam" ${u.team==='Hossam'?'selected':''}>Hossam</option>
         <option value="Alaraby" ${u.team==='Alaraby'?'selected':''}>Mohamed Alaraby</option></select>`}</td>
@@ -3616,14 +3620,14 @@ function rsvDate(v){
 }
 
 function rsvFmt(v){ return rsvDate(v); }
-function rsvTeamName(t){ return t==='Alaraby' ? 'Mohamed Alaraby' : (t||'—'); }
+function rsvTeamName(t){ return String(t||'').split(',').filter(Boolean).map(x=> x==='Alaraby' ? 'Mohamed Alaraby' : x).join(' + ') || '—'; }
 function rsvRender(){
   const body = document.getElementById('reservedBody'); body.className = '';
   const all = window.__rsvList || [];
   const q = (document.getElementById('rsvSearch')?.value || '').trim().toLowerCase();
   const tf = document.getElementById('rsvTeam')?.value || '';
-  const list = all.filter(r=> (!tf || r.team===tf) && (!q || [r.unit_no,r.project,r.consultant,r.client_name,r.channel_name].join(' ').toLowerCase().includes(q)));
-  const teams = {}; all.forEach(r=>{ const k = r.team||'—'; teams[k]=(teams[k]||0)+1; });
+  const list = all.filter(r=> (!tf || String(r.team).split(',').includes(tf)) && (!q || [r.unit_no,r.project,r.consultant,r.client_name,r.channel_name].join(' ').toLowerCase().includes(q)));
+  const teams = {}; all.forEach(r=>{ const ks = String(r.team||'').split(',').filter(Boolean); (ks.length?ks:['—']).forEach(k=> teams[k]=(teams[k]||0)+1); });
   const total = all.reduce((a,r)=>a+(Number(r.price)||0),0);
   const stats = `<div class="rsv-stats">
     <div class="rsv-stat"><b>${all.length}</b><span>Reserved units</span></div>
@@ -3639,7 +3643,7 @@ function rsvRender(){
         <div class="rsv-price">${r.price!=null?Number(r.price).toLocaleString('en-US'):'—'}<small>EGP</small></div></div>
       <div class="rsv-meta">${[r.unit_type, r.area?r.area+' m²':'', r.floor].filter(Boolean).map(rsvEsc).join(' · ')}</div>
       <div class="rsv-pills">
-        ${r.team?`<span class="rsv-pill team-${rsvEsc(r.team)}">${rsvTeamName(r.team)}</span>`:''}
+        ${String(r.team||'').split(',').filter(Boolean).map(t=>`<span class="rsv-pill team-${rsvEsc(t)}">${rsvTeamName(t)}</span>`).join('')}
         ${r.reservation_flag?`<span class="rsv-pill flag">⚑ ${rsvEsc(r.reservation_flag)}</span>`:''}
         ${r.closure?`<span class="rsv-pill closure">✔ Closure: ${rsvFmt(r.closure)}</span>`:''}
       </div>
@@ -3668,7 +3672,7 @@ document.getElementById('adminReservedBtn').addEventListener('click', ()=>{
       const data = await res.json().catch(()=>({}));
       if(!res.ok){ body.textContent = data.error || 'Could not load reserved units.'; return; }
       const list = (data.reserved || []).slice().sort(unitDefaultCompare ? (a,b)=> unitDefaultCompare({project:a.project,section:a.section,unit_no:a.unit_no},{project:b.project,section:b.section,unit_no:b.unit_no}) : undefined);
-      document.getElementById('reservedSub').textContent = (data.team ? (data.team==='Alaraby'?'Mohamed Alaraby':data.team)+' team · ' : 'All teams · ') + list.length + ' reserved units';
+      document.getElementById('reservedSub').textContent = (data.team ? rsvTeamName(data.team)+' team · ' : 'All teams · ') + list.length + ' reserved units';
       body.className = '';
       window.__rsvList = list; rsvRender();
     }catch(err){ body.textContent = 'Network error — could not reach the server.'; }
@@ -3708,6 +3712,10 @@ document.getElementById('usersBody').addEventListener('change', async (e)=>{
       const user = el.dataset.user, role = el.value;
       if(!confirm(`Change ${user}'s role to ${role}?`)){ await umRefresh(); return; }
       const d = await umCall({ action:'set_role', targetUsername:user, role }); umRenderUsers(d.users); umSetMsg('um_msg', `${user} is now ${role}.`, true);
+    } else if(el.classList.contains('um-title')){
+      const user = el.dataset.user;
+      const d = await umCall({ action:'set_title', targetUsername:user, title: el.value || null });
+      umRenderUsers(d.users); umSetMsg('um_msg', `${user} title: ${el.value || 'none'}.`, true);
     } else if(el.classList.contains('um-team')){
       const user = el.dataset.user;
       const d = await umCall({ action:'set_team', targetUsername:user, team: el.value || null });
@@ -4304,7 +4312,7 @@ async function verifySession(){
       forceSignOut('This account has been suspended. Please contact your administrator.');
       return;
     }
-    const newPerms = JSON.stringify({ can_hold: st.can_hold, can_archive: st.can_archive, can_export: st.can_export, can_view_analytics: st.can_view_analytics, can_view_reserved: st.can_view_reserved });
+    const newPerms = JSON.stringify({ can_hold: st.can_hold, can_archive: st.can_archive, can_export: st.can_export, can_view_analytics: st.can_view_analytics, title: st.title || null });
     if(st.team !== undefined) sessionStorage.setItem('castelloTeam', st.team || '');
     const changed = (st.role && st.role !== sessionStorage.getItem('castelloRole')) || newPerms !== sessionStorage.getItem('castelloPerms');
     if(changed){
@@ -4978,7 +4986,8 @@ setInterval(()=>{
 /* The password prompt can be opened from inside another modal (Users), so it must sit above every other overlay. */
 #reauthOverlay{ z-index:400 !important; }
 
-.um-role{ background:var(--bg-alt); border:1px solid var(--line-soft); border-radius:6px; padding:4px 8px; color:var(--cream); font-size:12px; }
+.um-title,.um-team,.um-role{ background:var(--bg-alt); border:1px solid var(--line-soft); border-radius:6px; padding:4px 8px; color:var(--cream); font-size:12px; }
+.um-title,.um-team{ display:block; margin-bottom:6px; }
 .um-perms{ display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:6px; }
 .um-perms label{ font-size:11px; color:var(--stone); display:inline-flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap; }
 .um-perms input{ accent-color:var(--gold-bright); }
