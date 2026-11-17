@@ -1445,6 +1445,29 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
   </div>
 </div>
 
+<div class="modal-overlay" id="pwOverlay" style="z-index:450;">
+  <div class="modal-card reauth-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="pwTitle">Change password</h3>
+        <div class="msub" id="pwSub">Choose a new password</div>
+      </div>
+      <button class="modal-close" id="pwClose">×</button>
+    </div>
+    <div class="reauth-body">
+      <p id="pwIntro">Use at least 8 characters, with letters and numbers.</p>
+      <input type="password" id="pwCurrent" placeholder="Current password" autocomplete="current-password">
+      <input type="password" id="pwNew" placeholder="New password" autocomplete="new-password" style="margin-top:8px;">
+      <input type="password" id="pwConfirm" placeholder="Repeat new password" autocomplete="new-password" style="margin-top:8px;">
+      <div class="reauth-error" id="pwError" style="margin-top:8px;"></div>
+      <div class="reauth-actions">
+        <button class="reauth-cancel" id="pwCancel">Cancel</button>
+        <button class="reauth-confirm" id="pwSave">Save password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="reservedOverlay">
   <div class="modal-card" style="max-width:980px;">
     <div class="modal-head">
@@ -1478,7 +1501,7 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
             <div class="roi-field"><label>Username</label><input type="text" id="um_newUser" autocomplete="off"></div>
             <div class="roi-field"><label>Full name</label><input type="text" id="um_newName" autocomplete="off"></div>
             <div class="roi-field"><label>Role</label><select id="um_newRole"><option value="sales">Sales</option><option value="admin">Admin</option><option value="test">Test (view only)</option></select></div>
-            <div class="roi-field"><label>Password</label><input type="text" id="um_newPass" autocomplete="off" placeholder="min 6 characters"></div>
+            <div class="roi-field"><label>Password</label><input type="text" id="um_newPass" autocomplete="off" placeholder="8+ chars, letters + numbers"></div>
             <button class="act-btn um-add-btn" id="um_addBtn" type="button">➕ Add user</button>
           </div>
           <div class="um-msg" id="um_addMsg"></div>
@@ -1625,6 +1648,7 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
       <button class="admin-btn" id="adminUsersBtn">👥 Users</button>
       <div class="session-info">
         <span id="sessionUserLabel"></span>
+        <button class="signout-btn" id="changePwBtn">🔑 Password</button>
         <button class="signout-btn" id="signOutBtn">Sign Out</button>
       </div>
     </div>
@@ -2625,7 +2649,7 @@ async function checkLoginWithServer(username, password){
       body: JSON.stringify({ username, password })
     });
     const data = await res.json().catch(()=>null);
-    if(!res.ok) return (data && data.suspended) ? { suspended:true, error:data.error } : null;
+    if(!res.ok) return (data && (data.suspended || data.locked)) ? { suspended:!!data.suspended, locked:!!data.locked, error:data.error } : null;
     return (data && data.username) ? data : null;
   }catch(err){
     return null;
@@ -3828,7 +3852,7 @@ function umRenderUsers(users){
         <option value="" ${!u.team?'selected':''}>No team</option>
         <option value="Hossam" ${u.team==='Hossam'?'selected':''}>Hossam</option>
         <option value="Alaraby" ${u.team==='Alaraby'?'selected':''}>Mohamed Alaraby</option></select>`}</td>
-      <td><span class="um-status ${u.is_active ? 'active' : 'suspended'}">${u.is_active ? 'Active' : 'Suspended'}</span></td>
+      <td><span class="um-status ${u.is_active ? 'active' : 'suspended'}">${u.is_active ? 'Active' : 'Suspended'}</span>${(u.locked_until && new Date(u.locked_until) > new Date()) ? '<div style="margin-top:6px;"><span class="um-status suspended">🔒 Locked</span> <button class="act-btn um-unlock" data-user="'+u.username+'">Unlock</button></div>' : ''}${u.must_change_password ? '<div class="um-perm-note" style="margin-top:6px;">Must change password</div>' : ''}</td>
       <td>
         <div class="um-actions">
           ${isMe ? '' : (u.is_active
@@ -3837,7 +3861,7 @@ function umRenderUsers(users){
           <button class="act-btn um-reset" data-user="${u.username}">🔑 Reset password</button>
         </div>
         <div class="um-pw-row" data-for="${u.username}" style="display:none;">
-          <input type="text" placeholder="New password (min 6)" class="um-pw-input" autocomplete="off">
+          <input type="text" placeholder="New password (8+, letters + numbers)" class="um-pw-input" autocomplete="off">
           <button class="act-btn um-pw-save" data-user="${u.username}">Save</button>
           <button class="act-btn um-pw-cancel" data-user="${u.username}">Cancel</button>
         </div>
@@ -3943,7 +3967,9 @@ document.getElementById('usersBody').addEventListener('click', async (e)=>{
   const btn = e.target.closest('button'); if(!btn) return;
   const user = btn.dataset.user;
   try{
-    if(btn.classList.contains('um-suspend')){
+    if(btn.classList.contains('um-unlock')){
+      const d = await umCall({ action:'unlock', targetUsername:user }); umRenderUsers(d.users); umSetMsg('um_msg', `${user} unlocked.`, true);
+    } else if(btn.classList.contains('um-suspend')){
       if(!confirm(`Suspend ${user}? They won't be able to log in until restored.`)) return;
       const d = await umCall({ action:'suspend', targetUsername:user }); umRenderUsers(d.users); umSetMsg('um_msg', `${user} suspended.`, true);
     } else if(btn.classList.contains('um-unsuspend')){
@@ -3954,7 +3980,7 @@ document.getElementById('usersBody').addEventListener('click', async (e)=>{
       const row = btn.closest('.um-pw-row'); row.style.display = 'none'; row.querySelector('input').value = '';
     } else if(btn.classList.contains('um-pw-save')){
       const row = btn.closest('.um-pw-row'); const pw = row.querySelector('input').value;
-      if(pw.length < 6){ umSetMsg('um_msg', 'Password must be at least 6 characters.', false); return; }
+      if(!pwStrong(pw)){ umSetMsg('um_msg', 'Password must be at least 8 characters and include letters and numbers.', false); return; }
       await umCall({ action:'set_password', targetUsername:user, newPassword:pw });
       row.style.display = 'none'; row.querySelector('input').value = '';
       umSetMsg('um_msg', `Password updated for ${user}.`, true);
@@ -3994,7 +4020,7 @@ document.getElementById('um_addBtn').addEventListener('click', async ()=>{
   const fullName = document.getElementById('um_newName').value.trim();
   const role = document.getElementById('um_newRole').value;
   const newPassword = document.getElementById('um_newPass').value;
-  if(!newUsername || newPassword.length < 6){ umSetMsg('um_addMsg', 'Username and a password of at least 6 characters are required.', false); return; }
+  if(!newUsername || !pwStrong(newPassword)){ umSetMsg('um_addMsg', 'Username and a password of 8+ characters with letters and numbers are required.', false); return; }
   try{
     const d = await umCall({ action:'create', newUsername, fullName, role, newPassword });
     umRenderUsers(d.users);
@@ -4584,6 +4610,47 @@ async function verifySession(){
     }
   }catch(e){ /* offline or transient -- keep the session, try again next minute */ }
 }
+/* ---- Change password (forced at first login / after an admin reset, or on demand) ---- */
+const CHANGE_PASSWORD_URL = 'https://nzojoticksiiidvzmlvx.supabase.co/functions/v1/change-password';
+function pwStrong(p){ return typeof p === 'string' && p.length >= 8 && /[A-Za-z]/.test(p) && /[0-9]/.test(p); }
+let pwForced = false, pwKnownCurrent = '';
+function openPasswordModal(forced, currentPw){
+  pwForced = !!forced; pwKnownCurrent = currentPw || '';
+  document.getElementById('pwTitle').textContent = forced ? 'Choose your own password' : 'Change password';
+  document.getElementById('pwSub').textContent = forced ? 'Required before you continue' : 'Update your sign-in password';
+  document.getElementById('pwIntro').textContent = forced ? 'Your password was set by an administrator. Please choose a new one that only you know. Use at least 8 characters, with letters and numbers.' : 'Use at least 8 characters, with letters and numbers.';
+  document.getElementById('pwCurrent').style.display = pwKnownCurrent ? 'none' : '';
+  ['pwCurrent','pwNew','pwConfirm'].forEach(id=> document.getElementById(id).value = '');
+  document.getElementById('pwError').textContent = '';
+  document.getElementById('pwClose').style.display = forced ? 'none' : '';
+  document.getElementById('pwCancel').textContent = forced ? 'Sign out' : 'Cancel';
+  document.getElementById('pwOverlay').classList.add('open');
+  setTimeout(()=> document.getElementById(pwKnownCurrent ? 'pwNew' : 'pwCurrent').focus(), 50);
+}
+function closePasswordModal(){ document.getElementById('pwOverlay').classList.remove('open'); pwKnownCurrent = ''; }
+document.getElementById('changePwBtn').addEventListener('click', ()=> openPasswordModal(false, ''));
+document.getElementById('pwClose').addEventListener('click', ()=>{ if(!pwForced) closePasswordModal(); });
+document.getElementById('pwCancel').addEventListener('click', ()=>{ if(pwForced){ closePasswordModal(); forceSignOut(''); } else closePasswordModal(); });
+document.getElementById('pwSave').addEventListener('click', async ()=>{
+  const err = document.getElementById('pwError'), btn = document.getElementById('pwSave');
+  const cur = pwKnownCurrent || document.getElementById('pwCurrent').value;
+  const n1 = document.getElementById('pwNew').value, n2 = document.getElementById('pwConfirm').value;
+  if(!cur){ err.textContent = 'Enter your current password.'; return; }
+  if(!pwStrong(n1)){ err.textContent = 'New password must be at least 8 characters with letters and numbers.'; return; }
+  if(n1 !== n2){ err.textContent = 'The two new passwords do not match.'; return; }
+  btn.disabled = true; err.textContent = '';
+  try{
+    const res = await fetch(CHANGE_PASSWORD_URL, { method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY, 'apikey': SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify({ username: currentAgentName(), password: cur, newPassword: n1 }) });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){ err.textContent = data.error || 'Could not change the password.'; return; }
+    closePasswordModal(); pwForced = false;
+    try{ shareToast('Password changed'); }catch(e){}
+  }catch(e){ err.textContent = 'Network error — nothing was changed.'; }
+  finally{ btn.disabled = false; }
+});
+
 /* ---- Login expiry: idle timeout + maximum session length ---- */
 const IDLE_LIMIT_MS = 30 * 60 * 1000;        // signed out after 30 min of no activity
 const MAX_SESSION_MS = 12 * 60 * 60 * 1000;  // and always after 12 hours
@@ -4640,7 +4707,7 @@ loginForm.addEventListener('submit', async (e)=>{
   const result = await checkLoginWithServer(uRaw, p);
   submitBtn.disabled = false;
   submitBtn.textContent = originalLabel;
-  if(result && result.suspended){
+  if(result && (result.suspended || result.locked)){
     loginError.textContent = result.error || 'This account has been suspended.';
     return;
   }
@@ -4666,6 +4733,7 @@ loginForm.addEventListener('submit', async (e)=>{
     startHoldsPolling();
     startInventoryPolling();
     startSessionCheck();
+    if(result.must_change_password) openPasswordModal(true, p);
   } else {
     loginError.textContent = 'Incorrect username or password.';
   }
