@@ -1292,6 +1292,11 @@ thead th{ background:var(--glass-strong); backdrop-filter:blur(18px); -webkit-ba
 td.proj img{ width:32px; height:32px; }
 html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="graphite-champagne"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="midnight-navy"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="aurora"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="neon-nights"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="golden-glow"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="ocean-pulse"] .seal[data-key^="Atlantis"] .medallion img{ filter:invert(1) brightness(1.05); }
 @media (max-width:760px){ .seal .medallion{ height:54px; } #tbody td.proj img{ width:38px; height:38px; } }
+
+/* Units on hold by someone else: soft glowing lock + countdown (name stays hidden) */
+.act-btn.act-hold.others.glow{ position:relative; color:#ffb4b4; border-color:rgba(255,110,110,.55); background:rgba(255,80,80,.10); animation:holdGlow 2.8s ease-in-out infinite; }
+@keyframes holdGlow{ 0%,100%{ box-shadow:0 0 6px -1px rgba(255,90,90,.35); } 50%{ box-shadow:0 0 18px 0 rgba(255,90,90,.75); } }
+@media (prefers-reduced-motion: reduce){ .act-btn.act-hold.others.glow{ animation:none; box-shadow:0 0 12px -2px rgba(255,90,90,.6); } }
 </style>
 </head>
 <body>
@@ -2691,6 +2696,7 @@ function isNewUnit(u){
   return (Date.now() - t) < NEW_UNIT_HOURS * 60 * 60 * 1000;
 }
 
+function isMineHold(h){ return !!h && (h.isMine === true || (!!h.heldBy && h.heldBy.toLowerCase() === currentAgentName().toLowerCase())); }
 function holdLeftMs(h){ return h && h.expiresAt ? new Date(h.expiresAt).getTime() - Date.now() : 0; }
 function fmtLeft(ms){ const m = Math.max(0, Math.round(ms/60000)); return m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`; }
 const HOLD_WARN_MS = 2 * 60 * 60 * 1000;
@@ -2698,7 +2704,7 @@ function updateHoldBanner(){
   let b = document.getElementById('holdBanner');
   if(!b){ b = document.createElement('div'); b.id = 'holdBanner'; const sf = document.getElementById('savedFilters'); sf.parentNode.insertBefore(b, sf); }
   const me = currentAgentName().toLowerCase();
-  const mine = Object.values(holdsMap).filter(h=> h && h.heldBy && h.heldBy.toLowerCase() === me && holdLeftMs(h) > 0);
+  const mine = Object.values(holdsMap).filter(h=> isMineHold(h) && holdLeftMs(h) > 0);
   if(!featureOn('can_hold_alerts') || !mine.length || sessionStorage.getItem('castelloAuthed') !== 'yes'){ b.style.display = 'none'; return; }
   mine.sort((a,c)=> holdLeftMs(a) - holdLeftMs(c));
   const soon = mine.filter(h=> holdLeftMs(h) <= HOLD_WARN_MS);
@@ -2715,7 +2721,7 @@ function holdButtonHtml(u){
   const h = holdsMap[key];
   const now = Date.now();
   if(h && h.expiresAt && new Date(h.expiresAt).getTime() > now){
-    const mine = h.heldBy && h.heldBy.toLowerCase() === currentAgentName().toLowerCase();
+    const mine = isMineHold(h);
     if(mine){
       const left = holdLeftMs(h), alerts = featureOn('can_hold_alerts');
       return `<button class="act-btn act-hold mine ${alerts && left <= HOLD_WARN_MS ? 'expiring' : ''}" data-idx="${u.__idx}" title="Release your hold${alerts ? ' — expires in ' + fmtLeft(left) : ''}"><span class="hold-l1">🔓 Release</span>${alerts ? `<span class="hold-l2">${fmtLeft(left)} left</span>` : ''}</button>`;
@@ -2723,8 +2729,8 @@ function holdButtonHtml(u){
     if(isAdminUser()){
       return `<button class="act-btn act-hold others admin-can-release" data-idx="${u.__idx}" title="Held by ${h.heldBy} — click to release"><span class="hold-l1">🔒 ${h.heldBy}</span>${featureOn('can_hold_alerts') ? `<span class="hold-l2">${fmtLeft(holdLeftMs(h))} left</span>` : ''}</button>`;
     }
-    // Anyone else: no name shown, and no permission to act on it until it's free again.
-    return `<button class="act-btn act-hold others" data-idx="${u.__idx}" style="opacity:.6; cursor:default;">🔒 On Hold</button>`;
+    // Anyone else: glowing "On Hold" with the countdown, but never the holder's name.
+    return `<button class="act-btn act-hold others glow" data-idx="${u.__idx}" style="cursor:default;" title="On hold — available again in ${fmtLeft(holdLeftMs(h))}"><span class="hold-l1">🔒 On Hold</span><span class="hold-l2">${fmtLeft(holdLeftMs(h))} left</span></button>`;
   }
   return `<button class="act-btn act-hold" data-idx="${u.__idx}">🔒 Hold</button>`;
 }
@@ -2851,7 +2857,7 @@ async function performHoldAction(action, key, u, expiresAt, password){
       return;
     }
     if(action === 'hold'){
-      holdsMap[key] = { unitKey:key, unitLabel:label, heldBy: currentAgentName(), heldAt: new Date().toISOString(), expiresAt };
+      holdsMap[key] = { unitKey:key, unitLabel:label, isMine:true, heldBy: currentAgentName(), heldAt: new Date().toISOString(), expiresAt };
       render();
       const d = new Date();
       const dateStr = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
@@ -2873,10 +2879,10 @@ function handleHoldClick(u){
   const label = `${u.project}${u.subtitle?' · '+u.subtitle:''} — Unit ${u.unit_no}`;
 
   if(h && h.expiresAt && new Date(h.expiresAt).getTime() > now){
-    const mine = h.heldBy && h.heldBy.toLowerCase() === currentAgentName().toLowerCase();
+    const mine = isMineHold(h);
     if(!mine && !isAdminUser()) return; // held by someone else, not admin -- no action
     openReAuthModal(
-      mine ? `Confirm releasing your hold on ${label}.` : `Confirm releasing ${h.heldBy}'s hold on ${label}.`,
+      mine ? `Confirm releasing your hold on ${label}.` : `Confirm releasing ${h.heldBy || 'this'} hold on ${label}.`,
       (password)=>{ performHoldAction('release', key, u, null, password); }
     );
     return;
@@ -2894,20 +2900,15 @@ function handleHoldClick(u){
 async function fetchHolds(){
   try{
     const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization': 'Bearer ' + SUPABASE_PUBLISHABLE_KEY };
-    const url = `${SUPABASE_URL}/rest/v1/holds?select=*,units(unit_key),users(username)&released_at=is.null`;
-    const res = await fetch(url, { headers, cache:'no-store' });
+    // Server hides everyone else's name: only admins get the holder, others just get "is it mine?".
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/holds_live`, { method:'POST', headers:{ ...headers, 'Content-Type':'application/json' }, cache:'no-store',
+      body: JSON.stringify({ p_user_id: sessionStorage.getItem('castelloUserId') || '00000000-0000-0000-0000-000000000000' }) });
     if(!res.ok) throw new Error('fetch failed');
     const rows = await res.json();
     const map = {};
     (rows||[]).forEach(r=>{
-      const uk = r.units ? r.units.unit_key : null;
-      if(!uk) return;
-      map[uk] = {
-        unitKey: uk,
-        heldBy: r.users ? r.users.username : '',
-        heldAt: r.held_at,
-        expiresAt: r.expires_at
-      };
+      if(!r.unit_key) return;
+      map[r.unit_key] = { unitKey: r.unit_key, isMine: !!r.is_mine, heldBy: r.holder || '', heldAt: r.held_at, expiresAt: r.expires_at };
     });
     holdsMap = map;
     render();
