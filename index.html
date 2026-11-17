@@ -1488,6 +1488,8 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
     <div class="modal-body">
       <h4 class="analytics-section-head">📦 Inventory Breakdown</h4>
       <div id="inventoryBody"></div>
+      <h4 class="analytics-section-head">🖱️ What people do <select id="actDays" class="um-role" style="margin-left:10px"><option value="1">Today</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option></select></h4>
+      <div id="activityBody"></div>
       <h4 class="analytics-section-head">👥 Team Activity</h4>
       <div id="analyticsBody">
         <div class="analytics-loading">Loading…</div>
@@ -2635,6 +2637,7 @@ async function performHoldAction(action, key, u, expiresAt, password){
 }
 
 function handleHoldClick(u){
+  try{ track('hold_click', unitLabelForTrack(u)); }catch(e){}
   const key = unitKey(u);
   const h = holdsMap[key];
   const now = Date.now();
@@ -2712,6 +2715,7 @@ function defaultsForUnit(u){
 }
 
 function openRoiModal(u){
+  try{ track('roi_calc', unitLabelForTrack(u)); }catch(e){}
   currentUnit = u;
   document.getElementById('roiUnitLabel').textContent = `${u.project}${u.subtitle?' · '+u.subtitle:''} · Unit ${u.unit_no} · ${u.unit_type||''}`;
   const d = defaultsForUnit(u);
@@ -2879,6 +2883,7 @@ function renderPPCashCard(){
 }
 
 function openPaymentModal(u){
+  try{ track('payment_plan', unitLabelForTrack(u)); }catch(e){}
   ppUnit = u;
   ppSelectedIdx = 0;
   ppAdjustState = null;
@@ -3020,6 +3025,7 @@ document.getElementById('ppPrintBtn').addEventListener('click', (e)=>{
   if(!isPlanValid()){ alert('This payment plan doesn\'t add up correctly -- the final installment is negative. Fix the edited quarters before downloading.'); return; }
   renderPPPrintArea();
   const unitNo = ppUnit ? ppUnit.unit_no : 'plan';
+  try{ track('pp_download', ppUnit ? unitLabelForTrack(ppUnit) : ''); }catch(e){}
   downloadPdfFromPrintArea(`${String(unitNo).replace(/[\\/:*?"<>|\s]+/g,'_')}.pdf`, e.currentTarget);
 });
 
@@ -3467,6 +3473,7 @@ function plWaitImages(root){
 }
 
 async function exportPriceListPdf(projectKey, filename, triggerBtn){
+  try{ track('export_pricelist', projectKey); }catch(e){}
   const keys = projectKey === '__all__' ? PROJECTS.map(p=>p.key) : [projectKey];
   const pages = []; keys.forEach(k => pages.push(...buildPriceListPages(k)));
   if(!pages.length){ alert('There are no released units to export for this selection.'); return; }
@@ -3528,9 +3535,70 @@ document.getElementById('exportPriceListGenBtn').addEventListener('click', async
 
 document.getElementById('adminAnalyticsBtn').addEventListener('click', ()=>{
   analyticsOverlay.classList.add('open');
+  loadActivity(Number(document.getElementById('actDays').value));
   renderInventoryBreakdown();
   loadAnalytics();
 });
+
+/* ---- Activity tracking: what people do (admins see it in Analytics) ---- */
+const ACT_RPC = SUPABASE_URL + '/rest/v1/rpc/';
+let actQueue = [];
+function track(event, detail){
+  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return;
+  actQueue.push({ event, detail: detail ? String(detail).slice(0,200) : '' });
+  if(actQueue.length >= 20) flushActivity();
+}
+function flushActivity(){
+  const uid = sessionStorage.getItem('castelloUserId');
+  if(!uid || actQueue.length === 0) return;
+  const batch = actQueue.splice(0, 50);
+  try{
+    fetch(ACT_RPC + 'log_events', { method:'POST', keepalive:true,
+      headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify({ p_user_id: uid, p_events: batch }) }).catch(()=>{});
+  }catch(e){}
+}
+setInterval(flushActivity, 20000);
+window.addEventListener('pagehide', flushActivity);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) flushActivity(); });
+let actSearchTimer = null;
+document.getElementById('searchInput').addEventListener('input', e=>{
+  clearTimeout(actSearchTimer);
+  const v = e.target.value.trim();
+  if(v.length >= 2) actSearchTimer = setTimeout(()=> track('search', v), 1500);
+});
+document.getElementById('tbody').addEventListener('click', e=>{
+  const b = e.target.closest('.star-btn');
+  if(b && !b.classList.contains('active')){ const tr = b.closest('tr'); track('shortlist', tr ? tr.innerText.replace(/\s+/g,' ').slice(0,60) : ''); }
+});
+const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} — ${u.unit_no}`;
+
+/* Admin view */
+function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports' };
+async function loadActivity(days){
+  const box = document.getElementById('activityBody');
+  box.innerHTML = '<div class="analytics-loading">Loading…</div>';
+  try{
+    const res = await fetch(ACT_RPC + 'activity_summary', { method:'POST',
+      headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify({ p_user_id: sessionStorage.getItem('castelloUserId') || '', p_days: days }) });
+    const d = await res.json();
+    if(!res.ok || d.error){ box.innerHTML = '<div class="analytics-error">Activity data is not available yet. Run castello_erp_activity_log.sql in Supabase.</div>'; return; }
+    const tbl = (head, rows) => `<div style="overflow-x:auto"><table class="um-table" style="width:100%"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${head.length}" style="opacity:.6">Nothing yet</td></tr>`}</tbody></table></div>`;
+    const ago = t => { const m = Math.round((Date.now()-new Date(t))/60000); return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'; };
+    box.innerHTML = `<div class="rsv-stats">${(d.top_events||[]).filter(x=>ACT_LABELS[x.event]).map(x=>`<div class="rsv-stat"><b>${x.n}</b><span>${ACT_LABELS[x.event]}</span></div>`).join('')}</div>
+      <h4 class="analytics-section-head">Per person</h4>
+      ${tbl(['User','Sign-ins','Plans opened','ROI','Hold clicks','Last active'], (d.per_user||[]).map(u=>`<tr><td class="mono">${actEsc(u.username)}</td><td>${u.logins}</td><td>${u.plans}</td><td>${u.rois}</td><td>${u.holds}</td><td>${ago(u.last_active)}</td></tr>`))}
+      <h4 class="analytics-section-head">Most-viewed units</h4>
+      ${tbl(['Unit','Interactions','People'], (d.top_units||[]).map(u=>`<tr><td>${actEsc(u.detail)}</td><td>${u.n}</td><td>${u.people}</td></tr>`))}
+      <h4 class="analytics-section-head">Top searches</h4>
+      ${tbl(['Search','Times'], (d.top_searches||[]).map(u=>`<tr><td>${actEsc(u.detail)}</td><td>${u.n}</td></tr>`))}
+      <h4 class="analytics-section-head">Latest activity</h4>
+      ${tbl(['Who','What','Detail','When'], (d.recent||[]).map(u=>`<tr><td class="mono">${actEsc(u.username)}</td><td>${actEsc(ACT_LABELS[u.event]||u.event)}</td><td>${actEsc(u.detail)}</td><td>${ago(u.at)}</td></tr>`))}`;
+  }catch(e){ box.innerHTML = '<div class="analytics-error">Could not load activity.</div>'; }
+}
+document.getElementById('actDays').addEventListener('change', e=> loadActivity(Number(e.target.value)));
 
 const MANAGE_USERS_FUNCTION_URL = 'https://nzojoticksiiidvzmlvx.supabase.co/functions/v1/manage-users';
 const usersOverlay = document.getElementById('usersOverlay');
@@ -4396,6 +4464,7 @@ loginForm.addEventListener('submit', async (e)=>{
     root.classList.add('visible');
     loginError.textContent = '';
     logVisit(result.username);
+    setTimeout(()=> track('login', result.username), 0);
     refreshAdminUI();
     updateSessionLabel();
     render();
