@@ -1487,7 +1487,7 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
 </div>
 
 <div class="modal-overlay" id="usersOverlay">
-  <div class="modal-card" style="max-width:820px;">
+  <div class="modal-card" style="max-width:980px;">
     <div class="modal-head">
       <div>
         <h3>Users</h3>
@@ -1509,12 +1509,17 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
           </div>
           <div class="um-msg" id="um_addMsg"></div>
         </div>
-        <div class="pp-schedule-wrap" style="max-height:none;">
-          <table class="pp-schedule um-table">
-            <thead><tr><th>Username</th><th>Name</th><th>Role &amp; permissions</th><th>Title &amp; Team</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody id="usersBody"></tbody>
-          </table>
+        <div class="uc-toolbar">
+          <div class="uc-stats" id="ucStats"></div>
+          <div class="uc-filters">
+            <input type="text" id="ucSearch" placeholder="Search name or username…" autocomplete="off">
+            <select id="ucFilter">
+              <option value="all">Everyone</option><option value="admin">Admins</option><option value="sales">Sales</option>
+              <option value="manager">Managers &amp; Directors</option><option value="suspended">Suspended</option><option value="locked">Locked</option>
+            </select>
+          </div>
         </div>
+        <div class="uc-list" id="usersBody"></div>
         <div class="um-msg" id="um_msg"></div>
       </div>
     </div>
@@ -3842,46 +3847,119 @@ async function umCall(payload){
   return data;
 }
 function umSetMsg(id, text, ok){ const el = document.getElementById(id); el.textContent = text || ''; el.className = 'um-msg' + (text ? (ok ? ' ok' : ' err') : ''); }
+const UC_PERM_COLUMNS = [['can_hold','Hold units'],['can_archive','Archive units'],['can_export','Export price list'],['can_view_analytics','Analytics']];
+let umUsersCache = [], umOpenCards = new Set();
+function ucEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function ucInitials(u){
+  const parts = String(u.full_name || u.username).trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]||'?')[0] + (parts.length>1 ? parts[parts.length-1][0] : '')).toUpperCase();
+}
+function ucHue(name){ let h = 0; for(const ch of String(name).toLowerCase()) h = (h*31 + ch.charCodeAt(0)) % 360; return h; }
+function ucIsLocked(u){ return !!(u.locked_until && new Date(u.locked_until) > new Date()); }
+function ucSwitch(cls, attrs, checked, label, hint){
+  return `<label class="uc-sw"><input type="checkbox" class="${cls}" ${attrs} ${checked?'checked':''}><span class="uc-track"><span class="uc-knob"></span></span><span class="uc-sw-label">${label}${hint?`<small>${hint}</small>`:''}</span></label>`;
+}
 function umRenderUsers(users){
+  if(Array.isArray(users)) umUsersCache = users;
   const me = currentAgentName().toLowerCase();
   const body = document.getElementById('usersBody');
-  body.innerHTML = users.map(u=>{
+  const q = (document.getElementById('ucSearch')?.value || '').trim().toLowerCase();
+  const flt = document.getElementById('ucFilter')?.value || 'all';
+  const all = umUsersCache;
+  document.getElementById('ucStats').innerHTML =
+    `<span class="uc-stat"><b>${all.length}</b> users</span><span class="uc-stat ok"><b>${all.filter(u=>u.is_active).length}</b> active</span>` +
+    `<span class="uc-stat gold"><b>${all.filter(u=>u.role==='admin').length}</b> admins</span>` +
+    (all.some(u=>!u.is_active) ? `<span class="uc-stat bad"><b>${all.filter(u=>!u.is_active).length}</b> suspended</span>` : '') +
+    (all.some(ucIsLocked) ? `<span class="uc-stat bad"><b>${all.filter(ucIsLocked).length}</b> locked</span>` : '');
+  const list = all.filter(u=>{
+    if(q && !(String(u.username).toLowerCase().includes(q) || String(u.full_name||'').toLowerCase().includes(q))) return false;
+    if(flt==='admin') return u.role==='admin';
+    if(flt==='sales') return u.role==='sales';
+    if(flt==='manager') return !!u.title;
+    if(flt==='suspended') return !u.is_active;
+    if(flt==='locked') return ucIsLocked(u);
+    return true;
+  });
+  if(!list.length){ body.innerHTML = '<div class="analytics-loading">No users match.</div>'; return; }
+  body.innerHTML = list.map(u=>{
     const isMe = String(u.username).toLowerCase() === me;
-    return `<tr data-user="${u.username}">
-      <td class="mono">${u.username}${isMe ? ' <span style="opacity:.55;font-size:10px;">(you)</span>' : ''}</td>
-      <td>${u.full_name || ''}</td>
-      <td>${isMe ? `<span class="mono">${u.role}</span>` : `<select class="um-role" data-user="${u.username}">
-        ${['admin','sales','test'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${r}</option>`).join('')}</select>`}
-        <div class="um-perms">${u.role==='admin' ? '<span class="um-perm-note">All permissions</span>' : (u.role==='test' ? '<span class="um-perm-note">View only</span>' : FEATURE_DEFS.map(([k,l])=>
-            `<label><input type="checkbox" class="um-feat" data-user="${u.username}" data-feat="${k}" ${(u.features||{})[k]!==false?'checked':''}> ${l}</label>`).join('') +
-          [['can_hold','Hold'],['can_archive','Archive'],['can_export','Export PDF'],['can_view_analytics','Analytics']].map(([k,l])=>
-            `<label><input type="checkbox" class="um-perm" data-user="${u.username}" data-perm="${k}" ${u[k]?'checked':''}> ${l}</label>`).join(''))}</div>
-      </td>
-      <td>${u.role==='test' ? '<span class="um-perm-note">—</span>' : `<select class="um-title" data-user="${u.username}" title="Title (reservations access)">
-        <option value="" ${!u.title?'selected':''}>No title</option>
-        <option value="Sales Manager" ${u.title==='Sales Manager'?'selected':''}>Sales Manager</option>
-        <option value="Sales Director" ${u.title==='Sales Director'?'selected':''}>Sales Director</option></select>
-        <select class="um-team" data-user="${u.username}">
-        <option value="" ${!u.team?'selected':''}>No team</option>
-        <option value="Hossam" ${u.team==='Hossam'?'selected':''}>Hossam</option>
-        <option value="Alaraby" ${u.team==='Alaraby'?'selected':''}>Mohamed Alaraby</option></select>`}</td>
-      <td><span class="um-status ${u.is_active ? 'active' : 'suspended'}">${u.is_active ? 'Active' : 'Suspended'}</span>${(u.locked_until && new Date(u.locked_until) > new Date()) ? '<div style="margin-top:6px;"><span class="um-status suspended">🔒 Locked</span> <button class="act-btn um-unlock" data-user="'+u.username+'">Unlock</button></div>' : ''}${u.must_change_password ? '<div class="um-perm-note" style="margin-top:6px;">Must change password</div>' : ''}</td>
-      <td>
-        <div class="um-actions">
+    const un = ucEsc(u.username);
+    const hue = ucHue(u.username);
+    const isAdminRole = u.role === 'admin', isTest = u.role === 'test';
+    const feats = u.features || {};
+    const permStates = [...UC_PERM_COLUMNS.map(([k])=> !!u[k]), ...FEATURE_DEFS.map(([k])=> feats[k] !== false)];
+    const enabled = permStates.filter(Boolean).length;
+    const permSummary = isAdminRole ? 'Full access' : (isTest ? 'View only' : `${enabled} of ${permStates.length} permissions on`);
+    const locked = ucIsLocked(u);
+    const open = umOpenCards.has(u.username);
+    const teamName = u.team === 'Alaraby' ? 'Mohamed Alaraby' : u.team;
+    return `<div class="uc-card ${u.is_active?'':'is-off'} ${open?'open':''}" data-user="${un}">
+      <div class="uc-head">
+        <div class="uc-avatar ${isAdminRole?'admin':''}" style="--h:${hue}">${ucEsc(ucInitials(u))}<span class="uc-dot ${u.is_active?'on':'off'}"></span></div>
+        <div class="uc-id">
+          <div class="uc-name">${ucEsc(u.full_name || u.username)}${isMe?' <span class="uc-you">you</span>':''}</div>
+          <div class="uc-user">@${un}</div>
+          <div class="uc-badges">
+            <span class="uc-badge role-${ucEsc(u.role)}">${isAdminRole?'👑 ':''}${ucEsc(u.role)}</span>
+            ${u.title?`<span class="uc-badge title">🎖 ${ucEsc(u.title)}</span>`:''}
+            ${teamName?`<span class="uc-badge team-${ucEsc(u.team)}">${ucEsc(teamName)}</span>`:''}
+            ${!u.is_active?'<span class="uc-badge bad">Suspended</span>':''}
+            ${locked?'<span class="uc-badge bad">🔒 Locked</span>':''}
+            ${u.must_change_password?'<span class="uc-badge warn">Must change password</span>':''}
+          </div>
+        </div>
+        <div class="uc-actions">
+          ${locked?`<button class="act-btn um-unlock" data-user="${un}">Unlock</button>`:''}
           ${isMe ? '' : (u.is_active
-            ? `<button class="act-btn act-remove-unit um-suspend" data-user="${u.username}">⛔ Suspend</button>`
-            : `<button class="act-btn act-unarchive-unit um-unsuspend" data-user="${u.username}">✅ Restore</button>`)}
-          <button class="act-btn um-reset" data-user="${u.username}">🔑 Reset password</button>
+            ? `<button class="act-btn act-remove-unit um-suspend" data-user="${un}">⛔ Suspend</button>`
+            : `<button class="act-btn act-unarchive-unit um-unsuspend" data-user="${un}">✅ Restore</button>`)}
+          <button class="act-btn um-reset" data-user="${un}">🔑 Password</button>
+          <button class="act-btn uc-toggle" data-user="${un}" aria-label="Show details">${open?'▴':'▾'}</button>
         </div>
-        <div class="um-pw-row" data-for="${u.username}" style="display:none;">
-          <input type="text" placeholder="New password (8+, letters + numbers)" class="um-pw-input" autocomplete="off">
-          <button class="act-btn um-pw-save" data-user="${u.username}">Save</button>
-          <button class="act-btn um-pw-cancel" data-user="${u.username}">Cancel</button>
+      </div>
+      <div class="um-pw-row" data-for="${un}" style="display:none;">
+        <input type="text" placeholder="New password (8+, letters + numbers)" class="um-pw-input" autocomplete="off">
+        <button class="act-btn um-pw-save" data-user="${un}">Save</button>
+        <button class="act-btn um-pw-cancel" data-user="${un}">Cancel</button>
+      </div>
+      <div class="uc-summary">${permSummary}</div>
+      <div class="uc-body">
+        <div class="uc-selects">
+          <label>Role ${isMe ? `<span class="uc-fixed">${ucEsc(u.role)}</span>` : `<select class="um-role" data-user="${un}">${['admin','sales','test'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${r}</option>`).join('')}</select>`}</label>
+          ${isTest ? '' : `<label>Title <select class="um-title" data-user="${un}">
+              <option value="" ${!u.title?'selected':''}>No title</option>
+              <option value="Sales Manager" ${u.title==='Sales Manager'?'selected':''}>Sales Manager</option>
+              <option value="Sales Director" ${u.title==='Sales Director'?'selected':''}>Sales Director</option></select></label>
+            <label>Team / Manager <select class="um-team" data-user="${un}">
+              <option value="" ${!u.team?'selected':''}>No team</option>
+              <option value="Hossam" ${u.team==='Hossam'?'selected':''}>Hossam</option>
+              <option value="Alaraby" ${u.team==='Alaraby'?'selected':''}>Mohamed Alaraby</option></select></label>`}
         </div>
-      </td>
-    </tr>`;
+        ${isAdminRole ? '<div class="uc-note">👑 Admins have every permission, can manage users and see all reserved units.</div>'
+          : isTest ? '<div class="uc-note">👁 Test accounts are view-only: no holds, archive, export or analytics.</div>'
+          : `<div class="uc-perm-grid">
+              <div class="uc-group"><div class="uc-group-title">Actions</div>
+                ${UC_PERM_COLUMNS.map(([k,l])=> ucSwitch('um-perm', `data-user="${un}" data-perm="${k}"`, !!u[k], l)).join('')}
+              </div>
+              <div class="uc-group"><div class="uc-group-title">Sales tools</div>
+                ${FEATURE_DEFS.map(([k,l])=> ucSwitch('um-feat', `data-user="${un}" data-feat="${k}"`, feats[k] !== false, l)).join('')}
+              </div>
+              <div class="uc-group"><div class="uc-group-title">Reserved units</div>
+                <div class="uc-reserved ${u.title?'yes':''}">${u.title==='Sales Director' ? '✔ Sees both teams’ reservations' : u.title==='Sales Manager' ? `✔ Sees ${ucEsc(teamName||'no team yet — set a team')} reservations` : '✖ No access — give a Sales Manager or Director title'}</div>
+              </div>
+            </div>`}
+      </div>
+    </div>`;
   }).join('');
 }
+document.getElementById('usersBody').addEventListener('click', e=>{
+  const t = e.target.closest('.uc-toggle'); if(!t) return;
+  const u = t.dataset.user;
+  if(umOpenCards.has(u)) umOpenCards.delete(u); else umOpenCards.add(u);
+  const card = t.closest('.uc-card'); card.classList.toggle('open', umOpenCards.has(u)); t.textContent = umOpenCards.has(u) ? '▴' : '▾';
+});
+document.getElementById('ucSearch').addEventListener('input', ()=> umRenderUsers());
+document.getElementById('ucFilter').addEventListener('change', ()=> umRenderUsers());
 async function umRefresh(){
   const data = await umCall({ action:'list' });
   umRenderUsers(data.users || []);
@@ -3988,7 +4066,7 @@ document.getElementById('usersBody').addEventListener('click', async (e)=>{
     } else if(btn.classList.contains('um-unsuspend')){
       const d = await umCall({ action:'unsuspend', targetUsername:user }); umRenderUsers(d.users); umSetMsg('um_msg', `${user} restored.`, true);
     } else if(btn.classList.contains('um-reset')){
-      const row = btn.closest('td').querySelector('.um-pw-row'); row.style.display = 'flex'; row.querySelector('input').focus();
+      const row = btn.closest('.uc-card').querySelector('.um-pw-row'); row.style.display = 'flex'; row.querySelector('input').focus();
     } else if(btn.classList.contains('um-pw-cancel')){
       const row = btn.closest('.um-pw-row'); row.style.display = 'none'; row.querySelector('input').value = '';
     } else if(btn.classList.contains('um-pw-save')){
@@ -5334,6 +5412,62 @@ setInterval(()=>{
 .rsv-rows{ display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; border-top:1px solid var(--line-soft); padding-top:10px; }
 .rsv-rows span{ display:block; font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--stone-dim); }
 .rsv-rows b{ font-size:12.5px; font-weight:500; word-break:break-word; }
+
+.uc-toolbar{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.uc-stats{ display:flex; gap:8px; flex-wrap:wrap; }
+.uc-stat{ font-size:11.5px; padding:5px 12px; border-radius:20px; border:1px solid var(--line-soft); color:var(--stone-dim); background:rgba(255,255,255,0.03); }
+.uc-stat b{ color:var(--cream); font-weight:600; margin-right:3px; }
+.uc-stat.ok b{ color:#5fe39a; } .uc-stat.gold b{ color:var(--gold-bright,#e6c35c); } .uc-stat.bad b{ color:#f08a7a; }
+.uc-filters{ display:flex; gap:8px; }
+.uc-filters input,.uc-filters select,.uc-selects select{ background:var(--bg-alt); border:1px solid var(--line-soft); border-radius:8px; padding:7px 10px; color:var(--cream); font:inherit; font-size:12.5px; }
+.uc-filters input{ min-width:190px; }
+.uc-list{ display:flex; flex-direction:column; gap:12px; }
+.uc-card{ border:1px solid var(--line-soft); border-radius:16px; padding:14px 16px; background:linear-gradient(160deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015)); transition:border-color .2s; }
+.uc-card:hover{ border-color:rgba(201,162,39,.35); }
+.uc-card.is-off{ opacity:.62; }
+.uc-head{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+.uc-avatar{ position:relative; width:52px; height:52px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:17px; letter-spacing:.02em; color:#fff;
+  background:linear-gradient(135deg,hsl(var(--h) 62% 46%),hsl(calc(var(--h) + 40) 60% 32%)); box-shadow:0 4px 14px rgba(0,0,0,.35); }
+.uc-avatar.admin{ box-shadow:0 0 0 2px #110f0c, 0 0 0 4px var(--gold,#c9a227), 0 4px 14px rgba(0,0,0,.35); }
+.uc-dot{ position:absolute; right:0; bottom:0; width:13px; height:13px; border-radius:50%; border:2px solid #17140f; }
+.uc-dot.on{ background:#2ecc71; } .uc-dot.off{ background:#d9534f; }
+.uc-id{ flex:1; min-width:180px; }
+.uc-name{ font-size:15px; font-weight:600; }
+.uc-you{ font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; background:rgba(201,162,39,.2); color:var(--gold-bright,#e6c35c); border-radius:10px; padding:1px 7px; margin-left:6px; vertical-align:middle; }
+.uc-user{ font-size:11.5px; color:var(--stone-dim); font-family:'JetBrains Mono',monospace; margin-bottom:6px; }
+.uc-badges{ display:flex; gap:6px; flex-wrap:wrap; }
+.uc-badge{ font-size:10.5px; padding:2px 9px; border-radius:20px; border:1px solid var(--line-soft); text-transform:capitalize; }
+.uc-badge.role-admin{ background:rgba(201,162,39,.16); color:#e6c35c; border-color:rgba(201,162,39,.45); }
+.uc-badge.role-sales{ background:rgba(79,140,255,.13); color:#8db6ff; border-color:rgba(79,140,255,.35); }
+.uc-badge.role-test{ background:rgba(160,160,160,.12); color:#bbb; }
+.uc-badge.title{ background:rgba(180,120,255,.14); color:#c9a6ff; border-color:rgba(180,120,255,.35); }
+.uc-badge.team-Hossam{ background:rgba(79,140,255,.13); color:#8db6ff; border-color:rgba(79,140,255,.35); }
+.uc-badge.team-Alaraby{ background:rgba(46,190,140,.13); color:#6fdcb5; border-color:rgba(46,190,140,.35); }
+.uc-badge.bad{ background:rgba(217,83,79,.15); color:#f08a7a; border-color:rgba(217,83,79,.4); }
+.uc-badge.warn{ background:rgba(240,160,60,.14); color:#f2b25f; border-color:rgba(240,160,60,.35); }
+.uc-actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.uc-card .um-pw-row{ margin:12px 0 0 66px; }
+.uc-summary{ margin:10px 0 0 66px; font-size:11.5px; color:var(--stone-dim); }
+.uc-card.open .uc-summary{ display:none; }
+.uc-body{ display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--line-soft); }
+.uc-card.open .uc-body{ display:block; }
+.uc-selects{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
+.uc-selects label{ display:flex; flex-direction:column; gap:5px; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--stone-dim); }
+.uc-fixed{ font-size:13px; color:var(--cream); text-transform:capitalize; letter-spacing:0; padding:7px 0; }
+.uc-note{ font-size:12.5px; color:var(--stone); padding:10px 14px; border-radius:10px; background:rgba(255,255,255,0.03); }
+.uc-perm-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; }
+.uc-group{ border:1px solid var(--line-soft); border-radius:12px; padding:12px 14px; background:rgba(255,255,255,0.02); }
+.uc-group-title{ font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-bright,#e6c35c); margin-bottom:8px; }
+.uc-sw{ display:flex; align-items:center; gap:10px; padding:6px 0; cursor:pointer; font-size:12.5px; }
+.uc-sw input{ position:absolute; opacity:0; pointer-events:none; }
+.uc-track{ width:34px; height:19px; border-radius:20px; background:rgba(255,255,255,0.14); position:relative; flex:none; transition:background .2s; }
+.uc-knob{ position:absolute; top:2px; left:2px; width:15px; height:15px; border-radius:50%; background:#fff; transition:transform .2s; }
+.uc-sw input:checked + .uc-track{ background:#2ecc71; }
+.uc-sw input:checked + .uc-track .uc-knob{ transform:translateX(15px); }
+.uc-sw input:focus-visible + .uc-track{ outline:2px solid var(--gold,#c9a227); outline-offset:2px; }
+.uc-reserved{ font-size:12.5px; color:var(--stone-dim); line-height:1.5; }
+.uc-reserved.yes{ color:#6fdcb5; }
+@media (max-width:760px){ .uc-card .um-pw-row, .uc-summary{ margin-left:0; } .uc-filters input{ min-width:0; flex:1; } .uc-actions{ width:100%; } }
 .um-table td{ vertical-align:middle; }
 .um-status{ font-size:10px; letter-spacing:0.06em; text-transform:uppercase; border-radius:20px; padding:2px 8px; display:inline-block; }
 .um-status.active{ color:#2ecc71; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.35); }
