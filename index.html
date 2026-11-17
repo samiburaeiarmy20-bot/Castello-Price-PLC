@@ -4279,7 +4279,7 @@ let sessionCheckTimer = null;
 
 // Ends the session and returns to the login screen, optionally with a reason.
 function forceSignOut(message){
-  ['castelloAuthed','castelloAuthedUser','castelloRole','castelloPerms','castelloUserId','castelloTeam'].forEach(k=> sessionStorage.removeItem(k));
+  ['castelloAuthed','castelloAuthedUser','castelloRole','castelloPerms','castelloUserId','castelloTeam','castelloLoginAt','castelloLastActive'].forEach(k=> sessionStorage.removeItem(k));
   if(holdsPollTimer){ clearInterval(holdsPollTimer); holdsPollTimer = null; }
   if(inventoryPollTimer){ clearInterval(inventoryPollTimer); inventoryPollTimer = null; }
   if(sessionCheckTimer){ clearInterval(sessionCheckTimer); sessionCheckTimer = null; }
@@ -4323,14 +4323,34 @@ async function verifySession(){
     }
   }catch(e){ /* offline or transient -- keep the session, try again next minute */ }
 }
+/* ---- Login expiry: idle timeout + maximum session length ---- */
+const IDLE_LIMIT_MS = 30 * 60 * 1000;        // signed out after 30 min of no activity
+const MAX_SESSION_MS = 12 * 60 * 60 * 1000;  // and always after 12 hours
+function markActive(){
+  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return;
+  const now = Date.now();
+  if(now - Number(sessionStorage.getItem('castelloLastActive') || 0) > 5000) sessionStorage.setItem('castelloLastActive', String(now));
+}
+['click','keydown','mousemove','touchstart','scroll'].forEach(ev=> window.addEventListener(ev, markActive, { passive:true }));
+function checkSessionExpiry(){
+  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return false;
+  const now = Date.now();
+  const last = Number(sessionStorage.getItem('castelloLastActive') || 0);
+  const started = Number(sessionStorage.getItem('castelloLoginAt') || 0);
+  if(last && now - last > IDLE_LIMIT_MS){ forceSignOut('You were signed out after 30 minutes of inactivity. Please sign in again.'); return true; }
+  if(started && now - started > MAX_SESSION_MS){ forceSignOut('Your session expired. Please sign in again.'); return true; }
+  return false;
+}
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkSessionExpiry(); });
 function startSessionCheck(){
   if(sessionCheckTimer) return;
-  sessionCheckTimer = setInterval(verifySession, 60 * 1000);
+  sessionCheckTimer = setInterval(()=>{ if(!checkSessionExpiry()) verifySession(); }, 30 * 1000);
 }
 
 function startLoginFlow(){
   blocked.style.display = 'none';
   if(sessionStorage.getItem('castelloAuthed') === 'yes'){
+    if(checkSessionExpiry()) return;
     if(enforceAdminOnly(latestAccessCfg)) return;
     gate.style.display = 'none';
     root.classList.add('visible');
@@ -4365,6 +4385,8 @@ loginForm.addEventListener('submit', async (e)=>{
   }
   if(result){
     sessionStorage.setItem('castelloAuthed', 'yes');
+    sessionStorage.setItem('castelloLoginAt', String(Date.now()));
+    sessionStorage.setItem('castelloLastActive', String(Date.now()));
     sessionStorage.setItem('castelloAuthedUser', result.username);
     sessionStorage.setItem('castelloRole', result.role || 'sales');
     sessionStorage.setItem('castelloPerms', JSON.stringify(result.permissions || {}));
