@@ -790,6 +790,34 @@ tbody tr.tr-new.tr-held{ background: rgba(217,167,87,0.08); box-shadow: inset 3p
 
 /* ---------- re-auth modal ---------- */
 .reauth-card{ max-width:360px; }
+/* Export Price List modal */
+.epl-card{ max-width:460px !important; }
+.epl-card .reauth-body{ padding:20px 26px 26px; }
+.epl-label{ display:block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-dim); font-weight:600; margin-bottom:8px; }
+.epl-select{ width:100%; background:var(--bg-alt); border:1px solid var(--line-soft); border-radius:10px; padding:12px 14px; color:var(--cream); font-size:13.5px; font-family:'Inter'; cursor:pointer; transition:border-color .15s; }
+.epl-select:hover,.epl-select:focus{ outline:none; border-color:var(--gold-dim); }
+.epl-except{ display:none; margin-top:20px; }
+.epl-headrow{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.epl-headrow .epl-label{ margin:0; }
+.epl-links{ display:flex; gap:12px; font-size:11.5px; }
+.epl-links button{ background:none; border:none; color:var(--gold); cursor:pointer; font-family:'Inter'; font-size:11.5px; padding:0; }
+.epl-links button:hover{ color:var(--gold-bright); text-decoration:underline; }
+.epl-list{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.epl-item{ position:relative; display:flex; align-items:center; gap:10px; padding:11px 12px; border:1px solid var(--line-soft); border-radius:10px; background:var(--bg-alt); cursor:pointer; transition:all .15s; user-select:none; }
+.epl-item:hover{ border-color:var(--gold-dim); }
+.epl-item input{ position:absolute; opacity:0; pointer-events:none; }
+.epl-box{ flex:none; width:18px; height:18px; border-radius:6px; border:1.5px solid var(--stone-dim); display:flex; align-items:center; justify-content:center; transition:all .15s; }
+.epl-box svg{ width:11px; height:11px; stroke:#1a1610; stroke-width:3; fill:none; opacity:0; transform:scale(.6); transition:all .15s; }
+.epl-name{ font-size:12.5px; color:var(--stone); line-height:1.25; transition:color .15s; }
+.epl-name b{ display:block; font-weight:600; color:var(--cream); font-size:13px; }
+.epl-item.on{ border-color:var(--gold); background:rgba(212,184,122,.07); }
+.epl-item.on .epl-box{ background:var(--gold); border-color:var(--gold); }
+.epl-item.on .epl-box svg{ opacity:1; transform:scale(1); }
+.epl-item:not(.on) .epl-name b{ color:var(--stone-dim); text-decoration:line-through; }
+.epl-summary{ margin:16px 0 20px; padding:11px 14px; border-radius:10px; background:rgba(212,184,122,.07); border:1px dashed var(--line); font-size:12.5px; color:var(--stone); display:flex; align-items:center; gap:8px; }
+.epl-summary b{ color:var(--gold-bright); }
+.epl-card .reauth-confirm:disabled{ opacity:.35; cursor:not-allowed; }
+@media (max-width:520px){ .epl-list{ grid-template-columns:1fr; } }
 .reauth-body{ padding:22px 26px 26px; }
 .reauth-body p{ font-size:12.5px; color:var(--stone); margin-bottom:16px; line-height:1.6; }
 .reauth-body input{
@@ -1419,7 +1447,7 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
 </div>
 
 <div class="modal-overlay" id="exportPriceListOverlay">
-  <div class="modal-card reauth-card">
+  <div class="modal-card reauth-card epl-card">
     <div class="modal-head">
       <div>
         <h3>Export Price List</h3>
@@ -1428,12 +1456,20 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
       <button class="modal-close" id="exportPriceListClose">×</button>
     </div>
     <div class="reauth-body">
-      <div class="roi-field" style="margin-bottom:20px;">
-        <label>Project</label>
-        <select id="epl_project" style="width:100%; background:var(--bg-alt); border:1px solid var(--line-soft); border-radius:8px; padding:10px 12px; color:var(--cream); font-size:13px; font-family:'Inter';">
+      <div>
+        <label class="epl-label">Project</label>
+        <select id="epl_project" class="epl-select">
           <option value="__all__">All Projects (full portfolio)</option>
         </select>
       </div>
+      <div id="epl_except" class="epl-except">
+        <div class="epl-headrow">
+          <span class="epl-label">Include in PDF</span>
+          <span class="epl-links"><button type="button" id="eplAll">Select all</button><button type="button" id="eplNone">Clear</button></span>
+        </div>
+        <div id="epl_except_list" class="epl-list"></div>
+      </div>
+      <div class="epl-summary" id="eplSummary"></div>
       <div class="reauth-actions">
         <button class="reauth-cancel" id="exportPriceListCancelBtn">Cancel</button>
         <button class="reauth-confirm" id="exportPriceListGenBtn">Download PDF</button>
@@ -3770,9 +3806,9 @@ function plWaitImages(root){
     new Promise(res => { img.onload = img.onerror = res; })));
 }
 
-async function exportPriceListPdf(projectKey, filename, triggerBtn){
+async function exportPriceListPdf(projectKey, filename, triggerBtn, onlyKeys){
   try{ track('export_pricelist', projectKey); }catch(e){}
-  const keys = projectKey === '__all__' ? PROJECTS.map(p=>p.key) : [projectKey];
+  const keys = projectKey === '__all__' ? (onlyKeys || PROJECTS.map(p=>p.key)) : [projectKey];
   const pages = []; keys.forEach(k => pages.push(...buildPriceListPages(k)));
   if(!pages.length){ alert('There are no released units to export for this selection.'); return; }
   if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
@@ -3815,8 +3851,28 @@ document.getElementById('exportPriceListBtn').addEventListener('click', ()=>{
   const sel = document.getElementById('epl_project');
   sel.innerHTML = '<option value="__all__">All Projects (full portfolio)</option>' +
     PROJECTS.map(p=>`<option value="${p.key}">${p.project}${p.subtitle?' · '+p.subtitle:''}</option>`).join('');
+  document.getElementById('epl_except_list').innerHTML = PROJECTS.map(p=>
+    `<label class="epl-item on"><input type="checkbox" class="epl-inc" value="${p.key}" checked><span class="epl-box"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.5 2.5L10 3.5"/></svg></span><span class="epl-name"><b>${p.project}</b>${p.subtitle||''}</span></label>`).join('');
+  document.getElementById('epl_except').style.display = 'block';
+  eplRefresh();
   exportPriceListOverlay.classList.add('open');
 });
+function eplRefresh(){
+  const all = document.getElementById('epl_project').value === '__all__';
+  document.getElementById('epl_except').style.display = all ? 'block' : 'none';
+  const boxes = [...document.querySelectorAll('.epl-inc')];
+  boxes.forEach(b => b.closest('.epl-item').classList.toggle('on', b.checked));
+  const n = boxes.filter(b=>b.checked).length;
+  const s = document.getElementById('eplSummary');
+  s.innerHTML = all
+    ? (n ? `📄 <span><b>${n}</b> of ${boxes.length} projects will be in the PDF</span>` : '⚠️ <span>Tick at least one project</span>')
+    : '📄 <span>One project will be in the PDF</span>';
+  document.getElementById('exportPriceListGenBtn').disabled = all && n === 0;
+}
+document.getElementById('epl_project').addEventListener('change', eplRefresh);
+document.getElementById('epl_except_list').addEventListener('change', eplRefresh);
+document.getElementById('eplAll').addEventListener('click', ()=>{ document.querySelectorAll('.epl-inc').forEach(b=>b.checked=true); eplRefresh(); });
+document.getElementById('eplNone').addEventListener('click', ()=>{ document.querySelectorAll('.epl-inc').forEach(b=>b.checked=false); eplRefresh(); });
 document.getElementById('exportPriceListClose').addEventListener('click', ()=> exportPriceListOverlay.classList.remove('open'));
 document.getElementById('exportPriceListCancelBtn').addEventListener('click', ()=> exportPriceListOverlay.classList.remove('open'));
 exportPriceListOverlay.addEventListener('click', e=>{ if(e.target===exportPriceListOverlay) exportPriceListOverlay.classList.remove('open'); });
@@ -3827,7 +3883,13 @@ document.getElementById('exportPriceListGenBtn').addEventListener('click', async
   const filename = projectKey === '__all__'
     ? `Castello-Price-List-All-Projects-${stamp}.pdf`
     : `Castello-Price-List-${projectKey.replace(/\s+/g,'-')}-${stamp}.pdf`;
-  await exportPriceListPdf(projectKey, filename, btn);
+  let onlyKeys = null;
+  if(projectKey === '__all__'){
+    onlyKeys = [...document.querySelectorAll('.epl-inc:checked')].map(c=>c.value);
+    if(!onlyKeys.length){ alert('Tick at least one project to export.'); return; }
+    if(onlyKeys.length === PROJECTS.length) onlyKeys = null;
+  }
+  await exportPriceListPdf(projectKey, filename, btn, onlyKeys);
   exportPriceListOverlay.classList.remove('open');
 });
 
