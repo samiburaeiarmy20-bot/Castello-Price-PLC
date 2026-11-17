@@ -762,6 +762,9 @@ tbody tr.tr-held:hover{ background: rgba(217,167,87,0.1); }
 tbody tr.tr-new{ background: rgba(52,168,120,0.09); box-shadow: inset 3px 0 0 #2ecc71; }
 tbody tr.tr-new:hover{ background: rgba(52,168,120,0.15); }
 tbody tr.tr-new.tr-held{ background: rgba(217,167,87,0.08); box-shadow: inset 3px 0 0 #2ecc71; }
+.price-tag{ font-size:9.5px; font-weight:700; letter-spacing:0.04em; border-radius:20px; padding:2px 8px; display:inline-block; margin-left:6px; cursor:help; }
+.price-tag.down{ background:rgba(46,204,113,.18); color:#5fe39a; border:1px solid rgba(46,204,113,.45); }
+.price-tag.up{ background:rgba(240,160,60,.18); color:#f2b25f; border:1px solid rgba(240,160,60,.45); }
 .new-tag{
   font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; font-weight:700; color:#0d1a13;
   background:#2ecc71; border-radius:20px; padding:2px 8px; display:inline-block; margin-left:6px;
@@ -2455,7 +2458,7 @@ function render(){
     return `
     <tr class="${trClass}">
       <td class="star-cell"><button class="star-btn ${shortlist.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to shortlist">${shortlist.has(u.__idx)?'★':'☆'}</button>${featureOn('can_compare') ? `<button class="star-btn cmp-btn ${cmpSet.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to comparison (up to 3)" aria-label="Compare unit">⇄</button>` : ''}${featureOn('can_share') ? `<button class="star-btn share-btn" data-idx="${u.__idx}" title="Copy / share this unit with a client" aria-label="Share unit">⧉</button>` : ''}</td>
-      <td class="proj"><span class="proj-inner"><img src="${iconFor(u.sheet)}" alt="" data-sheet="${u.sheet}" data-icon="${u.sheet}"><span><span class="pj-name">${u.project}${isNew?'<span class="new-tag" title="Added in the last 48 hours">NEW</span>':''}${held?'<span class="hold-flash" title="On hold">⚡</span>':''}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
+      <td class="proj"><span class="proj-inner"><img src="${iconFor(u.sheet)}" alt="" data-sheet="${u.sheet}" data-icon="${u.sheet}"><span><span class="pj-name">${u.project}${isNew?'<span class="new-tag" title="Added in the last 48 hours">NEW</span>':''}${priceChangeTag(u)}${held?'<span class="hold-flash" title="On hold">⚡</span>':''}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
       <td class="mono">${u.section||'—'}</td>
       <td class="mono">${u.unit_no}</td>
       <td><span class="pill ${pillClass(u.unit_type)}">${u.unit_type||'—'}</span></td>
@@ -2605,7 +2608,7 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags']];
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return f[k] !== false; }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
 function canViewAnalytics(){ return hasFullVisibility() || userPerms().can_view_analytics === true; }
@@ -2665,6 +2668,14 @@ function isHeld(key){
 // sync only at that moment, so a unit that's simply still on sale won't
 // re-trigger it.
 const NEW_UNIT_HOURS = 48;
+function priceChangeTag(u){
+  if(!featureOn('can_price_tags') || !u.price_changed_at || u.prev_price == null || isNewUnit(u)) return '';
+  const t = new Date(u.price_changed_at).getTime();
+  if(isNaN(t) || Date.now() - t > 48*60*60*1000) return '';
+  const down = Number(u.price) < Number(u.prev_price);
+  const pct = Math.abs(Math.round((Number(u.price) - Number(u.prev_price)) / Number(u.prev_price) * 1000) / 10);
+  return `<span class="price-tag ${down?'down':'up'}" title="Price changed: was ${fmtCur(u.prev_price)} → now ${fmtCur(u.price)}">${down?'▼':'▲'} ${pct}%</span>`;
+}
 function isNewUnit(u){
   const stamp = u.released_at || u.first_seen_at;
   if(!stamp) return false;
@@ -2752,6 +2763,8 @@ async function loadLiveInventory(){
         archived: !!r.archived,
         first_seen_at: r.first_seen_at || null,
         released_at: r.released_at || null,
+        prev_price: r.prev_price != null ? Number(r.prev_price) : null,
+        price_changed_at: r.price_changed_at || null,
         list_price: r.list_price != null ? r.list_price : null,
         cash_only: !!r.cash_only,
         maintenance_fee: r.maintenance_fee != null ? r.maintenance_fee : (r.price != null ? Math.round(r.price * 0.10) : null)
