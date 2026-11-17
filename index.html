@@ -395,6 +395,11 @@ footer{ border-top:1px solid var(--line-soft); padding: 26px 0 40px; }
 th.th-star{ width:34px; }
 td.star-cell{ text-align:center; white-space:nowrap; }
 .share-btn{ font-size:15px; opacity:.75; }
+.cmp-btn{ font-size:15px; opacity:.75; }
+.cmp-btn.active{ opacity:1; color:var(--gold-bright); }
+#cmpBar{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:800; display:none; gap:10px; align-items:center; background:#1d1a14; border:1px solid var(--gold-dim,#a8842a); border-radius:30px; padding:8px 14px; font-size:13px; color:#f3e6bf; box-shadow:0 8px 30px rgba(0,0,0,.5); }
+#cmpBar button:disabled{ opacity:.4; }
+.cmp-best{ color:var(--gold-bright,#e6c35c); font-weight:600; }
 .star-btn{ background:none; border:none; font-size:18px; cursor:pointer; color:var(--stone-dim); line-height:1; padding:2px; }
 .star-btn.active{ color:var(--gold-bright); }
 .star-btn:hover{ color:var(--gold); }
@@ -2352,7 +2357,7 @@ function render(){
     const trClass = [held ? 'tr-held' : '', isNew ? 'tr-new' : ''].filter(Boolean).join(' ');
     return `
     <tr class="${trClass}">
-      <td class="star-cell"><button class="star-btn ${shortlist.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to shortlist">${shortlist.has(u.__idx)?'★':'☆'}</button>${featureOn('can_share') ? `<button class="star-btn share-btn" data-idx="${u.__idx}" title="Copy / share this unit with a client" aria-label="Share unit">⧉</button>` : ''}</td>
+      <td class="star-cell"><button class="star-btn ${shortlist.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to shortlist">${shortlist.has(u.__idx)?'★':'☆'}</button>${featureOn('can_compare') ? `<button class="star-btn cmp-btn ${cmpSet.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to comparison (up to 3)" aria-label="Compare unit">⇄</button>` : ''}${featureOn('can_share') ? `<button class="star-btn share-btn" data-idx="${u.__idx}" title="Copy / share this unit with a client" aria-label="Share unit">⧉</button>` : ''}</td>
       <td class="proj"><span class="proj-inner"><img src="${iconFor(u.sheet)}" alt="" data-sheet="${u.sheet}" data-icon="${u.sheet}"><span><span class="pj-name">${u.project}${isNew?'<span class="new-tag" title="Added in the last 48 hours">NEW</span>':''}${held?'<span class="hold-flash" title="On hold">⚡</span>':''}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
       <td class="mono">${u.section||'—'}</td>
       <td class="mono">${u.unit_no}</td>
@@ -2390,6 +2395,7 @@ function render(){
   tbody.querySelectorAll('.star-btn:not(.share-btn)').forEach(btn=>{
     btn.addEventListener('click', ()=> toggleShortlist(Number(btn.dataset.idx)));
   });
+  tbody.querySelectorAll('.cmp-btn').forEach(btn=>{ btn.addEventListener('click', ()=> toggleCompare(Number(btn.dataset.idx), btn)); });
   tbody.querySelectorAll('.share-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> shareUnit(UNITS[Number(btn.dataset.idx)], btn));
   });
@@ -2403,6 +2409,52 @@ const CUR_SYMBOLS = { USD:'$', EUR:'€', GBP:'£' };
 function curRate(c){ return c==='USD'?usdRate : c==='EUR'?eurRate : c==='GBP'?gbpRate : 1; }
 let shortlist = new Set();
 try{ shortlist = new Set(JSON.parse(localStorage.getItem('castelloShortlist')||'[]')); }catch(e){}
+/* ---- Compare up to 3 units side by side ---- */
+const cmpSet = new Set();
+function cmpBar(){
+  let bar = document.getElementById('cmpBar');
+  if(!bar){
+    bar = document.createElement('div'); bar.id = 'cmpBar';
+    bar.innerHTML = '<span id="cmpCount"></span><button id="cmpOpen" class="act-btn">Compare</button><button id="cmpClear" class="act-btn">Clear</button>';
+    document.body.appendChild(bar);
+    document.getElementById('cmpOpen').addEventListener('click', openCompare);
+    document.getElementById('cmpClear').addEventListener('click', ()=>{ cmpSet.clear(); cmpBar(); document.querySelectorAll('.cmp-btn.active').forEach(b=>b.classList.remove('active')); });
+  }
+  bar.style.display = cmpSet.size ? 'flex' : 'none';
+  document.getElementById('cmpCount').textContent = cmpSet.size + ' of 3 selected';
+  document.getElementById('cmpOpen').disabled = cmpSet.size < 2;
+}
+function toggleCompare(idx, btn){
+  if(cmpSet.has(idx)){ cmpSet.delete(idx); btn.classList.remove('active'); }
+  else if(cmpSet.size >= 3){ shareToast('You can compare up to 3 units'); return; }
+  else { cmpSet.add(idx); btn.classList.add('active'); }
+  cmpBar();
+}
+function openCompare(){
+  const us = [...cmpSet].map(i=> UNITS[i]).filter(Boolean);
+  if(us.length < 2) return;
+  try{ track('compare_units', us.map(u=>u.unit_no).join(' vs ')); }catch(e){}
+  const best = (key, lowest) => { const vals = us.map(u=> Number(u[key])).filter(v=>!isNaN(v)&&v>0); return vals.length ? (lowest ? Math.min(...vals) : Math.max(...vals)) : null; };
+  const bp = best('price', true), bm = best('price_m2', true), ba = best('area', false);
+  const rows = [
+    ['Project', u=> `${u.project}${u.subtitle?' · '+u.subtitle:''}`],
+    ['Unit', u=> u.unit_no], ['Type', u=> u.unit_type||'—'], ['Floor', u=> u.floor||'—'], ['View', u=> u.view||'—'],
+    ['Area (m²)', u=> u.area ?? '—', 'area', ba], ['Price / m²', u=> fmtCur(u.price_m2), 'price_m2', bm],
+    ['Unit price', u=> fmtCur(u.price), 'price', bp], ...(us.some(u=>u.cash_only) ? [['10% fee', u=> u.cash_only ? fmtCur(u.maintenance_fee) : '—']] : []),
+    ['Payment', u=> u.cash_only ? 'Cash only' : 'Installments available']
+  ];
+  let ov = document.getElementById('cmpOverlay');
+  if(!ov){ ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'cmpOverlay';
+    ov.innerHTML = '<div class="modal-card" style="max-width:900px"><div class="modal-head"><div><h3>Compare Units</h3><div class="msub">Best value in each row is highlighted</div></div><button class="modal-close" id="cmpClose">×</button></div><div class="modal-body" id="cmpBody"></div></div>';
+    document.body.appendChild(ov);
+    document.getElementById('cmpClose').addEventListener('click', ()=> ov.classList.remove('open'));
+  }
+  document.getElementById('cmpBody').innerHTML = `<div style="overflow-x:auto"><table class="um-table" style="width:100%"><tbody>` +
+    rows.map(([label, fn, key, bestVal])=> `<tr><th style="text-align:left;white-space:nowrap">${label}</th>${us.map(u=>{
+      const win = key && bestVal != null && Number(u[key]) === bestVal && us.length > 1;
+      return `<td class="${win?'cmp-best':''}">${fn(u)}${win?' ★':''}</td>`; }).join('')}</tr>`).join('') + '</tbody></table></div>';
+  ov.classList.add('open');
+}
 function unitShareText(u){
   const n = v => Math.round(Number(v)||0).toLocaleString('en-US');
   const lines = [`🏢 ${u.project}${u.subtitle?' · '+u.subtitle:''}`,
@@ -2456,7 +2508,7 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units']];
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return f[k] !== false; }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
 function canViewAnalytics(){ return hasFullVisibility() || userPerms().can_view_analytics === true; }
@@ -3615,7 +3667,7 @@ const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} �
 
 /* Admin view */
 function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports' };
+const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports' };
 async function loadActivity(days){
   const box = document.getElementById('activityBody');
   box.innerHTML = '<div class="analytics-loading">Loading…</div>';
