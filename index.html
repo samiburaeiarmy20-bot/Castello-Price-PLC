@@ -1833,12 +1833,19 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
           <input type="text" id="f_furnish" value="0">
         </div>
         <div class="roi-field">
-          <label>Annual Maintenance / Service (EGP)</label>
-          <input type="text" id="f_maint" value="0">
+          <label>Maintenance (EGP)</label>
+          <input type="text" id="f_maint" value="0" readonly style="opacity:.75; cursor:not-allowed;">
+          <span class="fhint">10% of the original price, one-time</span>
+        </div>
+        <div class="roi-field">
+          <label>Expected Daily Rent (EGP)</label>
+          <input type="text" id="f_daily" value="0">
+          <span class="fhint">Short-term / nightly rate. Leave 0 to use monthly rent</span>
         </div>
         <div class="roi-field">
           <label>Expected Monthly Rent (EGP)</label>
           <input type="text" id="f_rent" value="0">
+          <span class="fhint">Used only if daily rent is 0</span>
         </div>
         <div class="roi-field">
           <label>Occupancy Rate (%)</label>
@@ -1912,7 +1919,8 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
             <li><b>Payment Plan (years)</b> — shown for reference only; it does not affect the calculation.</li>
             <li><b>Additional Purchase Costs</b> — registration, brokerage, legal fees, etc.</li>
             <li><b>Furnishing Cost</b> — if the client plans to furnish the unit.</li>
-            <li><b>Annual Maintenance / Service</b> — yearly service charges to the developer/compound.</li>
+            <li><b>Maintenance</b> — one-time fee, fixed at 10% of the unit's original price (filled automatically, cannot be edited).</li>
+            <li><b>Expected Daily Rent</b> — nightly rate for short-term rental. If filled, it is used instead of the monthly rent.</li>
             <li><b>Expected Monthly Rent</b> — what the unit could rent for per month.</li>
             <li><b>Occupancy Rate (%)</b> — % of the year the unit is expected to be rented (e.g. 85%).</li>
             <li><b>Management Fee (% of rent)</b> — if a property manager takes a cut of rental income.</li>
@@ -1923,10 +1931,10 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
           </ul>
           <h4>How the Numbers Are Calculated</h4>
           <ul>
-            <li><code>Total Investment = Purchase Price + Additional Costs + Furnishing</code></li>
-            <li><code>Cash Invested = Down Payment + Additional Costs + Furnishing</code></li>
-            <li><code>Annual Gross Rent = Monthly Rent × 12 × Occupancy%</code></li>
-            <li><code>Annual Net Rent = Gross Rent − Management Fee − Maintenance − Opex</code></li>
+            <li><code>Total Investment = Purchase Price + Additional Costs + Furnishing + Maintenance (10%)</code></li>
+            <li><code>Cash Invested = Down Payment + Additional Costs + Furnishing + Maintenance (10%)</code></li>
+            <li><code>Annual Gross Rent = Daily Rent × 365 × Occupancy%  (or Monthly Rent × 12 × Occupancy% if daily is 0)</code></li>
+            <li><code>Annual Net Rent = Gross Rent − Management Fee − Opex</code></li>
             <li><code>Rental Yield % = Net Rent ÷ Total Investment × 100</code></li>
             <li><code>Selling Price (if blank) = Price × (1 + Appreciation%) ^ Holding Years</code></li>
             <li><code>Total Profit = (Selling Price − Total Investment) + (Net Rent × Holding Years)</code></li>
@@ -1954,7 +1962,8 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
             <li><b>خطة السداد (بالسنوات)</b> — للعرض فقط، ولا تؤثر على الحساب.</li>
             <li><b>تكاليف الشراء الإضافية</b> — رسوم التسجيل، السمسرة، الأتعاب القانونية، إلخ.</li>
             <li><b>تكلفة التأثيث</b> — إذا كان العميل ينوي تأثيث الوحدة.</li>
-            <li><b>الصيانة السنوية / الخدمات</b> — رسوم الخدمة السنوية للمطور/الكمبوند.</li>
+            <li><b>الصيانة</b> — رسم لمرة واحدة بنسبة 10% من السعر الأصلي للوحدة (يُحسب تلقائيًا ولا يمكن تعديله).</li>
+            <li><b>الإيجار اليومي المتوقع</b> — السعر لليلة الواحدة للإيجار قصير المدى. إذا تم إدخاله يُستخدم بدلًا من الإيجار الشهري.</li>
             <li><b>الإيجار الشهري المتوقع</b> — القيمة الإيجارية الشهرية المتوقعة للوحدة.</li>
             <li><b>معدل الإشغال (%)</b> — النسبة المئوية من العام التي يُتوقع أن تكون فيها الوحدة مؤجرة.</li>
             <li><b>رسوم الإدارة (% من الإيجار)</b> — إذا كانت هناك شركة إدارة تأخذ نسبة من دخل الإيجار.</li>
@@ -1965,10 +1974,10 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
           </ul>
           <h4>كيف يتم حساب الأرقام</h4>
           <ul>
-            <li><code>إجمالي الاستثمار = سعر الشراء + التكاليف الإضافية + التأثيث</code></li>
+            <li><code>إجمالي الاستثمار = سعر الشراء + التكاليف الإضافية + التأثيث + الصيانة (10%)</code></li>
             <li><code>النقد المستثمر = الدفعة المقدمة + التكاليف الإضافية + التأثيث</code></li>
             <li><code>إجمالي الإيجار السنوي = الإيجار الشهري × 12 × نسبة الإشغال%</code></li>
-            <li><code>صافي الإيجار السنوي = الإيجار الإجمالي − رسوم الإدارة − الصيانة − المصاريف التشغيلية</code></li>
+            <li><code>صافي الإيجار السنوي = الإيجار الإجمالي − رسوم الإدارة − المصاريف التشغيلية</code></li>
             <li><code>عائد الإيجار% = صافي الإيجار ÷ إجمالي الاستثمار × 100</code></li>
             <li><code>سعر البيع (إذا كان فارغًا) = السعر × (1 + معدل الارتفاع%) ^ سنوات الاحتفاظ</code></li>
             <li><code>إجمالي الربح = (سعر البيع − إجمالي الاستثمار) + (صافي الإيجار × سنوات الاحتفاظ)</code></li>
@@ -1996,7 +2005,8 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
             <li><b>План платежей (лет)</b> — только для справки, не влияет на расчёт.</li>
             <li><b>Дополнительные расходы на покупку</b> — регистрация, брокерские, юридические услуги и т.д.</li>
             <li><b>Стоимость меблировки</b> — если клиент планирует меблировать объект.</li>
-            <li><b>Годовое обслуживание</b> — ежегодная плата за обслуживание застройщику/комплексу.</li>
+            <li><b>Обслуживание</b> — разовый платёж, 10% от первоначальной цены (заполняется автоматически, не редактируется).</li>
+            <li><b>Ожидаемая посуточная аренда</b> — цена за сутки при краткосрочной аренде. Если указана, используется вместо месячной.</li>
             <li><b>Ожидаемая месячная аренда</b> — по какой цене можно сдавать объект в месяц.</li>
             <li><b>Заполняемость (%)</b> — процент года, когда объект предположительно будет сдан в аренду.</li>
             <li><b>Комиссия управляющей компании (% от аренды)</b> — если управляющий берёт долю от арендного дохода.</li>
@@ -2010,7 +2020,7 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
             <li><code>Общие инвестиции = Цена покупки + Доп. расходы + Меблировка</code></li>
             <li><code>Вложенные наличные = Первоначальный взнос + Доп. расходы + Меблировка</code></li>
             <li><code>Годовой валовой доход от аренды = Месячная аренда × 12 × Заполняемость%</code></li>
-            <li><code>Годовой чистый доход = Валовой доход − Комиссия − Обслуживание − Прочие расходы</code></li>
+            <li><code>Годовой чистый доход = Валовой доход − Комиссия − Прочие расходы</code></li>
             <li><code>Доходность от аренды% = Чистый доход ÷ Общие инвестиции × 100</code></li>
             <li><code>Цена продажи (если пусто) = Цена × (1 + Прирост%) ^ Срок владения</code></li>
             <li><code>Общая прибыль = (Цена продажи − Общие инвестиции) + (Чистый доход × Срок владения)</code></li>
@@ -2038,7 +2048,8 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
             <li><b>Zahlungsplan (Jahre)</b> — nur zur Information, beeinflusst die Berechnung nicht.</li>
             <li><b>Zusätzliche Kaufkosten</b> — Registrierung, Maklergebühr, Rechtskosten usw.</li>
             <li><b>Möblierungskosten</b> — falls der Kunde die Einheit möblieren möchte.</li>
-            <li><b>Jährliche Instandhaltung / Service</b> — jährliche Servicegebühren an den Entwickler/die Anlage.</li>
+            <li><b>Instandhaltung</b> — einmalige Gebühr, 10 % des ursprünglichen Preises (automatisch, nicht änderbar).</li>
+            <li><b>Erwartete Tagesmiete</b> — Preis pro Nacht bei Kurzzeitvermietung. Wenn ausgefüllt, ersetzt sie die Monatsmiete.</li>
             <li><b>Erwartete Monatsmiete</b> — zu welchem Preis die Einheit vermietet werden könnte.</li>
             <li><b>Auslastung (%)</b> — Anteil des Jahres, in dem die Einheit voraussichtlich vermietet ist.</li>
             <li><b>Verwaltungsgebühr (% der Miete)</b> — falls eine Hausverwaltung einen Anteil der Mieteinnahmen erhält.</li>
@@ -2049,10 +2060,10 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
           </ul>
           <h4>Wie die Zahlen berechnet werden</h4>
           <ul>
-            <li><code>Gesamtinvestition = Kaufpreis + Zusatzkosten + Möblierung</code></li>
+            <li><code>Gesamtinvestition = Kaufpreis + Zusatzkosten + Möblierung + Instandhaltung (10%)</code></li>
             <li><code>Investiertes Bargeld = Anzahlung + Zusatzkosten + Möblierung</code></li>
             <li><code>Jährliche Bruttomiete = Monatsmiete × 12 × Auslastung%</code></li>
-            <li><code>Jährliche Nettomiete = Bruttomiete − Verwaltungsgebühr − Instandhaltung − Nebenkosten</code></li>
+            <li><code>Jährliche Nettomiete = Bruttomiete − Verwaltungsgebühr − Nebenkosten</code></li>
             <li><code>Mietrendite% = Nettomiete ÷ Gesamtinvestition × 100</code></li>
             <li><code>Verkaufspreis (falls leer) = Preis × (1 + Wertsteigerung%) ^ Haltedauer</code></li>
             <li><code>Gesamtgewinn = (Verkaufspreis − Gesamtinvestition) + (Nettomiete × Haltedauer)</code></li>
@@ -2959,7 +2970,7 @@ render();
 
 /* ================= ROI CALCULATOR ================= */
 const roiOverlay = document.getElementById('roiOverlay');
-const roiFields = ['price','down','years','addcost','furnish','maint','rent','occ','mgmt','opex','appr','hold','sell'];
+const roiFields = ['price','down','years','addcost','furnish','maint','daily','rent','occ','mgmt','opex','appr','hold','sell'];
 let currentUnit = null;
 let lastRoiCalc = null;
 
@@ -2977,7 +2988,9 @@ function defaultsForUnit(u){
     price: u.price || 0,
     down: primary ? Math.round((u.price||0)*primary.dp/100) : '',
     years: primary ? primary.years : '',
-    addcost: 0, furnish: 0, maint: 0, rent: 0, occ: 90, mgmt: 0, opex: 0, appr: 0, hold: 5, sell: ''
+    addcost: 0, furnish: 0,
+    maint: (u.maintenance_fee != null ? Math.round(u.maintenance_fee) : Math.round((u.price||0) * MAINTENANCE_FEE_PCT / 100)),
+    daily: 0, rent: 0, occ: 90, mgmt: 0, opex: 0, appr: 0, hold: 5, sell: ''
   };
 }
 
@@ -3018,6 +3031,7 @@ document.getElementById('roiCalcBtn').addEventListener('click', ()=>{
   const addcost = eur(document.getElementById('f_addcost').value);
   const furnish = eur(document.getElementById('f_furnish').value);
   const maint = eur(document.getElementById('f_maint').value);
+  const daily = eur(document.getElementById('f_daily').value);
   const rent = eur(document.getElementById('f_rent').value);
   const occ = eur(document.getElementById('f_occ').value);
   const mgmtPct = eur(document.getElementById('f_mgmt').value);
@@ -3027,19 +3041,22 @@ document.getElementById('roiCalcBtn').addEventListener('click', ()=>{
   const sellInput = document.getElementById('f_sell').value.trim();
 
   const warn = document.getElementById('roiWarn');
-  if(!price || !rent){
-    warn.textContent = 'Enter at least a Purchase Price and Expected Monthly Rent for a meaningful result — missing fields default to 0.';
+  if(!price || !(rent || daily)){
+    warn.textContent = 'Enter at least a Purchase Price and an Expected Daily or Monthly Rent for a meaningful result — missing fields default to 0.';
     warn.classList.add('show');
   } else {
     warn.classList.remove('show');
   }
 
-  const totalInvestment = price + addcost + furnish;
-  const cashInvested = down + addcost + furnish;
+  // Maintenance is a one-time fee (10% of the original price), so it is part of
+  // the money put in, not a yearly deduction from rent.
+  const totalInvestment = price + addcost + furnish + maint;
+  const cashInvested = down + addcost + furnish + maint;
 
-  const grossRental = rent * 12 * (occ/100);
+  // Daily rent (short-term) takes priority; otherwise monthly rent.
+  const grossRental = (daily > 0 ? daily * 365 : rent * 12) * (occ/100);
   const mgmtAmt = grossRental * (mgmtPct/100);
-  const netRental = grossRental - mgmtAmt - maint - opex;
+  const netRental = grossRental - mgmtAmt - opex;
 
   const rentalYield = totalInvestment ? (netRental / totalInvestment) * 100 : 0;
 
@@ -3057,8 +3074,8 @@ document.getElementById('roiCalcBtn').addEventListener('click', ()=>{
   const breakEven = totalAnnualReturn > 0 ? (totalInvestment / totalAnnualReturn) : null;
 
   const rows = [
-    ['Total Investment', fmtE(totalInvestment)],
-    ['Cash Invested (Down Payment + Costs)', fmtE(cashInvested)],
+    ['Total Investment (incl. maintenance)', fmtE(totalInvestment)],
+    ['Cash Invested (Down Payment + Costs + Maintenance)', fmtE(cashInvested)],
     ['Annual Gross Rental Income', fmtE(grossRental)],
     ['Annual Net Rental Income', fmtE(netRental)],
     ['Rental Yield', fmtPct(rentalYield)],
