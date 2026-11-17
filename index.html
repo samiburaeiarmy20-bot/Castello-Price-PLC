@@ -2783,8 +2783,9 @@ async function performHoldAction(action, key, u, expiresAt, password){
     if(action === 'hold'){
       holdsMap[key] = { unitKey:key, unitLabel:label, heldBy: currentAgentName(), heldAt: new Date().toISOString(), expiresAt };
       render();
-      const expiryStr = new Date(expiresAt).toLocaleString('en-GB');
-      openNotifyModal(`Castello Development — Unit Hold\n\n${label}\nHeld by: ${currentAgentName()}\nExpires: ${expiryStr}\n\nCastello Development · www.castelloeg.com · Hotline 15423`);
+      const d = new Date();
+      const dateStr = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+      openNotifyModal(`${u.project}${u.subtitle ? ' ' + u.subtitle : ''} - ${u.unit_no} - Hold - ${dateStr}`);
     } else {
       delete holdsMap[key];
       render();
