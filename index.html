@@ -395,6 +395,14 @@ footer{ border-top:1px solid var(--line-soft); padding: 26px 0 40px; }
 th.th-star{ width:34px; }
 td.star-cell{ text-align:center; white-space:nowrap; }
 .share-btn{ font-size:15px; opacity:.75; }
+#holdBanner{ display:none; margin:0 0 12px; padding:10px 16px; border-radius:12px; font-size:13px; border:1px solid var(--line-soft); background:rgba(255,255,255,0.03); }
+#holdBanner.warn{ border-color:#d97757; background:rgba(217,119,87,.12); color:#f6c7b6; }
+.act-hold.expiring{ border-color:#d97757 !important; color:#f2a68a !important; animation:holdPulse 1.6s ease-in-out infinite; }
+@keyframes holdPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(217,119,87,0); } 50%{ box-shadow:0 0 0 4px rgba(217,119,87,.25); } }
+.saved-filters{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
+.sf-chip{ display:inline-flex; align-items:center; gap:6px; padding:5px 6px 5px 13px; border:1px solid var(--gold-dim,#a8842a); border-radius:20px; font-size:12px; cursor:pointer; background:rgba(201,162,39,.08); }
+.sf-chip:hover{ background:rgba(201,162,39,.18); }
+.sf-del{ background:none; border:none; color:inherit; opacity:.6; cursor:pointer; font-size:14px; line-height:1; padding:0 4px; }
 .cmp-btn{ font-size:15px; opacity:.75; }
 .cmp-btn.active{ opacity:1; color:var(--gold-bright); }
 #cmpBar{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:800; display:none; gap:10px; align-items:center; background:#1d1a14; border:1px solid var(--gold-dim,#a8842a); border-radius:30px; padding:8px 14px; font-size:13px; color:#f3e6bf; box-shadow:0 8px 30px rgba(0,0,0,.5); }
@@ -1657,6 +1665,7 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
       <input type="text" id="maxPrice" placeholder="Max">
     </div>
     <button class="reset-btn" id="resetBtn">Reset filters</button>
+    <button class="reset-btn" id="saveFilterBtn" style="display:none;">💾 Save filter</button>
     <div class="currency-toggle">
       <button class="cur-btn active" id="curEGP">EGP</button>
       <button class="cur-btn" id="curUSD">USD</button>
@@ -1668,6 +1677,7 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
 </div>
 
 <div class="wrap">
+  <div class="saved-filters" id="savedFilters" style="display:none;"></div>
   <div class="results-meta">
     <div class="count"><b id="resCount">0</b> units matching</div>
     <div class="sortbox">
@@ -2289,6 +2299,43 @@ document.getElementById('resetBtn').addEventListener('click', ()=>{
   render();
 });
 
+// ---------- saved quick filters (stored per person in this browser) ----------
+function sfKey(){ return 'castelloSavedFilters:' + (currentAgentName() || 'guest'); }
+function sfLoad(){ try{ return JSON.parse(localStorage.getItem(sfKey()) || '[]') || []; }catch(e){ return []; } }
+function sfStore(list){ try{ localStorage.setItem(sfKey(), JSON.stringify(list.slice(0,12))); }catch(e){} }
+function sfSnapshot(){ return { projects:[...state.projects], types:[...state.types], view:state.view, min:state.min, max:state.max, search:state.search, sort:state.sort }; }
+function sfApply(f){
+  state = { projects:new Set((f.projects||[]).filter(k=>PROJECTS.some(p=>p.key===k))), types:new Set(f.types||[]), view:f.view||'', min:f.min||'', max:f.max||'', search:f.search||'', sort:f.sort||'default' };
+  if(state.projects.size === 0) state.projects = new Set(PROJECTS.map(p=>p.key));
+  sealRow.querySelectorAll('.seal').forEach(s=> s.classList.toggle('active', state.projects.has(s.dataset.key)));
+  typeChips.querySelectorAll('.chip').forEach(c=> c.classList.toggle('active', state.types.has(c.dataset.type)));
+  viewSelect.value = state.view; document.getElementById('minPrice').value = state.min; document.getElementById('maxPrice').value = state.max;
+  document.getElementById('searchInput').value = state.search; document.getElementById('sortSelect').value = state.sort;
+  render();
+}
+function sfRender(){
+  const on = featureOn('can_saved_filters') && !isTestUser();
+  const btn = document.getElementById('saveFilterBtn'), box = document.getElementById('savedFilters');
+  btn.style.display = on ? '' : 'none';
+  const list = on ? sfLoad() : [];
+  box.style.display = list.length ? 'flex' : 'none';
+  box.innerHTML = list.map((f,i)=>`<span class="sf-chip" data-i="${i}">${String(f.name).replace(/[<>&"]/g,'')}<button class="sf-del" data-i="${i}" title="Delete">×</button></span>`).join('');
+}
+document.getElementById('savedFilters').addEventListener('click', e=>{
+  const list = sfLoad();
+  const del = e.target.closest('.sf-del');
+  if(del){ list.splice(Number(del.dataset.i),1); sfStore(list); sfRender(); return; }
+  const chip = e.target.closest('.sf-chip');
+  if(chip && list[Number(chip.dataset.i)]){ try{ track('saved_filter_use', list[Number(chip.dataset.i)].name); }catch(_){} sfApply(list[Number(chip.dataset.i)]); }
+});
+document.getElementById('saveFilterBtn').addEventListener('click', ()=>{
+  const name = (prompt('Name this filter (e.g. "Sea view under 6M"):') || '').trim().slice(0,30);
+  if(!name) return;
+  const list = sfLoad().filter(f=>f.name !== name);
+  list.unshift({ name, ...sfSnapshot() });
+  sfStore(list); sfRender(); shareToast('Filter saved');
+});
+
 // ---------- header sort click ----------
 document.querySelectorAll('thead th[data-key]').forEach(th=>{
   th.addEventListener('click', ()=>{
@@ -2508,7 +2555,7 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts']];
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return f[k] !== false; }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
 function canViewAnalytics(){ return hasFullVisibility() || userPerms().can_view_analytics === true; }
@@ -2576,6 +2623,25 @@ function isNewUnit(u){
   return (Date.now() - t) < NEW_UNIT_HOURS * 60 * 60 * 1000;
 }
 
+function holdLeftMs(h){ return h && h.expiresAt ? new Date(h.expiresAt).getTime() - Date.now() : 0; }
+function fmtLeft(ms){ const m = Math.max(0, Math.round(ms/60000)); return m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`; }
+const HOLD_WARN_MS = 2 * 60 * 60 * 1000;
+function updateHoldBanner(){
+  let b = document.getElementById('holdBanner');
+  if(!b){ b = document.createElement('div'); b.id = 'holdBanner'; const w = document.querySelector('.wrap'); w.insertBefore(b, w.firstChild); }
+  const me = currentAgentName().toLowerCase();
+  const mine = Object.values(holdsMap).filter(h=> h && h.heldBy && h.heldBy.toLowerCase() === me && holdLeftMs(h) > 0);
+  if(!featureOn('can_hold_alerts') || !mine.length || sessionStorage.getItem('castelloAuthed') !== 'yes'){ b.style.display = 'none'; return; }
+  mine.sort((a,c)=> holdLeftMs(a) - holdLeftMs(c));
+  const soon = mine.filter(h=> holdLeftMs(h) <= HOLD_WARN_MS);
+  const label = h => String(h.unitLabel || h.unitKey || '').replace('::',' · ').replace(/[<>&"]/g,'');
+  b.className = soon.length ? 'warn' : '';
+  b.style.display = 'block';
+  b.innerHTML = soon.length
+    ? `⏰ <b>${soon.length}</b> of your holds ${soon.length>1?'are':'is'} about to expire: ` + soon.map(h=>`${label(h)} <b>(${fmtLeft(holdLeftMs(h))} left)</b>`).join(' · ')
+    : `🔒 You are holding <b>${mine.length}</b> unit${mine.length>1?'s':''} — next expires in <b>${fmtLeft(holdLeftMs(mine[0]))}</b>`;
+}
+setInterval(()=>{ try{ updateHoldBanner(); }catch(e){} }, 30000);
 function holdButtonHtml(u){
   const key = unitKey(u);
   const h = holdsMap[key];
@@ -2583,10 +2649,11 @@ function holdButtonHtml(u){
   if(h && h.expiresAt && new Date(h.expiresAt).getTime() > now){
     const mine = h.heldBy && h.heldBy.toLowerCase() === currentAgentName().toLowerCase();
     if(mine){
-      return `<button class="act-btn act-hold mine" data-idx="${u.__idx}" title="Release your hold">🔓 Release</button>`;
+      const left = holdLeftMs(h), alerts = featureOn('can_hold_alerts');
+      return `<button class="act-btn act-hold mine ${alerts && left <= HOLD_WARN_MS ? 'expiring' : ''}" data-idx="${u.__idx}" title="Release your hold${alerts ? ' — expires in ' + fmtLeft(left) : ''}">🔓 Release${alerts ? ' · ' + fmtLeft(left) : ''}</button>`;
     }
     if(isAdminUser()){
-      return `<button class="act-btn act-hold others admin-can-release" data-idx="${u.__idx}" title="Held by ${h.heldBy} — click to release">🔒 ${h.heldBy}</button>`;
+      return `<button class="act-btn act-hold others admin-can-release" data-idx="${u.__idx}" title="Held by ${h.heldBy} — click to release">🔒 ${h.heldBy}${featureOn('can_hold_alerts') ? ' · ' + fmtLeft(holdLeftMs(h)) : ''}</button>`;
     }
     // Anyone else: no name shown, and no permission to act on it until it's free again.
     return `<button class="act-btn act-hold others" data-idx="${u.__idx}" style="opacity:.6; cursor:default;">🔒 On Hold</button>`;
@@ -2773,6 +2840,7 @@ async function fetchHolds(){
     });
     holdsMap = map;
     render();
+    try{ updateHoldBanner(); }catch(e){}
   }catch(err){
     // Best-effort -- leave existing state as-is on a network hiccup.
     console.warn('Live holds fetch failed.', err);
@@ -3308,6 +3376,7 @@ document.getElementById('ratesSaveBtn').addEventListener('click', ()=>{
   if(typeof renderPPSchedule==='function' && ppUnit) renderPPSchedule();
 });
 function refreshAdminUI(){
+  try{ sfRender(); }catch(e){}
   const isAdmin = isAdminUser();
   // Everyone can set exchange rates -- except a test/view-only account, since
   // that's a real action that affects what everyone else sees.
@@ -3667,7 +3736,7 @@ const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} �
 
 /* Admin view */
 function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports' };
+const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports' };
 async function loadActivity(days){
   const box = document.getElementById('activityBody');
   box.innerHTML = '<div class="analytics-loading">Loading…</div>';
