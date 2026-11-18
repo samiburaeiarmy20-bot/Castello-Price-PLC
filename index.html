@@ -2377,24 +2377,51 @@ sealRow.querySelectorAll('.seal').forEach(el=>{
 }
 renderProjectSeals();
 
-// ---------- type chips ----------
-const typeOrder = ['Studio','1 Bedroom','2 Bedroom','3 Bedroom','Condo','Duplex','Office','Office/Shop'];
-const typesPresent = typeOrder.filter(t => UNITS.some(u=>u.unit_type===t));
-const typeChips = document.getElementById('typeChips');
-typeChips.innerHTML = typesPresent.map(t=>`<div class="chip" data-type="${t}">${t}</div>`).join('');
-typeChips.querySelectorAll('.chip').forEach(c=>{
-  c.addEventListener('click', ()=>{
-    c.classList.toggle('active');
-    state.types = new Set([...typeChips.querySelectorAll('.chip.active')].map(x=>x.dataset.type));
-    render();
+// ---------- type chips + view select (rebuilt whenever the unit list changes) ----------
+const typeOrder = ['Studio','1 Bedroom','2 Bedroom','3 Bedroom','4 Bedroom','Condo','Duplex','Office','Office/Shop'];
+// Excel / database spellings vary ("2 Bedrooms", "2BR", "two bedroom", "studio ", ...).
+// Everything is mapped to one canonical label so the chips always match the units.
+function normType(t){
+  const raw = String(t == null ? '' : t).replace(/\s+/g,' ').trim();
+  if(!raw) return '';
+  const s = raw.toLowerCase();
+  if(/^studio/.test(s)) return 'Studio';
+  const words = {one:1,two:2,three:3,four:4};
+  const m = s.match(/^(\d|one|two|three|four)\s*-?\s*(bed|br\b|bdr|b\/r)/);
+  if(m){ const n = words[m[1]] || Number(m[1]); return n + ' Bedroom'; }
+  if(/^duplex/.test(s)) return 'Duplex';
+  if(/^condo/.test(s)) return 'Condo';
+  if(/^office\s*\/\s*shop|^shop\s*\/\s*office/.test(s)) return 'Office/Shop';
+  if(/^office/.test(s)) return 'Office';
+  return raw;
+}
+function normalizeUnits(list){
+  list.forEach(u=>{
+    u.unit_type = normType(u.unit_type);
+    if(typeof u.view === 'string') u.view = u.view.replace(/\s+/g,' ').trim();
   });
-});
-
-// ---------- view select ----------
-const views = [...new Set(UNITS.map(u=>u.view).filter(Boolean))].sort();
+}
+normalizeUnits(UNITS);
+const typeChips = document.getElementById('typeChips');
 const viewSelect = document.getElementById('viewSelect');
-viewSelect.innerHTML += views.map(v=>`<option value="${v}">${v}</option>`).join('');
+function buildFilterOptions(){
+  const present = [...new Set(UNITS.map(u=>u.unit_type).filter(Boolean))];
+  const types = [...typeOrder.filter(t=>present.includes(t)), ...present.filter(t=>!typeOrder.includes(t)).sort()];
+  state.types = new Set([...state.types].filter(t=>types.includes(t)));
+  typeChips.innerHTML = types.map(t=>`<div class="chip${state.types.has(t)?' active':''}" data-type="${t}">${t}</div>`).join('');
+  const views = [...new Set(UNITS.map(u=>u.view).filter(Boolean))].sort();
+  if(state.view && !views.includes(state.view)) state.view = '';
+  viewSelect.innerHTML = '<option value="">All Views</option>' + views.map(v=>`<option value="${v}">${v}</option>`).join('');
+  viewSelect.value = state.view || '';
+}
+typeChips.addEventListener('click', e=>{
+  const c = e.target.closest('.chip'); if(!c) return;
+  c.classList.toggle('active');
+  state.types = new Set([...typeChips.querySelectorAll('.chip.active')].map(x=>x.dataset.type));
+  render();
+});
 viewSelect.addEventListener('change', ()=>{ state.view = viewSelect.value; render(); });
+buildFilterOptions();
 
 // ---------- search / price / sort ----------
 document.getElementById('searchInput').addEventListener('input', e=>{ state.search = e.target.value.trim().toLowerCase(); render(); });
@@ -2830,6 +2857,7 @@ async function loadLiveInventory(){
         maintenance_fee: r.maintenance_fee != null ? r.maintenance_fee : (r.price != null ? Math.round(r.price * 0.10) : null)
       };
     });
+    normalizeUnits(newUnits);
     newUnits.sort(unitDefaultCompare);
     newUnits.forEach((u,i)=> u.__idx = i);
 
@@ -2860,6 +2888,7 @@ async function loadLiveInventory(){
     const projRank = k => { const i = PROJECT_ORDER.indexOf(k); return i < 0 ? 99 : i; };
     PROJECTS = newProjects.sort((a,b)=> projRank(a.key) - projRank(b.key));
     state.projects = new Set(PROJECTS.map(p=>p.key));
+    buildFilterOptions();
     renderProjectSeals();
     render();
     renderHeroLedger();
