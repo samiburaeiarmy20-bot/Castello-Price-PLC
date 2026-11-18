@@ -1447,6 +1447,21 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
 .act-btn.act-hold.others.glow{ position:relative; color:#ffb4b4; border-color:rgba(255,110,110,.55); background:rgba(255,80,80,.10); animation:holdGlow 2.8s ease-in-out infinite; }
 @keyframes holdGlow{ 0%,100%{ box-shadow:0 0 6px -1px rgba(255,90,90,.35); } 50%{ box-shadow:0 0 18px 0 rgba(255,90,90,.75); } }
 @media (prefers-reduced-motion: reduce){ .act-btn.act-hold.others.glow{ animation:none; box-shadow:0 0 12px -2px rgba(255,90,90,.6); } }
+
+/* ===== Themed scrollbars (all scroll areas, horizontal and vertical) ===== */
+@supports not selector(::-webkit-scrollbar){ *{ scrollbar-width:thin; scrollbar-color:color-mix(in srgb, var(--gold) 55%, transparent) transparent; } }
+::-webkit-scrollbar{ width:10px; height:10px; }
+::-webkit-scrollbar-track{ background:color-mix(in srgb, var(--cream) 5%, transparent); border-radius:999px; margin:4px; }
+::-webkit-scrollbar-thumb{ border-radius:999px; border:2px solid transparent; background-clip:padding-box;
+  background-color:color-mix(in srgb, var(--gold) 45%, transparent);
+  background-image:linear-gradient(90deg, color-mix(in srgb, var(--gold-bright) 70%, transparent), color-mix(in srgb, var(--gold) 70%, transparent)); }
+::-webkit-scrollbar-thumb:vertical{ background-image:linear-gradient(180deg, color-mix(in srgb, var(--gold-bright) 70%, transparent), color-mix(in srgb, var(--gold) 70%, transparent)); }
+::-webkit-scrollbar-thumb:hover{ background-color:var(--gold); background-image:linear-gradient(90deg, var(--gold-bright), var(--gold)); border-width:1px; }
+::-webkit-scrollbar-thumb:active{ background-color:var(--gold-bright); background-image:none; }
+::-webkit-scrollbar-corner{ background:transparent; }
+::-webkit-scrollbar-button{ display:none; width:0; height:0; }
+/* table: slightly thicker horizontal bar so it is easy to grab */
+.table-scroll::-webkit-scrollbar, .pm-body::-webkit-scrollbar{ height:12px; }
 </style>
 </head>
 <body>
@@ -3298,6 +3313,7 @@ async function openLayout(u, navList){
   if(featureOn('can_payment_plan') && !u.cash_only) acts.push(['plan','Payment Plan', true]);
   if(featureOn('can_roi')) acts.push(['roi','ROI Calc', false]);
   if(featureOn('can_share')) acts.push(['share','Share', false]);
+  acts.push(['dl','⬇ Download', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
   box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}">${t}</button>`).join('');
@@ -3315,6 +3331,42 @@ async function openLayout(u, navList){
     layPan.innerHTML = '<div class="lay-msg">Layout not available right now.</div>';
   }
 }
+
+// Download the plan exactly as drawn: black lines on white paper (like a CAD print), A4 PDF named by unit number.
+async function downloadLayout(u, btn){
+  const key = layoutKeyFor(u); if(!key) return;
+  const old = btn ? btn.textContent : '';
+  if(btn){ btn.textContent = 'Preparing…'; btn.disabled = true; }
+  try{
+    try{ track('layout_download', unitLabelForTrack(u)); }catch(e){}
+    if(!layoutCache[key]){ const r = await fetch(`${LAYOUT_BASE}${key}.svg`); if(!r.ok) throw new Error('missing'); layoutCache[key] = await r.text(); }
+    const vb = (layoutCache[key].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
+    const vw = vb[2], vh = vb[3], PX = 3200;
+    const W = Math.round(vw >= vh ? PX : PX * vw / vh), H = Math.round(vw >= vh ? PX * vh / vw : PX);
+    const style = '<style>.co{stroke:#222;stroke-width:.02}.ch{stroke:#555;stroke-width:.012}.cc{stroke:#000;stroke-width:.03}.cw{stroke:#000;stroke-width:.035}text{fill:#000;font-family:Arial,Helvetica,sans-serif}</style>';
+    const svg = layoutCache[key].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}"><rect x="${vb[0]}" y="${vb[1]}" width="${vw}" height="${vh}" fill="#fff"/>${style}`);
+    const url = URL.createObjectURL(new Blob([svg], { type:'image/svg+xml' }));
+    const img = await new Promise((res, rej)=>{ const i = new Image(); i.onload = ()=>res(i); i.onerror = rej; i.src = url; });
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0,0,W,H); cx.drawImage(img, 0, 0, W, H);
+    URL.revokeObjectURL(url);
+    const name = String(u.unit_no).replace(/[\\/:*?"<>|\s]+/g,'_');
+    if(window.jspdf && window.jspdf.jsPDF){
+      const land = W > H;
+      const pdf = new window.jspdf.jsPDF(land ? 'l' : 'p', 'pt', 'a4');
+      const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight(), m = 28;
+      const s = Math.min((pw - 2*m) / W, (ph - 2*m) / H);
+      pdf.addImage(cv.toDataURL('image/png'), 'PNG', (pw - W*s)/2, (ph - H*s)/2, W*s, H*s);
+      pdf.save(`${name}.pdf`);
+    } else {
+      const a = document.createElement('a'); a.href = cv.toDataURL('image/png'); a.download = `${name}.png`; a.click();
+    }
+  }catch(e){
+    console.error(e); alert('Could not prepare the layout download. Please try again.');
+  }finally{
+    if(btn){ btn.textContent = old; btn.disabled = false; }
+  }
+}
 function layStep(d){ const list = layList(); const i = list.indexOf(layCur); const n = list[i + d]; if(n) openLayout(n); }
 document.getElementById('layPrev').addEventListener('click', ()=> layStep(-1));
 document.getElementById('layNext').addEventListener('click', ()=> layStep(1));
@@ -3322,6 +3374,7 @@ document.getElementById('layActions').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b || !layCur) return;
   const u = layCur;
   if(b.dataset.act === 'share'){ shareUnit(u, b); return; }
+  if(b.dataset.act === 'dl'){ downloadLayout(u, b); return; }
   layoutOverlay.classList.remove('open');
   if(b.dataset.act === 'plan') openPaymentModal(u);
   if(b.dataset.act === 'roi') openRoiModal(u);
@@ -4393,7 +4446,7 @@ const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} �
 
 /* Admin view */
 function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
+const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', layout_download:'Layouts downloaded', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
 async function loadActivity(days){
   const box = document.getElementById('activityBody');
   box.innerHTML = '<div class="analytics-loading">Loading…</div>';
