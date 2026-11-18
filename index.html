@@ -400,6 +400,128 @@ footer{ border-top:1px solid var(--line-soft); padding: 26px 0 40px; }
 th.th-star{ width:34px; }
 td.star-cell{ text-align:center; white-space:nowrap; }
 .share-btn{ font-size:15px; opacity:.75; }
+.lay-btn{ font-size:15px; opacity:.75; }
+.lay-btn:hover{ opacity:1; }
+/* Unit layout viewer */
+.lay-card{ max-width:860px !important; width:min(860px,96vw); max-height:94vh; display:flex; flex-direction:column; padding:0 !important; overflow:hidden; }
+.lay-hero{ position:relative; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; padding:22px 64px 16px 26px;
+  background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--gold) 22%, transparent), transparent 62%), linear-gradient(180deg, color-mix(in srgb, var(--gold) 6%, transparent), transparent); border-bottom:1px solid var(--line-soft); }
+.lay-hero .modal-close{ position:absolute; right:16px; top:16px; }
+.lay-eyebrow{ font-size:10.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); font-weight:600; margin-bottom:4px; }
+.lay-hero h3{ font-size:30px; line-height:1.05; margin:0 0 12px; letter-spacing:-.01em; color:var(--cream); }
+.lay-chips{ display:flex; flex-wrap:wrap; gap:7px; }
+.lay-chip{ display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:999px; font-size:11.5px; color:var(--cream); background:color-mix(in srgb, var(--surface) 80%, transparent); border:1px solid var(--line-soft); }
+.lay-chip.type{ border-color:var(--gold); color:var(--gold); font-weight:600; background:color-mix(in srgb, var(--gold) 10%, transparent); }
+.lay-hero-r{ text-align:right; flex:none; }
+.lay-area{ font-size:46px; font-weight:300; line-height:1; color:var(--cream); letter-spacing:-.03em; }
+.lay-area span{ font-size:16px; margin-left:3px; color:var(--gold); font-weight:600; letter-spacing:0; }
+.lay-price{ margin-top:6px; font-size:13px; color:var(--stone); }
+.lay-price b{ color:var(--gold-bright); font-weight:600; font-size:15px; }
+.lay-stage{ position:relative; flex:1; min-height:min(540px,60vh); margin:14px 18px 0; border:1px solid var(--line-soft); border-radius:18px; overflow:hidden; touch-action:none; cursor:grab;
+  background: var(--bg-alt); }
+.lay-stage.drag{ cursor:grabbing; }
+.lay-pan{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; transform-origin:0 0; }
+.lay-pan svg{ width:100%; height:100%; display:block; padding:6px 6px 40px; box-sizing:border-box; animation:layIn .55s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes layIn{ from{ opacity:0; transform:scale(.93) translateY(10px); } to{ opacity:1; transform:none; } }
+.lay-tools{ position:absolute; right:12px; top:12px; display:flex; flex-direction:column; gap:7px; z-index:3; }
+.lay-tools button, .lay-nav{ width:36px; height:36px; border-radius:11px; border:1px solid var(--line); background:color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter:blur(8px); color:var(--cream); font-size:17px; cursor:pointer; line-height:1; transition:all .15s; }
+.lay-tools button:hover, .lay-nav:hover{ border-color:var(--gold); color:var(--gold); transform:translateY(-1px); }
+.lay-nav{ position:absolute; top:50%; margin-top:-18px; z-index:3; font-size:20px; }
+.lay-nav.prev{ left:12px; } .lay-nav.next{ right:12px; }
+.lay-nav[disabled]{ opacity:.25; pointer-events:none; }
+.lay-count{ position:absolute; left:14px; top:14px; z-index:3; font-size:11px; letter-spacing:.08em; color:var(--stone); padding:4px 10px; border-radius:999px; background:color-mix(in srgb, var(--surface) 80%, transparent); border:1px solid var(--line-soft); }
+.lay-legend{ display:none !important; position:absolute; right:14px; bottom:12px; z-index:3; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; max-width:80%; }
+.lay-legend span{ display:inline-flex; align-items:center; gap:6px; font-size:10.5px; color:var(--stone); padding:3px 9px; border-radius:999px; background:color-mix(in srgb, var(--surface) 82%, transparent); border:1px solid var(--line-soft); }
+.lay-legend i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+.lay-actions{ display:flex; gap:10px; padding:14px 18px 6px; }
+.lay-actions button{ flex:1; padding:12px 10px; border-radius:12px; border:1px solid var(--line); background:color-mix(in srgb, var(--surface) 70%, transparent); color:var(--cream); font:600 13px 'Inter',sans-serif; cursor:pointer; transition:all .15s; }
+.lay-actions button:hover{ border-color:var(--gold); color:var(--gold); transform:translateY(-1px); }
+.lay-actions button.primary{ background:var(--gold); border-color:var(--gold); color:#1a1610; }
+.lay-actions button.primary:hover{ background:var(--gold-bright); color:#1a1610; }
+.lay-note{ padding:6px 26px 16px; font-size:10.5px; color:var(--stone-dim); line-height:1.5; text-align:center; }
+
+/* ===== Project Map ===== */
+.pm-card{ width:min(1240px,98vw) !important; max-width:none !important; height:min(900px,94vh); display:flex; flex-direction:column; padding:0 !important; overflow:hidden; }
+.pm-hero{ position:relative; padding:22px 66px 14px 26px; display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px;
+  background: radial-gradient(110% 150% at 0% 0%, color-mix(in srgb, var(--gold) 24%, transparent), transparent 60%), linear-gradient(180deg, color-mix(in srgb, var(--gold) 7%, transparent), transparent); border-bottom:1px solid var(--line-soft); }
+.pm-hero .modal-close{ position:absolute; right:16px; top:16px; }
+.pm-eyebrow{ font-size:10.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); font-weight:600; margin-bottom:4px; }
+.pm-hero h3{ font-size:30px; line-height:1.05; margin:0 0 6px; color:var(--cream); letter-spacing:-.01em; }
+.pm-hero p{ margin:0; font-size:12.5px; color:var(--stone); }
+.pm-stats{ display:flex; gap:10px; flex-wrap:wrap; }
+.pm-stat{ min-width:84px; padding:9px 14px; border-radius:14px; background:color-mix(in srgb, var(--surface) 75%, transparent); border:1px solid var(--line-soft); }
+.pm-stat b{ display:block; font-size:22px; font-weight:300; color:var(--cream); line-height:1.1; }
+.pm-stat span{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--stone-dim); }
+.pm-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:12px 22px; border-bottom:1px solid var(--line-soft); }
+.pm-tabs{ display:flex; gap:8px; }
+.pm-tab{ padding:8px 16px; border-radius:12px; border:1px solid var(--line-soft); background:var(--bg-alt); color:var(--stone); cursor:pointer; font:600 13px 'Inter',sans-serif; transition:all .15s; }
+.pm-tab small{ display:block; font-weight:400; font-size:10px; opacity:.8; margin-top:1px; }
+.pm-tab:hover{ border-color:var(--gold); color:var(--cream); }
+.pm-tab.on{ background:var(--gold); border-color:var(--gold); color:#1a1610; }
+.pm-sep{ flex:1; }
+.pm-types{ display:flex; flex-wrap:wrap; gap:6px; }
+.pm-type{ display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; border:1px solid var(--line-soft); background:var(--bg-alt); color:var(--stone); font-size:11.5px; cursor:pointer; transition:all .15s; }
+.pm-type i{ width:9px; height:9px; border-radius:50%; background:var(--tc); }
+.pm-type:hover{ border-color:var(--tc); }
+.pm-type.on{ border-color:var(--tc); color:var(--cream); background:color-mix(in srgb, var(--tc) 16%, transparent); }
+.pm-toggle{ display:inline-flex; align-items:center; gap:7px; font-size:11.5px; color:var(--stone); cursor:pointer; user-select:none; }
+.pm-toggle input{ accent-color:var(--gold); }
+.pm-body{ flex:1; overflow:auto; padding:18px 22px 10px; position:relative;
+  background: radial-gradient(70% 40% at 50% 0%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 70%), var(--bg-alt); }
+.pm-building{ display:inline-block; min-width:100%; }
+.pm-roof{ height:16px; margin:0 0 6px 62px; border-radius:10px 10px 0 0; background:linear-gradient(180deg, color-mix(in srgb, var(--gold) 30%, transparent), color-mix(in srgb, var(--gold) 6%, transparent)); border:1px solid color-mix(in srgb, var(--gold) 35%, transparent); border-bottom:none; }
+.pm-row{ display:flex; align-items:stretch; gap:8px; padding:7px 0; border-bottom:2px solid color-mix(in srgb, var(--gold) 18%, transparent); position:relative; }
+.pm-floor{ position:sticky; left:0; z-index:4; flex:none; width:54px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:12px; background:color-mix(in srgb, var(--surface) 92%, transparent); border:1px solid var(--line-soft); color:var(--stone); font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+.pm-floor b{ font-size:20px; font-weight:300; color:var(--cream); letter-spacing:0; line-height:1; }
+.pm-cell{ position:relative; flex:none; width:86px; height:128px; border-radius:14px; border:1px solid var(--line-soft); background:color-mix(in srgb, var(--surface) 55%, transparent); padding:6px 6px 6px; display:flex; flex-direction:column; align-items:center; font-family:'Inter',sans-serif; color:var(--stone-dim); animation:pmIn .45s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i,0) * 14ms); text-align:center; }
+@keyframes pmIn{ from{ opacity:0; transform:translateY(8px) scale(.96); } to{ opacity:1; transform:none; } }
+.pm-thumb{ flex:1; width:100%; min-height:0; -webkit-mask:var(--m) center/contain no-repeat; mask:var(--m) center/contain no-repeat; background:var(--stone-dim); opacity:.28; transition:all .2s; }
+.pm-no{ font-size:11.5px; font-weight:600; margin-top:4px; }
+.pm-meta{ font-size:10px; color:var(--stone); margin-top:1px; min-height:12px; }
+.pm-cell.empty{ background:transparent; border:1px dashed color-mix(in srgb, var(--line-soft) 70%, transparent); animation:none; opacity:.5; }
+.pm-cell.avail{ cursor:pointer; border-color:color-mix(in srgb, var(--tc) 55%, transparent); background:linear-gradient(180deg, color-mix(in srgb, var(--tc) 14%, var(--surface)), color-mix(in srgb, var(--surface) 70%, transparent)); color:var(--cream); transition:transform .18s, box-shadow .18s, border-color .18s; }
+.pm-cell.avail .pm-thumb{ background:var(--tc); opacity:.95; filter:drop-shadow(0 0 5px color-mix(in srgb, var(--tc) 55%, transparent)); }
+.pm-cell.avail:hover{ transform:translateY(-4px) scale(1.04); z-index:5; border-color:var(--tc); box-shadow:0 14px 30px rgba(0,0,0,.35), 0 0 0 1px var(--tc), 0 0 22px color-mix(in srgb, var(--tc) 40%, transparent); }
+.pm-cell.avail:focus-visible{ outline:2px solid var(--tc); outline-offset:2px; }
+.pm-cell.hold{ border-style:dashed; }
+.pm-cell.dim:not(.empty){ opacity:.22; filter:saturate(.4); }
+.pm-cell.avail.dim{ pointer-events:none; }
+.pm-badge{ position:absolute; top:5px; right:5px; font-size:8.5px; font-weight:700; letter-spacing:.06em; padding:2px 5px; border-radius:6px; background:var(--gold); color:#1a1610; }
+.pm-badge.cash{ background:#4fd6a0; } .pm-badge.hold{ background:#e8a948; }
+.pm-foot{ display:flex; flex-wrap:wrap; gap:14px; align-items:center; padding:10px 22px 14px; border-top:1px solid var(--line-soft); font-size:11px; color:var(--stone); }
+.pm-foot span{ display:inline-flex; align-items:center; gap:6px; }
+.pm-foot i{ width:12px; height:12px; border-radius:4px; display:inline-block; border:1px solid var(--line); }
+.pm-foot .sp{ flex:1; }
+#pmTip{ position:fixed; z-index:1000; pointer-events:none; opacity:0; transform:translateY(6px); transition:opacity .12s, transform .12s; min-width:190px; padding:12px 14px; border-radius:14px; background:color-mix(in srgb, var(--surface) 96%, transparent); border:1px solid var(--line); box-shadow:0 18px 40px rgba(0,0,0,.45); backdrop-filter:blur(10px); font-family:'Inter',sans-serif; }
+#pmTip.show{ opacity:1; transform:none; }
+#pmTip .t1{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+#pmTip .t1 b{ font-size:16px; color:var(--cream); } #pmTip .t1 em{ font-style:normal; font-size:11px; font-weight:600; color:var(--tc); }
+#pmTip .t2{ margin-top:6px; font-size:11.5px; color:var(--stone); line-height:1.6; }
+#pmTip .t3{ margin-top:8px; font-size:15px; font-weight:600; color:var(--gold-bright); }
+#pmTip .t4{ margin-top:6px; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--stone-dim); }
+@media (max-width:760px){ .pm-card{ width:100vw !important; height:100vh; border-radius:0 !important; } .pm-hero{ padding:14px 54px 8px 16px; gap:8px; } .pm-hero h3{ font-size:22px; margin-bottom:0; } .pm-hero p{ display:none; } .pm-stats{ flex-wrap:nowrap; overflow-x:auto; width:100%; padding-bottom:2px; } .pm-stat{ min-width:64px; flex:none; padding:6px 10px; } .pm-stat b{ font-size:17px; } .pm-bar{ padding:8px 12px; gap:8px; } .pm-types{ flex-wrap:nowrap; overflow-x:auto; width:100%; } .pm-type{ flex:none; padding:5px 10px; } .pm-tab{ padding:6px 12px; } .pm-body{ padding:12px 10px 6px; } .pm-cell{ width:74px; height:112px; } .pm-floor{ width:44px; } .pm-roof{ margin-left:52px; } .pm-foot{ padding:8px 12px 12px; gap:10px; } }
+.lay-msg{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--stone); font-size:13px; }
+/* AutoCAD drawing, exactly as drawn; transparent and coloured by the theme */
+.plan-cad .co{ stroke:var(--cream); stroke-width:.02; opacity:.85; }
+.plan-cad .ch{ stroke:var(--stone); stroke-width:.012; opacity:.7; }
+.plan-cad .cc{ stroke:var(--cream); stroke-width:.03; }
+.plan-cad .cw{ stroke:var(--cream); stroke-width:.035; }
+.plan-cad .ct text{ fill:var(--cream); font-family:Arial,Helvetica,sans-serif; }
+/* the drawing */
+.plan-svg .pfloor{ display:none; }
+.plan-svg .pw{ fill:var(--cream); stroke:none; }
+.plan-svg .pf{ fill:none; stroke:var(--stone); stroke-width:.035; opacity:.8; }
+.plan-svg .pc{ fill:none; stroke:var(--cream); stroke-width:.05; }
+.plan-svg .rl rect, .plan-svg .rl circle{ display:none; }
+.plan-svg .rl text{ fill:var(--stone); font:500 calc(var(--fs) * .62) 'Inter',sans-serif; text-anchor:middle; letter-spacing:.04em; text-transform:capitalize; paint-order:stroke; stroke:var(--bg-alt); stroke-width:calc(var(--fs) * .3); stroke-linejoin:round; }
+.rl.k-rec rect{ stroke:#e8a948; } .rl.k-rec circle{ fill:#e8a948; }
+.rl.k-room rect{ stroke:#9d8cff; } .rl.k-room circle{ fill:#9d8cff; }
+.rl.k-bath rect{ stroke:#4cc3ee; } .rl.k-bath circle{ fill:#4cc3ee; }
+.rl.k-kit rect{ stroke:#4fd6a0; } .rl.k-kit circle{ fill:#4fd6a0; }
+.rl.k-oth rect{ stroke:var(--gold); } .rl.k-oth circle{ fill:var(--gold); }
+.plan-svg .psb path{ stroke:var(--stone); stroke-width:.07; fill:none; }
+.plan-svg .psb text{ fill:var(--stone); font:500 calc(var(--fs)*.85) 'Inter',sans-serif; text-anchor:middle; }
+@media (max-width:760px){ .lay-card{ max-height:100vh; height:100vh; border-radius:0 !important; width:100vw; max-width:100vw !important; } .lay-hero{ padding:16px 54px 12px 16px; } .lay-hero h3{ font-size:24px; margin-bottom:8px; } .lay-area{ font-size:32px; } .lay-stage{ min-height:0; margin:10px 10px 0; } .lay-actions{ padding:10px 10px 4px; } .lay-actions button{ padding:11px 6px; font-size:12px; } .lay-note{ padding:4px 14px 12px; } .lay-legend{ max-width:100%; bottom:8px; right:10px; } .lay-nav{ width:32px; height:32px; } }
 .act-hold .hold-l1{ display:block; line-height:1.15; }
 .act-hold .hold-l2{ display:block; font-size:9.5px; opacity:.85; margin-top:1px; letter-spacing:.02em; line-height:1.15; }
 #holdBanner{ display:none; margin:0 0 12px; padding:10px 16px; border-radius:12px; font-size:13px; border:1px solid var(--line-soft); background:rgba(255,255,255,0.03); }
@@ -1478,6 +1600,62 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
   </div>
 </div>
 
+<div class="modal-overlay" id="pmapOverlay">
+  <div class="modal-card pm-card">
+    <div class="pm-hero">
+      <div>
+        <div class="pm-eyebrow" id="pmEyebrow">Project Map</div>
+        <h3 id="pmTitle">Sea Breeze Resort</h3>
+        <p>Every apartment, by block and floor. Tap an available unit to open its layout.</p>
+      </div>
+      <div class="pm-stats" id="pmStats"></div>
+      <button class="modal-close" id="pmapClose">×</button>
+    </div>
+    <div class="pm-bar">
+      <div class="pm-tabs" id="pmTabs"></div>
+      <div class="pm-sep"></div>
+      <div class="pm-types" id="pmTypes"></div>
+      <label class="pm-toggle"><input type="checkbox" id="pmOnly"> Available only</label>
+    </div>
+    <div class="pm-body" id="pmBody"></div>
+    <div class="pm-foot">
+      <span><i style="background:color-mix(in srgb,var(--gold) 35%,transparent);border-color:var(--gold)"></i>Available</span>
+      <span><i style="border-style:dashed;border-color:#e8a948"></i>On hold</span>
+      <span><i style="opacity:.35"></i>Not available</span>
+      <span class="sp"></span>
+      <span>Floors and unit order follow the unit numbers (B106 = block B, floor 1, unit 06).</span>
+    </div>
+  </div>
+</div>
+<div id="pmTip"></div>
+
+<div class="modal-overlay" id="layoutOverlay">
+  <div class="modal-card lay-card">
+    <div class="lay-hero">
+      <div>
+        <div class="lay-eyebrow" id="laySub">—</div>
+        <h3 id="layTitle">Unit</h3>
+        <div class="lay-chips" id="layChips"></div>
+      </div>
+      <div class="lay-hero-r">
+        <div class="lay-area"><b id="layArea" style="font-weight:300">—</b><span>m²</span></div>
+        <div class="lay-price" id="layPrice"></div>
+      </div>
+      <button class="modal-close" id="layoutClose">×</button>
+    </div>
+    <div class="lay-stage" id="layStage">
+      <div class="lay-count" id="layCount"></div>
+      <button class="lay-nav prev" id="layPrev" title="Previous unit" aria-label="Previous unit">‹</button>
+      <button class="lay-nav next" id="layNext" title="Next unit" aria-label="Next unit">›</button>
+      <div class="lay-tools"><button id="layZoomIn" title="Zoom in">+</button><button id="layZoomOut" title="Zoom out">−</button><button id="layZoomReset" title="Reset">⤢</button></div>
+      <div class="lay-pan" id="layPan"></div>
+      <div class="lay-legend" id="layLegend"></div>
+    </div>
+    <div class="lay-actions" id="layActions"></div>
+    <div class="lay-note">Layout is indicative and for illustration only. Final areas and finishes are as per the contract.</div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="salesTipsOverlay">
   <div class="modal-card" style="max-width:640px; max-height:82vh; display:flex; flex-direction:column;">
     <div class="modal-head">
@@ -1695,6 +1873,7 @@ html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,htm
       <div class="hotline">Hotline 15423</div>
       <button class="admin-btn" id="exportPriceListBtn">📄 Export Price List</button>
       <button class="admin-btn" id="adminAnalyticsBtn">📊 Analytics</button>
+      <button class="admin-btn" id="projectMapBtn">🏢 Project Map</button>
       <button class="admin-btn" id="adminReservedBtn">🔒 Reserved Units</button>
       <button class="admin-btn" id="adminUsersBtn">👥 Users</button>
       <div class="session-info">
@@ -2312,6 +2491,8 @@ const fmt = n => n==null ? '—' : Math.round(n).toLocaleString('en-US');
 const fmtM = n => n==null ? '—' : (n/1e6).toFixed(2) + 'M';
 
 // ---------- state ----------
+let LAYOUT_MANIFEST = null;   // unit-layout index, loaded after sign-in
+let lastRows = [];            // rows currently shown (used for prev/next in the layout viewer)
 let state = { projects: new Set(PROJECTS.map(p=>p.key)), types: new Set(), view:'', min:'', max:'', search:'', sort:'default' };
 
 // ---------- hero ledger ----------
@@ -2529,6 +2710,7 @@ function render(){
     return boostB - boostA;
   });
 
+  lastRows = rows;
   document.getElementById('resCount').textContent = rows.length;
 
   const tbody = document.getElementById('tbody');
@@ -2543,7 +2725,7 @@ function render(){
     const trClass = [held ? 'tr-held' : '', isNew ? 'tr-new' : ''].filter(Boolean).join(' ');
     return `
     <tr class="${trClass}">
-      <td class="star-cell"><button class="star-btn ${shortlist.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to shortlist">${shortlist.has(u.__idx)?'★':'☆'}</button>${featureOn('can_compare') ? `<button class="star-btn cmp-btn ${cmpSet.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to comparison (up to 3)" aria-label="Compare unit">⇄</button>` : ''}${featureOn('can_share') ? `<button class="star-btn share-btn" data-idx="${u.__idx}" title="Copy / share this unit with a client" aria-label="Share unit">⧉</button>` : ''}</td>
+      <td class="star-cell"><button class="star-btn ${shortlist.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to shortlist">${shortlist.has(u.__idx)?'★':'☆'}</button>${featureOn('can_compare') ? `<button class="star-btn cmp-btn ${cmpSet.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to comparison (up to 3)" aria-label="Compare unit">⇄</button>` : ''}${featureOn('can_share') ? `<button class="star-btn share-btn" data-idx="${u.__idx}" title="Copy / share this unit with a client" aria-label="Share unit">⧉</button>` : ''}${layoutKeyFor(u) && featureOn('can_unit_layout') ? `<button class="star-btn lay-btn" data-idx="${u.__idx}" title="View unit layout" aria-label="Unit layout">▦</button>` : ''}</td>
       <td class="proj"><span class="proj-inner"><img src="${iconFor(u.sheet)}" alt="" data-sheet="${u.sheet}" data-icon="${u.sheet}"><span><span class="pj-name">${u.project}${isNew?'<span class="new-tag" title="Added in the last 48 hours">NEW</span>':''}${priceChangeTag(u)}${held?'<span class="hold-flash" title="On hold">⚡</span>':''}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
       <td class="mono">${u.section||'—'}</td>
       <td class="mono">${u.unit_no}</td>
@@ -2578,10 +2760,11 @@ function render(){
   tbody.querySelectorAll('.act-plan').forEach(btn=>{
     btn.addEventListener('click', ()=> openPaymentModal(UNITS[Number(btn.dataset.idx)]));
   });
-  tbody.querySelectorAll('.star-btn:not(.share-btn)').forEach(btn=>{
+  tbody.querySelectorAll('.star-btn:not(.share-btn):not(.cmp-btn):not(.lay-btn)').forEach(btn=>{
     btn.addEventListener('click', ()=> toggleShortlist(Number(btn.dataset.idx)));
   });
   tbody.querySelectorAll('.cmp-btn').forEach(btn=>{ btn.addEventListener('click', ()=> toggleCompare(Number(btn.dataset.idx), btn)); });
+  tbody.querySelectorAll('.lay-btn').forEach(btn=>{ btn.addEventListener('click', ()=> openLayout(UNITS[Number(btn.dataset.idx)], null)); });
   tbody.querySelectorAll('.share-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> shareUnit(UNITS[Number(btn.dataset.idx)], btn));
   });
@@ -2694,8 +2877,11 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags']];
-function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return f[k] !== false; }
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map']];
+// Features listed here stay OFF for a user until an admin ticks them on the Users screen.
+const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map'];
+function featureDefault(k){ return !FEATURE_DEFAULT_OFF.includes(k); }
+function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return k in f ? f[k] !== false : featureDefault(k); }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
 function canViewAnalytics(){ return hasFullVisibility() || userPerms().can_view_analytics === true; }
 // Payment Plan + ROI Calc are always present (2). Hold is present unless
@@ -3022,6 +3208,231 @@ function defaultsForUnit(u){
     daily: 0, rent: 0, occ: 90, mgmt: 0, opex: 0, appr: 0, hold: 5, sell: ''
   };
 }
+
+
+/* ================= UNIT LAYOUTS (Sea Breeze first) ================= */
+const LAYOUT_BASE = 'layouts/';
+const layoutCache = {};
+// Unit numbers are Block + Floor + 2-digit unit (B106 = block B, floor 1, unit 06). The same plan repeats
+// on every floor, so B106, B206, B306... all use the "B106" drawing. Block D's units 10-13 have their own
+// upper-floor plans (D210-D213).
+function layoutKeyFor(u){
+  if(!LAYOUT_MANIFEST || !u || u.sheet !== 'Sea Breeze') return null;
+  const m = String(u.unit_no||'').trim().toUpperCase().match(/^([A-Z])(\d)(\d{2})$/);
+  if(!m) return null;
+  const [, b, f, n] = m;
+  const key = (b === 'D' && Number(f) >= 2 && Number(n) >= 10 && Number(n) <= 13) ? `D2${n}` : `${b}1${n}`;
+  return LAYOUT_MANIFEST[key] ? key : null;
+}
+async function loadLayoutManifest(){
+  if(LAYOUT_MANIFEST) return;
+  try{
+    const res = await fetch(LAYOUT_BASE + 'manifest.json', { cache:'no-cache' });
+    if(!res.ok) return;
+    LAYOUT_MANIFEST = await res.json();
+    try{ refreshAdminUI(); }catch(e){}
+    render();
+  }catch(e){}
+}
+const layoutOverlay = document.getElementById('layoutOverlay');
+const layStage = document.getElementById('layStage'), layPan = document.getElementById('layPan');
+let layT = { s:1, x:0, y:0 };
+function layApply(){ layPan.style.transform = `translate(${layT.x}px,${layT.y}px) scale(${layT.s})`; }
+function layZoom(f, cx, cy){
+  const r = layStage.getBoundingClientRect();
+  cx = cx == null ? r.width/2 : cx; cy = cy == null ? r.height/2 : cy;
+  const ns = Math.min(6, Math.max(1, layT.s * f));
+  layT.x = cx - (cx - layT.x) * (ns / layT.s);
+  layT.y = cy - (cy - layT.y) * (ns / layT.s);
+  layT.s = ns;
+  if(ns === 1){ layT.x = 0; layT.y = 0; }
+  layApply();
+}
+document.getElementById('layZoomIn').addEventListener('click', ()=> layZoom(1.4));
+document.getElementById('layZoomOut').addEventListener('click', ()=> layZoom(1/1.4));
+document.getElementById('layZoomReset').addEventListener('click', ()=>{ layT = {s:1,x:0,y:0}; layApply(); });
+layStage.addEventListener('wheel', e=>{ e.preventDefault(); const r = layStage.getBoundingClientRect(); layZoom(e.deltaY < 0 ? 1.15 : 1/1.15, e.clientX - r.left, e.clientY - r.top); }, { passive:false });
+(function(){ // drag to pan + pinch to zoom
+  const pts = new Map(); let lastD = 0;
+  layStage.addEventListener('pointerdown', e=>{ if(e.target.closest('.lay-tools, .lay-nav')) return; layStage.setPointerCapture(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); layStage.classList.add('drag'); });
+  layStage.addEventListener('pointermove', e=>{
+    if(!pts.has(e.pointerId)) return;
+    const prev = pts.get(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(pts.size === 2){
+      const [a,b] = [...pts.values()]; const d = Math.hypot(a.x-b.x, a.y-b.y);
+      if(lastD){ const r = layStage.getBoundingClientRect(); layZoom(d/lastD, (a.x+b.x)/2 - r.left, (a.y+b.y)/2 - r.top); }
+      lastD = d;
+    } else if(layT.s > 1){ layT.x += e.clientX - prev.x; layT.y += e.clientY - prev.y; layApply(); }
+  });
+  const end = e=>{ pts.delete(e.pointerId); lastD = 0; if(!pts.size) layStage.classList.remove('drag'); };
+  layStage.addEventListener('pointerup', end); layStage.addEventListener('pointercancel', end);
+})();
+const LAY_KINDS = { rec:['Reception','#e8a948'], room:['Bedroom','#9d8cff'], bath:['Bathroom','#4cc3ee'], kit:['Kitchen','#4fd6a0'] };
+let layCur = null;
+let layNavList = null;   // set when the viewer is opened from the project map
+function layList(){ return (layNavList || lastRows).filter(x=> layoutKeyFor(x)); }
+async function openLayout(u, navList){
+  const key = layoutKeyFor(u);
+  if(!key) return;
+  if(navList !== undefined) layNavList = navList;
+  layCur = u;
+  try{ track('unit_layout', unitLabelForTrack(u)); }catch(e){}
+  const meta = LAYOUT_MANIFEST[key] || {};
+  const esc = t => String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  document.getElementById('layTitle').textContent = `Unit ${u.unit_no}`;
+  document.getElementById('laySub').textContent = `${u.project}${u.subtitle?' · '+u.subtitle:''}`;
+  document.getElementById('layArea').textContent = u.area ? u.area : (meta.sqm || '—');
+  document.getElementById('layPrice').innerHTML = u.price ? `${u.cash_only ? 'Cash price ' : 'From '}<b>${fmtCur(u.price)}</b>` : '';
+  document.getElementById('layChips').innerHTML =
+    (u.unit_type ? `<span class="lay-chip type">${esc(u.unit_type)}</span>` : '') +
+    (u.floor ? `<span class="lay-chip">🏢 ${esc(u.floor)} floor</span>` : '') +
+    (u.view ? `<span class="lay-chip">🌊 ${esc(u.view)}</span>` : '');
+  document.getElementById('layLegend').innerHTML = (meta.rooms || []).filter(k=>LAY_KINDS[k]).map(k=>`<span><i style="background:${LAY_KINDS[k][1]}"></i>${LAY_KINDS[k][0]}</span>`).join('');
+  // prev / next through the units currently listed
+  const list = layList(), at = list.indexOf(u);
+  document.getElementById('layCount').textContent = at >= 0 ? `${at+1} / ${list.length}` : '';
+  document.getElementById('layPrev').disabled = at <= 0;
+  document.getElementById('layNext').disabled = at < 0 || at >= list.length - 1;
+  // quick actions
+  const acts = [];
+  if(featureOn('can_payment_plan') && !u.cash_only) acts.push(['plan','Payment Plan', true]);
+  if(featureOn('can_roi')) acts.push(['roi','ROI Calc', false]);
+  if(featureOn('can_share')) acts.push(['share','Share', false]);
+  const box = document.getElementById('layActions');
+  box.style.display = acts.length ? 'flex' : 'none';
+  box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}">${t}</button>`).join('');
+  layT = { s:1, x:0, y:0 }; layApply();
+  layPan.innerHTML = '<div class="lay-msg">Loading layout…</div>';
+  layoutOverlay.classList.add('open');
+  try{
+    if(!layoutCache[key]){
+      const res = await fetch(`${LAYOUT_BASE}${key}.svg`);
+      if(!res.ok) throw new Error('missing');
+      layoutCache[key] = await res.text();
+    }
+    if(layCur === u) layPan.innerHTML = layoutCache[key];
+  }catch(e){
+    layPan.innerHTML = '<div class="lay-msg">Layout not available right now.</div>';
+  }
+}
+function layStep(d){ const list = layList(); const i = list.indexOf(layCur); const n = list[i + d]; if(n) openLayout(n); }
+document.getElementById('layPrev').addEventListener('click', ()=> layStep(-1));
+document.getElementById('layNext').addEventListener('click', ()=> layStep(1));
+document.getElementById('layActions').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b || !layCur) return;
+  const u = layCur;
+  if(b.dataset.act === 'share'){ shareUnit(u, b); return; }
+  layoutOverlay.classList.remove('open');
+  if(b.dataset.act === 'plan') openPaymentModal(u);
+  if(b.dataset.act === 'roi') openRoiModal(u);
+});
+// swipe left/right (when not zoomed) to move between units
+(function(){ let sx = null; layStage.addEventListener('pointerdown', e=>{ sx = e.clientX; });
+  layStage.addEventListener('pointerup', e=>{ if(sx != null && layT.s === 1 && Math.abs(e.clientX - sx) > 70) layStep(e.clientX < sx ? 1 : -1); sx = null; }); })();
+document.getElementById('layoutClose').addEventListener('click', ()=> layoutOverlay.classList.remove('open'));
+layoutOverlay.addEventListener('click', e=>{ if(e.target === layoutOverlay) layoutOverlay.classList.remove('open'); });
+document.addEventListener('keydown', e=>{ if(!layoutOverlay.classList.contains('open')) return; if(e.key === 'Escape') layoutOverlay.classList.remove('open'); else if(e.key === 'ArrowRight') layStep(1); else if(e.key === 'ArrowLeft') layStep(-1); });
+
+/* ================= PROJECT MAP (Sea Breeze) ================= */
+const PM_PROJECT = 'Sea Breeze';
+const PM_FLOORS = [5,4,3,2,1];
+const PM_TYPECOL = { 'Studio':'#4cc3ee', '1 Bedroom':'#e8a948', '2 Bedroom':'#9d8cff', '3 Bedroom':'#ff7aa8' };
+const pmState = { block:'B', types:new Set(), only:false };
+const pmOverlay = document.getElementById('pmapOverlay');
+const pmTip = document.getElementById('pmTip');
+function pmOrd(n){ return n===1?'1st':n===2?'2nd':n===3?'3rd':n+'th'; }
+function pmBlocks(){ return LAYOUT_MANIFEST ? [...new Set(Object.keys(LAYOUT_MANIFEST).map(k=>k[0]))].sort() : []; }
+function pmCols(block){ return [...new Set(Object.keys(LAYOUT_MANIFEST).filter(k=>k[0]===block).map(k=>Number(k.slice(2))))].sort((a,b)=>a-b); }
+function pmUnitNo(block, floor, nn){ return `${block}${floor}${String(nn).padStart(2,'0')}`; }
+function pmUnits(){ const m = new Map(); UNITS.forEach(u=>{ if(u.sheet===PM_PROJECT && !u.archived) m.set(String(u.unit_no).toUpperCase(), u); }); return m; }
+function pmRender(){
+  if(!LAYOUT_MANIFEST) return;
+  const um = pmUnits(), blocks = pmBlocks();
+  if(!blocks.includes(pmState.block)) pmState.block = blocks[0];
+  const all = [...um.values()];
+  const typesPresent = Object.keys(PM_TYPECOL).filter(t=> all.some(u=>u.unit_type===t));
+  const prices = all.map(u=>u.price).filter(Boolean);
+  document.getElementById('pmStats').innerHTML =
+    `<div class="pm-stat"><b>${all.length}</b><span>Available</span></div>` +
+    typesPresent.map(t=>`<div class="pm-stat" style="border-color:${PM_TYPECOL[t]}55"><b>${all.filter(u=>u.unit_type===t).length}</b><span>${t.replace(' Bedroom',' BR')}</span></div>`).join('') +
+    (prices.length ? `<div class="pm-stat"><b style="font-size:16px">${fmtCur(Math.min(...prices))}</b><span>Starting from</span></div>` : '');
+  document.getElementById('pmTabs').innerHTML = blocks.map(b=>{
+    const n = all.filter(u=>String(u.unit_no)[0]===b).length;
+    return `<button class="pm-tab ${b===pmState.block?'on':''}" data-b="${b}">Block ${b}<small>${n} available</small></button>`;
+  }).join('');
+  document.getElementById('pmTypes').innerHTML = typesPresent.map(t=>`<button class="pm-type ${pmState.types.has(t)?'on':''}" data-t="${t}" style="--tc:${PM_TYPECOL[t]}"><i></i>${t}</button>`).join('');
+  document.getElementById('pmOnly').checked = pmState.only;
+  const cols = pmCols(pmState.block);
+  let idx = 0, html = '<div class="pm-building"><div class="pm-roof"></div>';
+  PM_FLOORS.forEach(f=>{
+    html += `<div class="pm-row"><div class="pm-floor"><b>${f}</b>${f===1?'floor':'floor'}</div>`;
+    cols.forEach(nn=>{
+      const no = pmUnitNo(pmState.block, f, nn);
+      // does this apartment exist? (same plan repeats on every floor; D10-D13 differ on upper floors)
+      const key = layoutKeyFor({ sheet:PM_PROJECT, unit_no:no });
+      if(!key){ html += '<div class="pm-cell empty"></div>'; return; }
+      const u = um.get(no);
+      const i = idx++;
+      const thumb = `style="--m:url(${LAYOUT_BASE}thumbs/${key}.svg);--i:${Math.min(i,40)}"`;
+      if(!u){
+        html += `<div class="pm-cell off ${pmState.only?'dim':''}" ${thumb}><span class="pm-thumb"></span><span class="pm-no">${no}</span><span class="pm-meta"></span></div>`;
+        return;
+      }
+      const tc = PM_TYPECOL[u.unit_type] || 'var(--gold)';
+      const dim = (pmState.types.size && !pmState.types.has(u.unit_type)) ? 'dim' : '';
+      const held = isHeld(unitKey(u));
+      const badge = held ? '<span class="pm-badge hold">HOLD</span>' : (u.cash_only ? '<span class="pm-badge cash">CASH</span>' : (isNewUnit(u) ? '<span class="pm-badge">NEW</span>' : ''));
+      html += `<button class="pm-cell avail ${held?'hold':''} ${dim}" ${thumb.replace('style="','style="--tc:'+tc+';')} data-no="${no}" aria-label="Unit ${no}">${badge}<span class="pm-thumb"></span><span class="pm-no">${no}</span><span class="pm-meta">${u.area ? u.area + ' m²' : ''}</span></button>`;
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('pmBody').innerHTML = html;
+}
+function pmShowTip(cell){
+  const u = pmUnits().get(cell.dataset.no); if(!u) return;
+  const tc = PM_TYPECOL[u.unit_type] || 'var(--gold)';
+  pmTip.style.setProperty('--tc', tc);
+  pmTip.innerHTML = `<div class="t1"><b>${u.unit_no}</b><em>${u.unit_type||''}</em></div>
+    <div class="t2">${u.area ? u.area + ' m² · ' : ''}${u.floor||''} floor<br>${u.view||''}</div>
+    <div class="t3">${u.price ? fmtCur(u.price) : ''}${u.cash_only ? ' <span style="font-size:10px;color:#4fd6a0">CASH ONLY</span>' : ''}</div>
+    <div class="t4">Click to open layout</div>`;
+  const r = cell.getBoundingClientRect();
+  pmTip.classList.add('show');
+  const tw = pmTip.offsetWidth, th = pmTip.offsetHeight;
+  let x = r.right + 12, y = r.top + r.height/2 - th/2;
+  if(x + tw > innerWidth - 8) x = r.left - tw - 12;
+  if(x < 8) x = Math.max(8, Math.min(innerWidth - tw - 8, r.left + r.width/2 - tw/2));
+  y = Math.max(8, Math.min(innerHeight - th - 8, y));
+  pmTip.style.left = x + 'px'; pmTip.style.top = y + 'px';
+}
+function pmHideTip(){ pmTip.classList.remove('show'); }
+function openProjectMap(){
+  if(!LAYOUT_MANIFEST) return;
+  try{ track('project_map_open', PM_PROJECT); }catch(e){}
+  pmRender();
+  pmOverlay.classList.add('open');
+}
+document.getElementById('projectMapBtn').addEventListener('click', openProjectMap);
+document.getElementById('pmapClose').addEventListener('click', ()=>{ pmHideTip(); pmOverlay.classList.remove('open'); });
+pmOverlay.addEventListener('click', e=>{ if(e.target === pmOverlay){ pmHideTip(); pmOverlay.classList.remove('open'); } });
+document.getElementById('pmTabs').addEventListener('click', e=>{ const b = e.target.closest('.pm-tab'); if(!b) return; pmState.block = b.dataset.b; pmRender(); });
+document.getElementById('pmTypes').addEventListener('click', e=>{ const b = e.target.closest('.pm-type'); if(!b) return; const t = b.dataset.t; pmState.types.has(t) ? pmState.types.delete(t) : pmState.types.add(t); pmRender(); });
+document.getElementById('pmOnly').addEventListener('change', e=>{ pmState.only = e.target.checked; pmRender(); });
+const pmBody = document.getElementById('pmBody');
+pmBody.addEventListener('mouseover', e=>{ const c = e.target.closest('.pm-cell.avail'); if(c && !c.classList.contains('dim')) pmShowTip(c); else pmHideTip(); });
+pmBody.addEventListener('mouseleave', pmHideTip);
+pmBody.addEventListener('scroll', pmHideTip);
+pmBody.addEventListener('click', e=>{
+  const c = e.target.closest('.pm-cell.avail'); if(!c) return;
+  pmHideTip();
+  const um = pmUnits(), u = um.get(c.dataset.no); if(!u) return;
+  try{ track('project_map_unit', unitLabelForTrack(u)); }catch(_){}
+  // prev/next inside the viewer walks through the apartments currently highlighted on the map
+  const list = [...pmBody.querySelectorAll('.pm-cell.avail:not(.dim)')].map(x=> um.get(x.dataset.no)).filter(Boolean);
+  openLayout(u, list);
+});
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !layoutOverlay.classList.contains('open')){ pmHideTip(); pmOverlay.classList.remove('open'); } });
 
 function openRoiModal(u){
   try{ track('roi_calc', unitLabelForTrack(u)); }catch(e){}
@@ -3604,6 +4015,7 @@ function refreshAdminUI(){
   document.getElementById('exportPriceListBtn').classList.toggle('show', canExport());
   document.getElementById('adminUsersBtn').classList.toggle('show', isAdmin);
   document.getElementById('adminReservedBtn').classList.toggle('show', canViewReserved());
+  document.getElementById('projectMapBtn').classList.toggle('show', !!LAYOUT_MANIFEST && featureOn('can_project_map'));
 }
 refreshAdminUI();
 
@@ -3981,7 +4393,7 @@ const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} �
 
 /* Admin view */
 function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports' };
+const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
 async function loadActivity(days){
   const box = document.getElementById('activityBody');
   box.innerHTML = '<div class="analytics-loading">Loading…</div>';
@@ -4063,7 +4475,7 @@ function umRenderUsers(users){
     const hue = ucHue(u.username);
     const isAdminRole = u.role === 'admin', isTest = u.role === 'test';
     const feats = u.features || {};
-    const permStates = [...UC_PERM_COLUMNS.map(([k])=> !!u[k]), ...FEATURE_DEFS.map(([k])=> feats[k] !== false)];
+    const permStates = [...UC_PERM_COLUMNS.map(([k])=> !!u[k]), ...FEATURE_DEFS.map(([k])=> (k in feats ? feats[k] !== false : featureDefault(k)))];
     const enabled = permStates.filter(Boolean).length;
     const permSummary = isAdminRole ? 'Full access' : (isTest ? 'View only' : `${enabled} of ${permStates.length} permissions on`);
     const locked = ucIsLocked(u);
@@ -4118,7 +4530,7 @@ function umRenderUsers(users){
                 ${UC_PERM_COLUMNS.map(([k,l])=> ucSwitch('um-perm', `data-user="${un}" data-perm="${k}"`, !!u[k], l)).join('')}
               </div>
               <div class="uc-group"><div class="uc-group-title">Sales tools</div>
-                ${FEATURE_DEFS.map(([k,l])=> ucSwitch('um-feat', `data-user="${un}" data-feat="${k}"`, feats[k] !== false, l)).join('')}
+                ${FEATURE_DEFS.map(([k,l])=> ucSwitch('um-feat', `data-user="${un}" data-feat="${k}"`, (k in feats ? feats[k] !== false : featureDefault(k)), l)).join('')}
               </div>
               <div class="uc-group"><div class="uc-group-title">Reserved units</div>
                 <div class="uc-reserved ${u.title?'yes':''}">${u.title==='Sales Director' ? '✔ Sees both teams’ reservations' : u.title==='Sales Manager' ? `✔ Sees ${ucEsc(teamName||'no team yet — set a team')} reservations` : '✖ No access — give a Sales Manager or Director title'}</div>
@@ -4953,6 +5365,7 @@ function startLoginFlow(){
     updateSessionLabel();
     render();
     loadLiveInventory();
+    loadLayoutManifest();
     fetchHolds();
     startHoldsPolling();
     startInventoryPolling();
@@ -4996,6 +5409,7 @@ loginForm.addEventListener('submit', async (e)=>{
     updateSessionLabel();
     render();
     loadLiveInventory();
+    loadLayoutManifest();
     fetchHolds();
     startHoldsPolling();
     startInventoryPolling();
