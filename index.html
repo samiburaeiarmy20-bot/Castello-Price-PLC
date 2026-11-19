@@ -1502,6 +1502,26 @@ html body #loginGate .login-card{ background:linear-gradient(160deg, rgba(14,16,
 .loc-pin .lp-dot{ fill:#fff; }
 @keyframes lpWave{ from{ transform:scale(.4); opacity:.9; } to{ transform:scale(2.6); opacity:0; } }
 @media (max-width:760px){ .lay-modes{ top:52px; } }
+
+/* tidy row icons */
+td.star-cell{ width:1%; padding-right:6px !important; }
+.row-icons{ display:inline-flex; align-items:center; gap:2px; padding:3px; border-radius:10px; background:color-mix(in srgb, var(--surface) 55%, transparent); border:1px solid var(--line-soft); }
+.row-icons .star-btn{ width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; padding:0; border-radius:8px; font-size:0; opacity:1; color:var(--stone); transition:background .15s, color .15s, transform .15s; }
+.row-icons .star-btn:hover{ background:color-mix(in srgb, var(--gold) 14%, transparent); color:var(--gold); transform:translateY(-1px); }
+.row-icons .star-btn.active{ color:var(--gold-bright); background:color-mix(in srgb, var(--gold) 16%, transparent); }
+.row-icons .star-btn svg{ display:block; pointer-events:none; }
+td.star-cell{ text-align:left; }
+@media (max-width:760px){
+  #tbody tr{ grid-template-areas:"proj proj" "icons icons" "unit price" "type floor" "view area" "pm2 section" "actions actions" !important; }
+  #tbody td.star-cell{ position:static !important; grid-area:icons; width:auto; padding:0 !important; }
+  #tbody td.proj{ padding-right:0 !important; }
+  .row-icons{ gap:2px; padding:3px; }
+  .row-icons .star-btn{ width:34px; height:32px; }
+}
+/* Layout / Location switch: left side, under the floor label */
+.lay-modes{ left:14px !important; top:50px !important; transform:none !important; }
+.lay-modes button{ display:inline-flex; align-items:center; gap:6px; }
+@media (max-width:760px){ .lay-modes{ top:48px !important; left:10px !important; } }
 </style>
 </head>
 <body>
@@ -2736,6 +2756,19 @@ function pillClass(t){
   return 'other';
 }
 
+
+/* Row action icons: one consistent line-icon set, coloured by the theme */
+const ROW_ICONS = {
+  star:'<path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>',
+  starOn:'<path fill="currentColor" d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>',
+  compare:'<path d="M7 7h12M15 3l4 4-4 4M17 17H5M9 13l-4 4 4 4"/>',
+  share:'<rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>',
+  layout:'<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 11h8M11.5 3.5v11M11.5 14.5h9M16 14.5v6"/>',
+  pin:'<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>'
+};
+function rowIcon(cls, idx, title, name){
+  return `<button class="${cls}" data-idx="${idx}" title="${title}" aria-label="${title}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ROW_ICONS[name]}</svg></button>`;
+}
 function render(){
   let rows = UNITS.filter(u=>{
     if(!state.projects.has(u.sheet)) return false;
@@ -2784,7 +2817,7 @@ function render(){
     const trClass = [held ? 'tr-held' : '', isNew ? 'tr-new' : ''].filter(Boolean).join(' ');
     return `
     <tr class="${trClass}">
-      <td class="star-cell"><button class="star-btn ${shortlist.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to shortlist">${shortlist.has(u.__idx)?'★':'☆'}</button>${featureOn('can_compare') ? `<button class="star-btn cmp-btn ${cmpSet.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to comparison (up to 3)" aria-label="Compare unit">⇄</button>` : ''}${featureOn('can_share') ? `<button class="star-btn share-btn" data-idx="${u.__idx}" title="Copy / share this unit with a client" aria-label="Share unit">⧉</button>` : ''}${canLay(u) ? `<button class="star-btn lay-btn" data-idx="${u.__idx}" title="View unit layout" aria-label="Unit layout">▦</button>` : ''}${canLoc(u) ? `<button class="star-btn loc-btn" data-idx="${u.__idx}" title="Show unit location on the floor plan" aria-label="Unit location">📍</button>` : ''}</td>
+      <td class="star-cell"><div class="row-icons">${rowIcon('star-btn'+(shortlist.has(u.__idx)?' active':''), u.__idx, shortlist.has(u.__idx)?'Remove from shortlist':'Add to shortlist', shortlist.has(u.__idx)?'starOn':'star')}${featureOn('can_compare') ? rowIcon('star-btn cmp-btn'+(cmpSet.has(u.__idx)?' active':''), u.__idx, 'Add to comparison (up to 3)', 'compare') : ''}${featureOn('can_share') ? rowIcon('star-btn share-btn', u.__idx, 'Copy / share this unit with a client', 'share') : ''}${canLay(u) ? rowIcon('star-btn lay-btn', u.__idx, 'View unit layout', 'layout') : ''}${canLoc(u) ? rowIcon('star-btn loc-btn', u.__idx, 'Show unit location on the floor plan', 'pin') : ''}</div></td>
       <td class="proj"><span class="proj-inner"><img src="${iconFor(u.sheet)}" alt="" data-sheet="${u.sheet}" data-icon="${u.sheet}"><span><span class="pj-name">${u.project}${isNew?'<span class="new-tag" title="Added in the last 48 hours">NEW</span>':''}${priceChangeTag(u)}${held?'<span class="hold-flash" title="On hold">⚡</span>':''}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
       <td class="mono">${u.section||'—'}</td>
       <td class="mono">${u.unit_no}</td>
@@ -3354,7 +3387,7 @@ async function openLayout(u, navList, mode){
   if(navList !== undefined) layNavList = navList;
   layCur = u;
   try{ track(layMode === 'location' ? 'unit_location' : 'unit_layout', unitLabelForTrack(u)); }catch(e){}
-  document.getElementById('layModes').innerHTML = (okLay && okLoc) ? `<button data-m="layout" class="${layMode==='layout'?'on':''}">▦ Layout</button><button data-m="location" class="${layMode==='location'?'on':''}">📍 Location</button>` : '';
+  document.getElementById('layModes').innerHTML = (okLay && okLoc) ? `<button data-m="layout" class="${layMode==='layout'?'on':''}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ROW_ICONS.layout}</svg>Layout</button><button data-m="location" class="${layMode==='location'?'on':''}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ROW_ICONS.pin}</svg>Location</button>` : '';
   const meta = (key && LAYOUT_MANIFEST[key]) || {};
   const esc = t => String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   document.getElementById('layTitle').textContent = `Unit ${u.unit_no}`;
