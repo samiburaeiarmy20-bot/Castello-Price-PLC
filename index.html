@@ -1522,6 +1522,23 @@ td.star-cell{ text-align:left; }
 .lay-modes{ left:14px !important; top:50px !important; transform:none !important; }
 .lay-modes button{ display:inline-flex; align-items:center; gap:6px; }
 @media (max-width:760px){ .lay-modes{ top:48px !important; left:10px !important; } }
+
+/* ===== Units table fits the screen (no horizontal scrollbar on laptops/desktops) ===== */
+@media (min-width:761px){
+  .wrap{ max-width:1760px; }
+  .table-scroll thead th, #tbody td{ padding-left:8px !important; padding-right:8px !important; }
+  #tbody td.star-cell{ padding-left:10px !important; }
+  .row-icons{ gap:0; padding:2px; }
+  .row-icons .star-btn{ width:25px; height:26px; }
+  .row-icons .star-btn svg{ width:15px; height:15px; }
+  #tbody td.proj{ white-space:normal; min-width:150px; }
+  #tbody td:nth-child(3), #tbody td:nth-child(7){ white-space:normal; }
+  #tbody td:nth-child(3){ max-width:96px; }
+  #tbody td:nth-child(7){ max-width:118px; }
+  .mono{ font-size:12px; }
+  td.actions-cell{ width:188px !important; padding:7px 8px !important; }
+  .act-btn{ padding:6px 5px !important; }
+}
 </style>
 </head>
 <body>
