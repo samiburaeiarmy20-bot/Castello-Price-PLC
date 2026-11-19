@@ -1482,6 +1482,26 @@ html body #loginGate .login-card{ background:linear-gradient(160deg, rgba(14,16,
 #loginGate .login-divider{ animation:cxFadeIn 1s ease 1.45s backwards; }
 @keyframes cxBismIn{ from{ opacity:0; transform:translateY(-8px) scale(.94); filter:blur(4px); } }
 @media (max-width:480px){ #loginGate .login-card{ padding:24px 22px 24px; } .login-bism{ width:min(210px,78%); margin-bottom:14px; } }
+
+/* Unit location (floor plan) */
+.lay-modes{ position:absolute; left:50%; top:12px; transform:translateX(-50%); z-index:4; display:flex; gap:4px; padding:4px; border-radius:12px; background:color-mix(in srgb, var(--surface) 90%, transparent); border:1px solid var(--line-soft); backdrop-filter:blur(8px); }
+.lay-modes:empty{ display:none; }
+.lay-modes button{ border:none; background:transparent; color:var(--stone); font:600 12px 'Inter',sans-serif; padding:7px 14px; border-radius:9px; cursor:pointer; }
+.lay-modes button.on{ background:var(--gold); color:#1a1610; }
+.loc-btn{ font-size:13px; opacity:.85; }
+.floor-svg .co{ stroke:var(--cream); stroke-width:.03; opacity:.55; }
+.floor-svg .cs{ fill:var(--cream); opacity:.07; stroke:none; }
+.floor-svg .ch{ stroke:var(--stone); stroke-width:.02; opacity:.45; }
+.floor-svg .cw{ stroke:var(--cream); stroke-width:.05; opacity:.85; }
+.floor-svg .ft text{ fill:var(--stone); font:600 .75px 'Inter',sans-serif; text-anchor:middle; opacity:.8; }
+.floor-svg .ft text.cur{ fill:var(--gold-bright); font-size:1.1px; font-weight:800; opacity:1; paint-order:stroke; stroke:var(--bg-alt); stroke-width:.25px; }
+.loc-pin .lp-wave{ fill:color-mix(in srgb, var(--gold) 35%, transparent); transform-box:fill-box; transform-origin:center; animation:lpWave 2s ease-out infinite; }
+.loc-pin .lp-wave.w2{ animation-delay:1s; }
+.loc-pin .lp-ring{ fill:color-mix(in srgb, var(--gold) 18%, transparent); stroke:var(--gold); stroke-width:.12; }
+.loc-pin .lp-drop{ fill:var(--gold); stroke:#fff; stroke-width:.12; filter:drop-shadow(0 .2px .4px rgba(0,0,0,.5)); }
+.loc-pin .lp-dot{ fill:#fff; }
+@keyframes lpWave{ from{ transform:scale(.4); opacity:.9; } to{ transform:scale(2.6); opacity:0; } }
+@media (max-width:760px){ .lay-modes{ top:52px; } }
 </style>
 </head>
 <body>
@@ -1680,6 +1700,7 @@ html body #loginGate .login-card{ background:linear-gradient(160deg, rgba(14,16,
     </div>
     <div class="lay-stage" id="layStage">
       <div class="lay-count" id="layCount"></div>
+      <div class="lay-modes" id="layModes"></div>
       <button class="lay-nav prev" id="layPrev" title="Previous unit" aria-label="Previous unit">‹</button>
       <button class="lay-nav next" id="layNext" title="Next unit" aria-label="Next unit">›</button>
       <div class="lay-tools"><button id="layZoomIn" title="Zoom in">+</button><button id="layZoomOut" title="Zoom out">−</button><button id="layZoomReset" title="Reset">⤢</button></div>
@@ -2529,6 +2550,7 @@ const fmtM = n => n==null ? '—' : (n/1e6).toFixed(2) + 'M';
 
 // ---------- state ----------
 let LAYOUT_MANIFEST = null;   // unit-layout index, loaded after sign-in
+let FLOORS_MANIFEST = null;   // Sea Breeze floor plans + unit positions (unit location)
 let lastRows = [];            // rows currently shown (used for prev/next in the layout viewer)
 let state = { projects: new Set(PROJECTS.map(p=>p.key)), types: new Set(), view:'', min:'', max:'', search:'', sort:'default' };
 
@@ -2762,7 +2784,7 @@ function render(){
     const trClass = [held ? 'tr-held' : '', isNew ? 'tr-new' : ''].filter(Boolean).join(' ');
     return `
     <tr class="${trClass}">
-      <td class="star-cell"><button class="star-btn ${shortlist.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to shortlist">${shortlist.has(u.__idx)?'★':'☆'}</button>${featureOn('can_compare') ? `<button class="star-btn cmp-btn ${cmpSet.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to comparison (up to 3)" aria-label="Compare unit">⇄</button>` : ''}${featureOn('can_share') ? `<button class="star-btn share-btn" data-idx="${u.__idx}" title="Copy / share this unit with a client" aria-label="Share unit">⧉</button>` : ''}${layoutKeyFor(u) && featureOn('can_unit_layout') ? `<button class="star-btn lay-btn" data-idx="${u.__idx}" title="View unit layout" aria-label="Unit layout">▦</button>` : ''}</td>
+      <td class="star-cell"><button class="star-btn ${shortlist.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to shortlist">${shortlist.has(u.__idx)?'★':'☆'}</button>${featureOn('can_compare') ? `<button class="star-btn cmp-btn ${cmpSet.has(u.__idx)?'active':''}" data-idx="${u.__idx}" title="Add to comparison (up to 3)" aria-label="Compare unit">⇄</button>` : ''}${featureOn('can_share') ? `<button class="star-btn share-btn" data-idx="${u.__idx}" title="Copy / share this unit with a client" aria-label="Share unit">⧉</button>` : ''}${canLay(u) ? `<button class="star-btn lay-btn" data-idx="${u.__idx}" title="View unit layout" aria-label="Unit layout">▦</button>` : ''}${canLoc(u) ? `<button class="star-btn loc-btn" data-idx="${u.__idx}" title="Show unit location on the floor plan" aria-label="Unit location">📍</button>` : ''}</td>
       <td class="proj"><span class="proj-inner"><img src="${iconFor(u.sheet)}" alt="" data-sheet="${u.sheet}" data-icon="${u.sheet}"><span><span class="pj-name">${u.project}${isNew?'<span class="new-tag" title="Added in the last 48 hours">NEW</span>':''}${priceChangeTag(u)}${held?'<span class="hold-flash" title="On hold">⚡</span>':''}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
       <td class="mono">${u.section||'—'}</td>
       <td class="mono">${u.unit_no}</td>
@@ -2797,11 +2819,12 @@ function render(){
   tbody.querySelectorAll('.act-plan').forEach(btn=>{
     btn.addEventListener('click', ()=> openPaymentModal(UNITS[Number(btn.dataset.idx)]));
   });
-  tbody.querySelectorAll('.star-btn:not(.share-btn):not(.cmp-btn):not(.lay-btn)').forEach(btn=>{
+  tbody.querySelectorAll('.star-btn:not(.share-btn):not(.cmp-btn):not(.lay-btn):not(.loc-btn)').forEach(btn=>{
     btn.addEventListener('click', ()=> toggleShortlist(Number(btn.dataset.idx)));
   });
   tbody.querySelectorAll('.cmp-btn').forEach(btn=>{ btn.addEventListener('click', ()=> toggleCompare(Number(btn.dataset.idx), btn)); });
-  tbody.querySelectorAll('.lay-btn').forEach(btn=>{ btn.addEventListener('click', ()=> openLayout(UNITS[Number(btn.dataset.idx)], null)); });
+  tbody.querySelectorAll('.lay-btn').forEach(btn=>{ btn.addEventListener('click', ()=> openLayout(UNITS[Number(btn.dataset.idx)], null, 'layout')); });
+  tbody.querySelectorAll('.loc-btn').forEach(btn=>{ btn.addEventListener('click', ()=> openLayout(UNITS[Number(btn.dataset.idx)], null, 'location')); });
   tbody.querySelectorAll('.share-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> shareUnit(UNITS[Number(btn.dataset.idx)], btn));
   });
@@ -2914,9 +2937,9 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location']];
 // Features listed here stay OFF for a user until an admin ticks them on the Users screen.
-const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map'];
+const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location'];
 function featureDefault(k){ return !FEATURE_DEFAULT_OFF.includes(k); }
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return k in f ? f[k] !== false : featureDefault(k); }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
@@ -3270,6 +3293,10 @@ async function loadLayoutManifest(){
     try{ refreshAdminUI(); }catch(e){}
     render();
   }catch(e){}
+  try{
+    const r2 = await fetch('floors/floors.json', { cache:'no-cache' });
+    if(r2.ok){ FLOORS_MANIFEST = await r2.json(); render(); }
+  }catch(e){}
 }
 const layoutOverlay = document.getElementById('layoutOverlay');
 const layStage = document.getElementById('layStage'), layPan = document.getElementById('layPan');
@@ -3278,7 +3305,7 @@ function layApply(){ layPan.style.transform = `translate(${layT.x}px,${layT.y}px
 function layZoom(f, cx, cy){
   const r = layStage.getBoundingClientRect();
   cx = cx == null ? r.width/2 : cx; cy = cy == null ? r.height/2 : cy;
-  const ns = Math.min(6, Math.max(1, layT.s * f));
+  const ns = Math.min(14, Math.max(1, layT.s * f));
   layT.x = cx - (cx - layT.x) * (ns / layT.s);
   layT.y = cy - (cy - layT.y) * (ns / layT.s);
   layT.s = ns;
@@ -3291,7 +3318,7 @@ document.getElementById('layZoomReset').addEventListener('click', ()=>{ layT = {
 layStage.addEventListener('wheel', e=>{ e.preventDefault(); const r = layStage.getBoundingClientRect(); layZoom(e.deltaY < 0 ? 1.15 : 1/1.15, e.clientX - r.left, e.clientY - r.top); }, { passive:false });
 (function(){ // drag to pan + pinch to zoom
   const pts = new Map(); let lastD = 0;
-  layStage.addEventListener('pointerdown', e=>{ if(e.target.closest('.lay-tools, .lay-nav')) return; layStage.setPointerCapture(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); layStage.classList.add('drag'); });
+  layStage.addEventListener('pointerdown', e=>{ if(e.target.closest('.lay-tools, .lay-nav, .lay-modes')) return; layStage.setPointerCapture(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); layStage.classList.add('drag'); });
   layStage.addEventListener('pointermove', e=>{
     if(!pts.has(e.pointerId)) return;
     const prev = pts.get(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
@@ -3307,14 +3334,28 @@ layStage.addEventListener('wheel', e=>{ e.preventDefault(); const r = layStage.g
 const LAY_KINDS = { rec:['Reception','#e8a948'], room:['Bedroom','#9d8cff'], bath:['Bathroom','#4cc3ee'], kit:['Kitchen','#4fd6a0'] };
 let layCur = null;
 let layNavList = null;   // set when the viewer is opened from the project map
-function layList(){ return (layNavList || lastRows).filter(x=> layoutKeyFor(x)); }
-async function openLayout(u, navList){
+function floorOf(u){
+  if(!FLOORS_MANIFEST || !u || u.sheet !== 'Sea Breeze') return null;
+  const no = String(u.unit_no||'').trim().toUpperCase(), f = no.charAt(1);
+  return (FLOORS_MANIFEST[f] && FLOORS_MANIFEST[f].units[no]) ? f : null;
+}
+function canLay(u){ return !!layoutKeyFor(u) && featureOn('can_unit_layout'); }
+function canLoc(u){ return floorOf(u) != null && featureOn('can_unit_location'); }
+let layMode = 'layout';
+const floorCache = {};
+function layList(){ return (layNavList || lastRows).filter(x=> canLay(x) || canLoc(x)); }
+async function openLayout(u, navList, mode){
+  const okLay = canLay(u), okLoc = canLoc(u);
+  if(!okLay && !okLoc) return;
+  if(mode) layMode = mode;
+  if(layMode === 'layout' && !okLay) layMode = 'location';
+  if(layMode === 'location' && !okLoc) layMode = 'layout';
   const key = layoutKeyFor(u);
-  if(!key) return;
   if(navList !== undefined) layNavList = navList;
   layCur = u;
-  try{ track('unit_layout', unitLabelForTrack(u)); }catch(e){}
-  const meta = LAYOUT_MANIFEST[key] || {};
+  try{ track(layMode === 'location' ? 'unit_location' : 'unit_layout', unitLabelForTrack(u)); }catch(e){}
+  document.getElementById('layModes').innerHTML = (okLay && okLoc) ? `<button data-m="layout" class="${layMode==='layout'?'on':''}">▦ Layout</button><button data-m="location" class="${layMode==='location'?'on':''}">📍 Location</button>` : '';
+  const meta = (key && LAYOUT_MANIFEST[key]) || {};
   const esc = t => String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   document.getElementById('layTitle').textContent = `Unit ${u.unit_no}`;
   document.getElementById('laySub').textContent = `${u.project}${u.subtitle?' · '+u.subtitle:''}`;
@@ -3335,13 +3376,14 @@ async function openLayout(u, navList){
   if(featureOn('can_payment_plan') && !u.cash_only) acts.push(['plan','Payment Plan', true]);
   if(featureOn('can_roi')) acts.push(['roi','ROI Calc', false]);
   if(featureOn('can_share')) acts.push(['share','Share', false]);
-  acts.push(['dl','⬇ Download', false]);
+  if(layMode === 'layout' && okLay) acts.push(['dl','⬇ Download', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
   box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}">${t}</button>`).join('');
   layT = { s:1, x:0, y:0 }; layApply();
-  layPan.innerHTML = '<div class="lay-msg">Loading layout…</div>';
+  layPan.innerHTML = `<div class="lay-msg">Loading ${layMode === 'location' ? 'floor plan' : 'layout'}…</div>`;
   layoutOverlay.classList.add('open');
+  if(layMode === 'location'){ await showUnitLocation(u); return; }
   try{
     if(!layoutCache[key]){
       const res = await fetch(`${LAYOUT_BASE}${key}.svg`);
@@ -3353,6 +3395,39 @@ async function openLayout(u, navList){
     layPan.innerHTML = '<div class="lay-msg">Layout not available right now.</div>';
   }
 }
+
+// Unit location: the real floor plan from the CAD file with a pin on the unit.
+async function showUnitLocation(u){
+  const f = floorOf(u); if(f == null) return;
+  const no = String(u.unit_no).trim().toUpperCase();
+  try{
+    if(!floorCache[f]){ const r = await fetch(`floors/F${f}.svg`); if(!r.ok) throw new Error('missing'); floorCache[f] = await r.text(); }
+    if(layCur !== u || layMode !== 'location') return;
+    layPan.innerHTML = floorCache[f];
+    const svg = layPan.querySelector('svg'); if(!svg) return;
+    const [px, py] = FLOORS_MANIFEST[f].units[no];
+    svg.querySelectorAll('.ft text').forEach(t=>{ if(t.textContent === no) t.classList.add('cur'); });
+    const NS = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'loc-pin'); g.setAttribute('transform', `translate(${px} ${py})`);
+    g.innerHTML = '<circle class="lp-wave" r="2.2"/><circle class="lp-wave w2" r="2.2"/><circle class="lp-ring" r="1.5"/><path class="lp-drop" d="M0 0C-.9-1.2-1.5-2-1.5-2.9a1.5 1.5 0 0 1 3 0C1.5-2 .9-1.2 0 0Z" transform="translate(0 -.2)"/><circle class="lp-dot" cy="-3.1" r=".55"/>';
+    svg.appendChild(g);
+    const fl = Number(f);
+    const lc = document.getElementById('layCount'); const base = lc.textContent.split(' · ')[0];
+    lc.textContent = (base ? base + ' · ' : '') + (fl === 0 ? 'Ground floor' : `${pmOrd(fl)} floor`);
+    // zoom onto the unit
+    requestAnimationFrame(()=>{
+      const st = layStage.getBoundingClientRect(), m = svg.getScreenCTM(); if(!m) return;
+      const pt = svg.createSVGPoint(); pt.x = px; pt.y = py; const s = pt.matrixTransform(m);
+      const sx = s.x - st.left, sy = s.y - st.top, Z = 2.6;
+      layT = { s:Z, x: st.width/2 - sx*Z, y: st.height/2 - sy*Z };
+      layPan.style.transition = 'transform .7s cubic-bezier(.2,.8,.2,1)'; layApply();
+      setTimeout(()=>{ layPan.style.transition = ''; }, 750);
+    });
+  }catch(e){
+    layPan.innerHTML = '<div class="lay-msg">Floor plan not available right now.</div>';
+  }
+}
+document.getElementById('layModes').addEventListener('click', e=>{ const b = e.target.closest('button'); if(!b || !layCur) return; openLayout(layCur, undefined, b.dataset.m); });
 
 // Download the plan exactly as drawn: black lines on white paper (like a CAD print), A4 PDF named by unit number.
 async function downloadLayout(u, btn){
@@ -4476,7 +4551,7 @@ const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} �
 
 /* Admin view */
 function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', layout_download:'Layouts downloaded', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
+const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
 async function loadActivity(days){
   const box = document.getElementById('activityBody');
   box.innerHTML = '<div class="analytics-loading">Loading…</div>';
