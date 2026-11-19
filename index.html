@@ -429,6 +429,7 @@ td.star-cell{ text-align:center; white-space:nowrap; }
 .lay-nav{ position:absolute; top:50%; margin-top:-18px; z-index:3; font-size:20px; }
 .lay-nav.prev{ left:12px; } .lay-nav.next{ right:12px; }
 .lay-nav[disabled]{ opacity:.25; pointer-events:none; }
+.lay-count:empty{ display:none; }
 .lay-count{ position:absolute; left:14px; top:14px; z-index:3; font-size:11px; letter-spacing:.08em; color:var(--stone); padding:4px 10px; border-radius:999px; background:color-mix(in srgb, var(--surface) 80%, transparent); border:1px solid var(--line-soft); }
 .lay-legend{ display:none !important; position:absolute; right:14px; bottom:12px; z-index:3; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; max-width:80%; }
 .lay-legend span{ display:inline-flex; align-items:center; gap:6px; font-size:10.5px; color:var(--stone); padding:3px 9px; border-radius:999px; background:color-mix(in srgb, var(--surface) 82%, transparent); border:1px solid var(--line-soft); }
@@ -1539,6 +1540,12 @@ td.star-cell{ text-align:left; }
   td.actions-cell{ width:188px !important; padding:7px 8px !important; }
   .act-btn{ padding:6px 5px !important; }
 }
+
+.pm-cell.seeable{ cursor:pointer; border-style:dashed; border-color:color-mix(in srgb, var(--stone) 45%, transparent); color:var(--stone); transition:transform .18s, border-color .18s; }
+.pm-cell.seeable .pm-thumb{ opacity:.5; }
+.pm-cell.seeable:hover{ transform:translateY(-3px); border-color:var(--stone); }
+.pm-badge.na{ background:var(--stone-dim); color:var(--bg); }
+.pm-thumb.pm-nothumb{ -webkit-mask:none; mask:none; background:none; }
 </style>
 </head>
 <body>
@@ -2987,9 +2994,9 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Unavailable units on map']];
 // Features listed here stay OFF for a user until an admin ticks them on the Users screen.
-const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location'];
+const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable'];
 function featureDefault(k){ return !FEATURE_DEFAULT_OFF.includes(k); }
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return k in f ? f[k] !== false : featureDefault(k); }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
@@ -3331,6 +3338,7 @@ function layoutKeyFor(u){
   const m = String(u.unit_no||'').trim().toUpperCase().match(/^([A-Z])(\d)(\d{2})$/);
   if(!m) return null;
   const [, b, f, n] = m;
+  if(Number(f) < 1) return null;   // ground floor has its own plans (not in the layouts file)
   const key = (b === 'D' && Number(f) >= 2 && Number(n) >= 10 && Number(n) <= 13) ? `D2${n}` : `${b}1${n}`;
   return LAYOUT_MANIFEST[key] ? key : null;
 }
@@ -3345,7 +3353,7 @@ async function loadLayoutManifest(){
   }catch(e){}
   try{
     const r2 = await fetch('floors/floors.json', { cache:'no-cache' });
-    if(r2.ok){ FLOORS_MANIFEST = await r2.json(); render(); }
+    if(r2.ok){ FLOORS_MANIFEST = await r2.json(); try{ refreshAdminUI(); }catch(e){} render(); }
   }catch(e){}
 }
 const layoutOverlay = document.getElementById('layoutOverlay');
@@ -3410,11 +3418,12 @@ async function openLayout(u, navList, mode){
   document.getElementById('layTitle').textContent = `Unit ${u.unit_no}`;
   document.getElementById('laySub').textContent = `${u.project}${u.subtitle?' · '+u.subtitle:''}`;
   document.getElementById('layArea').textContent = u.area ? u.area : (meta.sqm || '—');
-  document.getElementById('layPrice').innerHTML = u.price ? `${u.cash_only ? 'Cash price ' : 'From '}<b>${fmtCur(u.price)}</b>` : '';
+  document.getElementById('layPrice').innerHTML = u.__unavailable ? '<b style="color:var(--stone)">Not available</b>' : u.price ? `${u.cash_only ? 'Cash price ' : 'From '}<b>${fmtCur(u.price)}</b>` : '';
   document.getElementById('layChips').innerHTML =
     (u.unit_type ? `<span class="lay-chip type">${esc(u.unit_type)}</span>` : '') +
     (u.floor ? `<span class="lay-chip">🏢 ${esc(u.floor)} floor</span>` : '') +
-    (u.view ? `<span class="lay-chip">🌊 ${esc(u.view)}</span>` : '');
+    (u.view ? `<span class="lay-chip">🌊 ${esc(u.view)}</span>` : '') +
+    (u.__unavailable ? '<span class="lay-chip">Not on the market</span>' : '');
   document.getElementById('layLegend').innerHTML = (meta.rooms || []).filter(k=>LAY_KINDS[k]).map(k=>`<span><i style="background:${LAY_KINDS[k][1]}"></i>${LAY_KINDS[k][0]}</span>`).join('');
   // prev / next through the units currently listed
   const list = layList(), at = list.indexOf(u);
@@ -3423,9 +3432,11 @@ async function openLayout(u, navList, mode){
   document.getElementById('layNext').disabled = at < 0 || at >= list.length - 1;
   // quick actions
   const acts = [];
+  if(!u.__unavailable){
   if(featureOn('can_payment_plan') && !u.cash_only) acts.push(['plan','Payment Plan', true]);
   if(featureOn('can_roi')) acts.push(['roi','ROI Calc', false]);
   if(featureOn('can_share')) acts.push(['share','Share', false]);
+  }
   if(layMode === 'layout' && okLay) acts.push(['dl','⬇ Download', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
@@ -3549,13 +3560,30 @@ const pmState = { block:'B', types:new Set(), only:false };
 const pmOverlay = document.getElementById('pmapOverlay');
 const pmTip = document.getElementById('pmTip');
 function pmOrd(n){ return n===1?'1st':n===2?'2nd':n===3?'3rd':n+'th'; }
-function pmBlocks(){ return LAYOUT_MANIFEST ? [...new Set(Object.keys(LAYOUT_MANIFEST).map(k=>k[0]))].sort() : []; }
-function pmCols(block){ return [...new Set(Object.keys(LAYOUT_MANIFEST).filter(k=>k[0]===block).map(k=>Number(k.slice(2))))].sort((a,b)=>a-b); }
+function pmAllNos(){
+  const s = new Set();
+  if(FLOORS_MANIFEST) Object.values(FLOORS_MANIFEST).forEach(fl=> Object.keys(fl.units).forEach(k=> s.add(k)));
+  else if(LAYOUT_MANIFEST) Object.keys(LAYOUT_MANIFEST).forEach(k=>{ for(let f=1; f<=5; f++){ const no = k[0]+f+k.slice(2); if(layoutKeyFor({sheet:PM_PROJECT, unit_no:no})) s.add(no); } });
+  return s;
+}
+function pmBlocks(){ return [...new Set([...pmAllNos()].map(k=>k[0]))].sort(); }
+function pmCols(block){ return [...new Set([...pmAllNos()].filter(k=>k[0]===block).map(k=>Number(k.slice(2))))].sort((a,b)=>a-b); }
+function pmFloors(block){ return [...new Set([...pmAllNos()].filter(k=>k[0]===block).map(k=>Number(k[1])))].sort((a,b)=>b-a); }
 function pmUnitNo(block, floor, nn){ return `${block}${floor}${String(nn).padStart(2,'0')}`; }
 function pmUnits(){ const m = new Map(); UNITS.forEach(u=>{ if(u.sheet===PM_PROJECT && !u.archived) m.set(String(u.unit_no).toUpperCase(), u); }); return m; }
+const PM_TYPENAME = { 'Studio':'Studio', '1 BR':'1 Bedroom', '2 BR':'2 Bedroom', '3 BR':'3 Bedroom' };
+// A unit that is not on the market (reserved / blocked / sold): only its drawing info is shown, never price or status.
+function pmGhostUnit(no){
+  const key = layoutKeyFor({ sheet:PM_PROJECT, unit_no:no }), m = (key && LAYOUT_MANIFEST[key]) || {};
+  const proj = PROJECTS.find(p=>p.key===PM_PROJECT) || {};
+  const f = Number(no[1]);
+  return { sheet:PM_PROJECT, project:proj.project || 'Sea Breeze Resort', subtitle:proj.subtitle || '', unit_no:no,
+    unit_type: PM_TYPENAME[m.type] || '', area: m.sqm || null, floor: f === 0 ? 'Ground' : pmOrd(f), view:'', price:null, __unavailable:true };
+}
+function pmCanSeeUnavailable(){ return featureOn('can_view_unavailable'); }
 function pmRender(){
-  if(!LAYOUT_MANIFEST) return;
-  const um = pmUnits(), blocks = pmBlocks();
+  if(!LAYOUT_MANIFEST && !FLOORS_MANIFEST) return;
+  const um = pmUnits(), blocks = pmBlocks(), seeOff = pmCanSeeUnavailable();
   if(!blocks.includes(pmState.block)) pmState.block = blocks[0];
   const all = [...um.values()];
   const typesPresent = Object.keys(PM_TYPECOL).filter(t=> all.some(u=>u.unit_type===t));
@@ -3570,27 +3598,28 @@ function pmRender(){
   }).join('');
   document.getElementById('pmTypes').innerHTML = typesPresent.map(t=>`<button class="pm-type ${pmState.types.has(t)?'on':''}" data-t="${t}" style="--tc:${PM_TYPECOL[t]}"><i></i>${t}</button>`).join('');
   document.getElementById('pmOnly').checked = pmState.only;
-  const cols = pmCols(pmState.block);
+  const cols = pmCols(pmState.block), nos = pmAllNos();
   let idx = 0, html = '<div class="pm-building"><div class="pm-roof"></div>';
-  PM_FLOORS.forEach(f=>{
-    html += `<div class="pm-row"><div class="pm-floor"><b>${f}</b>${f===1?'floor':'floor'}</div>`;
+  pmFloors(pmState.block).forEach(f=>{
+    html += `<div class="pm-row"><div class="pm-floor"><b>${f === 0 ? 'G' : f}</b>floor</div>`;
     cols.forEach(nn=>{
       const no = pmUnitNo(pmState.block, f, nn);
-      // does this apartment exist? (same plan repeats on every floor; D10-D13 differ on upper floors)
+      if(!nos.has(no)){ html += '<div class="pm-cell empty"></div>'; return; }
       const key = layoutKeyFor({ sheet:PM_PROJECT, unit_no:no });
-      if(!key){ html += '<div class="pm-cell empty"></div>'; return; }
       const u = um.get(no);
       const i = idx++;
-      const thumb = `style="--m:url(${LAYOUT_BASE}thumbs/${key}.svg);--i:${Math.min(i,40)}"`;
+      const thumb = `style="${key ? `--m:url(${LAYOUT_BASE}thumbs/${key}.svg);` : ''}--i:${Math.min(i,40)}"`;
+      const th = key ? '<span class="pm-thumb"></span>' : '<span class="pm-thumb pm-nothumb"></span>';
       if(!u){
-        html += `<div class="pm-cell off ${pmState.only?'dim':''}" ${thumb}><span class="pm-thumb"></span><span class="pm-no">${no}</span><span class="pm-meta"></span></div>`;
+        if(seeOff) html += `<button class="pm-cell off seeable ${pmState.only?'dim':''}" ${thumb} data-no="${no}" aria-label="Unit ${no} (not available)"><span class="pm-badge na">N/A</span>${th}<span class="pm-no">${no}</span><span class="pm-meta">${(key && LAYOUT_MANIFEST[key].sqm) ? LAYOUT_MANIFEST[key].sqm + ' m²' : ''}</span></button>`;
+        else html += `<div class="pm-cell off ${pmState.only?'dim':''}" ${thumb}>${th}<span class="pm-no">${no}</span><span class="pm-meta"></span></div>`;
         return;
       }
       const tc = PM_TYPECOL[u.unit_type] || 'var(--gold)';
       const dim = (pmState.types.size && !pmState.types.has(u.unit_type)) ? 'dim' : '';
       const held = isHeld(unitKey(u));
       const badge = held ? '<span class="pm-badge hold">HOLD</span>' : (u.cash_only ? '<span class="pm-badge cash">CASH</span>' : (isNewUnit(u) ? '<span class="pm-badge">NEW</span>' : ''));
-      html += `<button class="pm-cell avail ${held?'hold':''} ${dim}" ${thumb.replace('style="','style="--tc:'+tc+';')} data-no="${no}" aria-label="Unit ${no}">${badge}<span class="pm-thumb"></span><span class="pm-no">${no}</span><span class="pm-meta">${u.area ? u.area + ' m²' : ''}</span></button>`;
+      html += `<button class="pm-cell avail ${held?'hold':''} ${dim}" ${thumb.replace('style="','style="--tc:'+tc+';')} data-no="${no}" aria-label="Unit ${no}">${badge}${th}<span class="pm-no">${no}</span><span class="pm-meta">${u.area ? u.area + ' m²' : ''}</span></button>`;
     });
     html += '</div>';
   });
@@ -3598,6 +3627,11 @@ function pmRender(){
   document.getElementById('pmBody').innerHTML = html;
 }
 function pmShowTip(cell){
+  if(cell.classList.contains('seeable')){
+    const g = pmGhostUnit(cell.dataset.no);
+    pmTip.style.setProperty('--tc', 'var(--stone)');
+    pmTip.innerHTML = `<div class="t1"><b>${g.unit_no}</b><em>${g.unit_type||''}</em></div><div class="t2">${g.area ? g.area + ' m² · ' : ''}${g.floor} floor</div><div class="t3" style="color:var(--stone)">Not available</div><div class="t4">Click to view layout &amp; location</div>`;
+  } else {
   const u = pmUnits().get(cell.dataset.no); if(!u) return;
   const tc = PM_TYPECOL[u.unit_type] || 'var(--gold)';
   pmTip.style.setProperty('--tc', tc);
@@ -3605,6 +3639,7 @@ function pmShowTip(cell){
     <div class="t2">${u.area ? u.area + ' m² · ' : ''}${u.floor||''} floor<br>${u.view||''}</div>
     <div class="t3">${u.price ? fmtCur(u.price) : ''}${u.cash_only ? ' <span style="font-size:10px;color:#4fd6a0">CASH ONLY</span>' : ''}</div>
     <div class="t4">Click to open layout</div>`;
+  }
   const r = cell.getBoundingClientRect();
   pmTip.classList.add('show');
   const tw = pmTip.offsetWidth, th = pmTip.offsetHeight;
@@ -3616,7 +3651,7 @@ function pmShowTip(cell){
 }
 function pmHideTip(){ pmTip.classList.remove('show'); }
 function openProjectMap(){
-  if(!LAYOUT_MANIFEST) return;
+  if(!LAYOUT_MANIFEST && !FLOORS_MANIFEST) return;
   try{ track('project_map_open', PM_PROJECT); }catch(e){}
   pmRender();
   pmOverlay.classList.add('open');
@@ -3628,16 +3663,18 @@ document.getElementById('pmTabs').addEventListener('click', e=>{ const b = e.tar
 document.getElementById('pmTypes').addEventListener('click', e=>{ const b = e.target.closest('.pm-type'); if(!b) return; const t = b.dataset.t; pmState.types.has(t) ? pmState.types.delete(t) : pmState.types.add(t); pmRender(); });
 document.getElementById('pmOnly').addEventListener('change', e=>{ pmState.only = e.target.checked; pmRender(); });
 const pmBody = document.getElementById('pmBody');
-pmBody.addEventListener('mouseover', e=>{ const c = e.target.closest('.pm-cell.avail'); if(c && !c.classList.contains('dim')) pmShowTip(c); else pmHideTip(); });
+pmBody.addEventListener('mouseover', e=>{ const c = e.target.closest('.pm-cell.avail, .pm-cell.seeable'); if(c && !c.classList.contains('dim')) pmShowTip(c); else pmHideTip(); });
 pmBody.addEventListener('mouseleave', pmHideTip);
 pmBody.addEventListener('scroll', pmHideTip);
 pmBody.addEventListener('click', e=>{
-  const c = e.target.closest('.pm-cell.avail'); if(!c) return;
+  const c = e.target.closest('.pm-cell.avail, .pm-cell.seeable'); if(!c) return;
   pmHideTip();
-  const um = pmUnits(), u = um.get(c.dataset.no); if(!u) return;
+  const um = pmUnits(), pick = no => um.get(no) || (pmCanSeeUnavailable() ? pmGhostUnit(no) : null);
+  // prev/next inside the viewer walks through the apartments currently shown on the map
+  const list = [...pmBody.querySelectorAll('.pm-cell.avail:not(.dim), .pm-cell.seeable:not(.dim)')].map(x=> pick(x.dataset.no)).filter(Boolean);
+  const u = list.find(x=> String(x.unit_no).toUpperCase() === c.dataset.no) || pick(c.dataset.no); if(!u) return;
   try{ track('project_map_unit', unitLabelForTrack(u)); }catch(_){}
-  // prev/next inside the viewer walks through the apartments currently highlighted on the map
-  const list = [...pmBody.querySelectorAll('.pm-cell.avail:not(.dim)')].map(x=> um.get(x.dataset.no)).filter(Boolean);
+  if(!canLay(u) && !canLoc(u)){ shareToast('No layout or location permission for this unit'); return; }
   openLayout(u, list);
 });
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !layoutOverlay.classList.contains('open')){ pmHideTip(); pmOverlay.classList.remove('open'); } });
@@ -4223,7 +4260,7 @@ function refreshAdminUI(){
   document.getElementById('exportPriceListBtn').classList.toggle('show', canExport());
   document.getElementById('adminUsersBtn').classList.toggle('show', isAdmin);
   document.getElementById('adminReservedBtn').classList.toggle('show', canViewReserved());
-  document.getElementById('projectMapBtn').classList.toggle('show', !!LAYOUT_MANIFEST && featureOn('can_project_map'));
+  document.getElementById('projectMapBtn').classList.toggle('show', !!(LAYOUT_MANIFEST || FLOORS_MANIFEST) && featureOn('can_project_map'));
 }
 refreshAdminUI();
 
