@@ -1496,6 +1496,7 @@ html body #loginGate .login-card{ background:linear-gradient(160deg, rgba(14,16,
 .floor-svg .cw{ stroke:var(--cream); stroke-width:.05; opacity:.85; }
 .floor-svg .ft text{ fill:var(--stone); font:600 .75px 'Inter',sans-serif; text-anchor:middle; opacity:.8; }
 .floor-svg .ft text.cur{ fill:var(--gold-bright); font-size:1.1px; font-weight:800; opacity:1; paint-order:stroke; stroke:var(--bg-alt); stroke-width:.25px; }
+.loc-pin{ opacity:.72; }
 .loc-pin .lp-wave{ fill:color-mix(in srgb, var(--gold) 35%, transparent); transform-box:fill-box; transform-origin:center; animation:lpWave 2s ease-out infinite; }
 .loc-pin .lp-wave.w2{ animation-delay:1s; }
 .loc-pin .lp-ring{ fill:color-mix(in srgb, var(--gold) 18%, transparent); stroke:var(--gold); stroke-width:.12; }
@@ -1551,6 +1552,10 @@ td.star-cell{ text-align:left; }
 .promo-pill.show{ display:inline-flex; }
 .promo-pill b{ color:var(--gold-bright); }
 .promo-pill.ended{ opacity:.6; }
+
+.floor-svg .unit-hl{ fill:var(--gold); opacity:.32; animation:unitHl 2.4s ease-in-out infinite; }
+.floor-svg .unit-ol{ fill:none; stroke:var(--gold-bright); stroke-width:.14; stroke-linejoin:round; filter:drop-shadow(0 0 .35px var(--gold)); }
+@keyframes unitHl{ 0%,100%{ opacity:.24; } 50%{ opacity:.42; } }
 </style>
 </head>
 <body>
@@ -3505,7 +3510,15 @@ async function showUnitLocation(u){
     const [px, py] = FLOORS_MANIFEST[f].units[no];
     svg.querySelectorAll('.ft text').forEach(t=>{ if(t.textContent === no) t.classList.add('cur'); });
     const NS = 'http://www.w3.org/2000/svg';
-    const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'loc-pin'); g.setAttribute('transform', `translate(${px} ${py})`);
+    // Highlight the whole apartment (its floor area from the CAD file), drawn under the linework.
+    const shape = (FLOORS_MANIFEST[f].shapes || {})[no];
+    if(shape){
+      const hl = document.createElementNS(NS, 'path'); hl.setAttribute('class', 'unit-hl'); hl.setAttribute('d', shape);
+      svg.insertBefore(hl, svg.firstChild);
+      const ol = document.createElementNS(NS, 'path'); ol.setAttribute('class', 'unit-ol'); ol.setAttribute('d', shape);
+      svg.insertBefore(ol, svg.querySelector('.ft'));
+    }
+    const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'loc-pin'); g.setAttribute('transform', `translate(${px} ${py}) scale(.62)`);
     g.innerHTML = '<circle class="lp-wave" r="2.2"/><circle class="lp-wave w2" r="2.2"/><circle class="lp-ring" r="1.5"/><path class="lp-drop" d="M0 0C-.9-1.2-1.5-2-1.5-2.9a1.5 1.5 0 0 1 3 0C1.5-2 .9-1.2 0 0Z" transform="translate(0 -.2)"/><circle class="lp-dot" cy="-3.1" r=".55"/>';
     svg.appendChild(g);
     const fl = Number(f);
