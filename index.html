@@ -1556,6 +1556,18 @@ td.star-cell{ text-align:left; }
 .floor-svg .unit-hl{ fill:var(--gold); opacity:.32; animation:unitHl 2.4s ease-in-out infinite; }
 .floor-svg .unit-ol{ fill:none; stroke:var(--gold-bright); stroke-width:.14; stroke-linejoin:round; filter:drop-shadow(0 0 .35px var(--gold)); }
 @keyframes unitHl{ 0%,100%{ opacity:.24; } 50%{ opacity:.42; } }
+
+
+.loc-arrow{ filter:drop-shadow(0 0 .45px color-mix(in srgb, var(--gold) 70%, transparent)) drop-shadow(0 .2px .4px rgba(0,0,0,.55)); }
+.loc-arrow .la-head{ fill:var(--gold-bright); stroke:color-mix(in srgb, #fff 70%, var(--gold)); stroke-width:.09; stroke-linejoin:round; }
+.loc-arrow .la-spark{ fill:#fff; }
+.loc-arrow .la-dot{ fill:var(--bg-alt); stroke:var(--gold); stroke-width:.08; }
+.loc-arrow .la-ripple{ fill:none; stroke:var(--gold-bright); stroke-width:.08; transform-box:fill-box; transform-origin:center; animation:laRip 1.8s ease-out infinite; }
+.loc-arrow .la-ripple.r2{ animation-delay:.9s; }
+@keyframes laRip{ from{ transform:scale(.3); opacity:.9; } to{ transform:scale(2.4); opacity:0; } }
+.loc-arrow .la-label rect{ fill:color-mix(in srgb, var(--surface) 92%, transparent); stroke:var(--gold); stroke-width:.12; }
+.loc-arrow .la-no{ fill:var(--gold-bright); font:800 1.25px 'Inter',sans-serif; text-anchor:middle; letter-spacing:.03em; }
+.loc-arrow .la-sub{ fill:var(--stone); font:500 .72px 'Inter',sans-serif; text-anchor:middle; }
 </style>
 </head>
 <body>
@@ -2603,6 +2615,7 @@ const fmtM = n => n==null ? '—' : (n/1e6).toFixed(2) + 'M';
 // ---------- state ----------
 let LAYOUT_MANIFEST = null;   // unit-layout index, loaded after sign-in
 let FLOORS_MANIFEST = null;   // Sea Breeze floor plans + unit positions (unit location)
+let LOC_MARKER = 'arrow';       // 'pin' (on the unit) or 'arrow' (outside the unit, pointing at it)
 let lastRows = [];            // rows currently shown (used for prev/next in the layout viewer)
 let state = { projects: new Set(PROJECTS.map(p=>p.key)), types: new Set(), view:'', min:'', max:'', search:'', sort:'default' };
 
@@ -3508,7 +3521,7 @@ async function showUnitLocation(u){
     layPan.innerHTML = floorCache[f];
     const svg = layPan.querySelector('svg'); if(!svg) return;
     const [px, py] = FLOORS_MANIFEST[f].units[no];
-    svg.querySelectorAll('.ft text').forEach(t=>{ if(t.textContent === no) t.classList.add('cur'); });
+    svg.querySelectorAll('.ft text').forEach(t=>{ if(t.textContent === no) t.remove(); });   // the arrow's label names the unit
     const NS = 'http://www.w3.org/2000/svg';
     // Highlight the whole apartment (its floor area from the CAD file), drawn under the linework.
     const shape = (FLOORS_MANIFEST[f].shapes || {})[no];
@@ -3518,9 +3531,35 @@ async function showUnitLocation(u){
       const ol = document.createElementNS(NS, 'path'); ol.setAttribute('class', 'unit-ol'); ol.setAttribute('d', shape);
       svg.insertBefore(ol, svg.querySelector('.ft'));
     }
+    const arw = (FLOORS_MANIFEST[f].arrows || {})[no];
+    if(LOC_MARKER === 'arrow' && arw){
+      // Arrow placed in clear space (corridor / outside the building), never over other apartments.
+      const L = arw.len, gid = 'lagr' + Math.random().toString(36).slice(2,7);
+      const ga = document.createElementNS(NS, 'g'); ga.setAttribute('class', 'loc-arrow');
+      ga.innerHTML = `
+        <defs><linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${L}" y2="0">
+          <stop offset="0" style="stop-color:var(--gold-bright);stop-opacity:1"/><stop offset="1" style="stop-color:var(--gold);stop-opacity:.35"/></linearGradient></defs>
+        <g transform="translate(${arw.tip[0]} ${arw.tip[1]}) rotate(${arw.ang})">
+          <circle class="la-ripple" r=".8"/><circle class="la-ripple r2" r=".8"/>
+          <g class="la-body">
+            <path class="la-shaft" fill="url(#${gid})" d="M1.3 -.22L${L} -.06L${L} .06L1.3 .22Z"/>
+            <circle class="la-spark" r=".17" cy="0"><animate attributeName="cx" from="${L}" to="1.4" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/></circle>
+            <path class="la-head" d="M0 0L1.9 -1.02Q1.5 0 1.9 1.02Z"/>
+            <animateTransform attributeName="transform" type="translate" values=".45 0;0 0;.45 0" dur="1.6s" repeatCount="indefinite"/>
+          </g>
+          <circle class="la-dot" cx="${L}" r=".26"/>
+        </g>
+        <g class="la-label" transform="translate(${arw.lab[0]} ${arw.lab[1]})">
+          <rect x="-3.3" y="-1.45" width="6.6" height="2.9" rx="1.45"/>
+          <text class="la-no" y="-.12">${no}</text>
+          <text class="la-sub" y=".95">${(layCur && layCur.unit_type) ? String(layCur.unit_type).replace(' Bedroom',' BR') : ''}${(layCur && layCur.area) ? ' · ' + layCur.area + ' m²' : ''}</text>
+        </g>`;
+      svg.appendChild(ga);
+    } else {
     const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'loc-pin'); g.setAttribute('transform', `translate(${px} ${py}) scale(.62)`);
     g.innerHTML = '<circle class="lp-wave" r="2.2"/><circle class="lp-wave w2" r="2.2"/><circle class="lp-ring" r="1.5"/><path class="lp-drop" d="M0 0C-.9-1.2-1.5-2-1.5-2.9a1.5 1.5 0 0 1 3 0C1.5-2 .9-1.2 0 0Z" transform="translate(0 -.2)"/><circle class="lp-dot" cy="-3.1" r=".55"/>';
     svg.appendChild(g);
+    }
     const fl = Number(f);
     const lc = document.getElementById('layCount'); const base = lc.textContent.split(' · ')[0];
     lc.textContent = (base ? base + ' · ' : '') + (fl === 0 ? 'Ground floor' : `${pmOrd(fl)} floor`);
