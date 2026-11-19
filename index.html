@@ -3125,8 +3125,11 @@ function isSbPromoUnit(u){ return !!u && u.sheet === 'Sea Breeze' && /^B/i.test(
 function plansFor(u){
   const pl = u && PLANS[u.sheet]; if(!pl) return pl;
   if(!(SB_PROMO_ACTIVE && isSbPromoUnit(u))) return pl;
-  return { ...pl, options: pl.options.map(o=> ({ ...o, discount: SB_PROMO_PCT, label: `${o.label} (${SB_PROMO_PCT}% Launch Discount)` })) };
+  return { ...pl, options: pl.options.map(o=> ({ ...o, discount: SB_PROMO_PCT, promo: true, label: `${o.label} (${SB_PROMO_PCT}% Launch Discount)` })) };
 }
+// Maintenance fee is 10% of the original price -- except on the Building B launch offer,
+// where it is 10% of the price after the 5% discount.
+function maintFeeFor(unit, plan, effPrice){ return (plan && plan.promo ? effPrice : unit.price) * MAINTENANCE_FEE_PCT / 100; }
 async function fetchPromo(){
   const headers = { 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY };
   try{
@@ -3990,7 +3993,7 @@ document.getElementById('ppWaBtn').addEventListener('click', ()=>{
   text += `Price${plan.discount?' after discount':''}: ${fmtCur(effPrice)}\n`;
   text += `Down Payment: ${fmtCur(dpAmt)}\n`;
   text += `${n} Quarterly Installments of ${fmtCur(installmentAmt)}\n`;
-  text += `Maintenance Fee (${MAINTENANCE_FEE_PCT}%, due at delivery): ${fmtCur(unit.price * MAINTENANCE_FEE_PCT / 100)}\n\n`;
+  text += `Maintenance Fee (${MAINTENANCE_FEE_PCT}%, due at delivery): ${fmtCur(maintFeeFor(unit, plan, effPrice))}\n\n`;
   text += `Castello Development · www.castelloeg.com · Hotline 15423`;
   waSend(text);
 });
@@ -4009,7 +4012,7 @@ function renderPPPrintArea(){
     <div class="ps-cell"><div class="ps-lbl">Down Payment (${dpPct}%)</div><div class="ps-val">${fmtCur(dpAmt)}</div></div>
     <div class="ps-cell"><div class="ps-lbl">Quarterly Installment</div><div class="ps-val">${fmtCur(installmentAmt)}</div></div>
     <div class="ps-cell"><div class="ps-lbl">No. of Installments</div><div class="ps-val">${n}</div></div>
-    <div class="ps-cell"><div class="ps-lbl">Maintenance Fee (${MAINTENANCE_FEE_PCT}%, due at delivery)</div><div class="ps-val">${fmtCur(unit.price * MAINTENANCE_FEE_PCT / 100)}</div></div>
+    <div class="ps-cell"><div class="ps-lbl">Maintenance Fee (${MAINTENANCE_FEE_PCT}%, due at delivery)</div><div class="ps-val">${fmtCur(maintFeeFor(unit, plan, effPrice))}</div></div>
   </div>`;
 
   html += `<table class="print-schedule"><thead><tr><th>#</th><th>Due Date</th><th>Description</th><th>Amount</th></tr></thead><tbody>`;
@@ -4075,7 +4078,7 @@ function renderPPSchedule(){
 
   const summary = document.getElementById('ppSummary');
   const curNote = currency==='EGP' ? '' : ` <span style="opacity:.6; font-weight:400;">(≈ ${currency})</span>`;
-  const maintenanceFee = ppUnit.price * MAINTENANCE_FEE_PCT / 100;
+  const maintenanceFee = maintFeeFor(ppUnit, plan, effPrice);
   summary.innerHTML = `
     <div class="s-cell"><div class="s-lbl">Price after discount</div><div class="s-val">${fmtCur(effPrice)}${curNote}</div></div>
     <div class="s-cell"><div class="s-lbl">Down Payment (${dpPct}%)</div><div class="s-val">${fmtCur(dpAmt)}</div></div>
