@@ -3031,9 +3031,9 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Unavailable units on map'],['can_dl_layout','Download layout'],['can_dl_masterplan','Download master plan'],['can_dl_colour','Download in CAD colour']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Unavailable units on map'],['can_dl_layout','Download layout'],['can_dl_masterplan','Download master plan'],['can_dl_colour','Download / print in CAD colour'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan']];
 // Features listed here stay OFF for a user until an admin ticks them on the Users screen.
-const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour'];
+const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_print_layout','can_print_masterplan'];
 function featureDefault(k){ return !FEATURE_DEFAULT_OFF.includes(k); }
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return k in f ? f[k] !== false : featureDefault(k); }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
@@ -3522,6 +3522,8 @@ async function openLayout(u, navList, mode){
   }
   if(layMode === 'layout' && okLay && featureOn('can_dl_layout')) acts.push(['dl','⬇ Download layout', false]);
   if(layMode === 'location' && okLoc && featureOn('can_dl_masterplan')) acts.push(['dl','⬇ Download master plan', false]);
+  if(layMode === 'layout' && okLay && featureOn('can_print_layout')) acts.push(['pr','🖨 Print layout', false]);
+  if(layMode === 'location' && okLoc && featureOn('can_print_masterplan')) acts.push(['pr','🖨 Print master plan', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
   box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}">${t}</button>`).join('');
@@ -3645,34 +3647,57 @@ function savePdf(cv, orient, title, sub, mode, filename){
   pdf.text('Indicative only. Final areas and finishes as per the contract.', pw - m, ph - 12, { align:'right' });
   pdf.save(filename + '.pdf');
 }
-async function downloadLayout(u, btn, mode){
+function printSheet(cv, orient, title, sub, mode){
+  const st = DL_STYLE[mode], stamp = dlStamp(), land = orient === 'l';
+  const fr = document.createElement('iframe');
+  fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(fr);
+  const d = fr.contentDocument;
+  d.open();
+  d.write(`<!doctype html><html><head><title>${title}</title><style>
+    @page{ size:A4 ${land ? 'landscape' : 'portrait'}; margin:0; }
+    *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; box-sizing:border-box; }
+    html,body{ margin:0; background:${st.bg}; }
+    .pg{ width:${land ? '297mm' : '210mm'}; height:${land ? '209mm' : '296mm'}; padding:9mm 9mm 7mm; display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; color:${st.ink}; overflow:hidden; }
+    h1{ font-size:15pt; margin:0; } .sub{ font-size:9pt; opacity:.65; margin:2pt 0 4mm; }
+    .im{ flex:1; min-height:0; display:flex; align-items:center; justify-content:center; } .im img{ max-width:100%; max-height:100%; }
+    .ft{ display:flex; justify-content:space-between; font-size:7.5pt; opacity:.65; margin-top:3mm; }
+  </style></head><body><div class="pg"><h1>${title}</h1><div class="sub">${sub}</div>
+    <div class="im"><img src="${cv.toDataURL('image/png')}"></div>
+    <div class="ft"><span>${stamp.replace('Downloaded','Printed')}</span><span>Indicative only. Final areas and finishes as per the contract.</span></div></div></body></html>`);
+  d.close();
+  const img = d.querySelector('img');
+  const go = ()=>{ fr.contentWindow.focus(); fr.contentWindow.print(); setTimeout(()=> fr.remove(), 60000); };
+  if(img.complete) setTimeout(go, 150); else img.onload = ()=> setTimeout(go, 150);
+}
+async function downloadLayout(u, btn, mode, action){
   mode = mode || 'black';
   const key = layoutKeyFor(u); if(!key) return;
   const old = btn ? btn.textContent : '';
   if(btn){ btn.textContent = 'Preparing…'; btn.disabled = true; }
   try{
-    try{ track('layout_download', unitLabelForTrack(u)); }catch(e){}
+    try{ track(action === 'print' ? 'layout_print' : 'layout_download', unitLabelForTrack(u)); }catch(e){}
     if(!layoutCache[key]){ const r = await fetch(`${LAYOUT_BASE}${key}.svg`); if(!r.ok) throw new Error('missing'); layoutCache[key] = await r.text(); }
     const vb = (layoutCache[key].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
     const H = 3300, W = Math.round(H * vb[2] / vb[3]), st = DL_STYLE[mode];
     const style = `<style>.co{stroke-width:.02}.ch{stroke-width:.012}.cc{stroke-width:.03}.cw{stroke-width:.035}text{font-family:Arial,Helvetica,sans-serif}${st.style}</style>`;
     const svg = layoutCache[key].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}">${style}`);
     const cv = await svgToCanvas(svg, vb, W, H, st.bg);
-    savePdf(cv, 'p', `Unit ${dispNo(u)} · Layout`, `${u.project||'Sea Breeze Resort'} · ${u.unit_type||''}${u.area ? ' · ' + u.area + ' m²' : ''}${u.floor ? ' · ' + u.floor + ' floor' : ''}`, mode, `${String(dispNo(u)).replace(/\s+/g,'_')}_layout${mode==='colour'?'_colour':''}`);
+    (action === 'print' ? printSheet : savePdf)(cv, 'p', `Unit ${dispNo(u)} · Layout`, `${u.project||'Sea Breeze Resort'} · ${u.unit_type||''}${u.area ? ' · ' + u.area + ' m²' : ''}${u.floor ? ' · ' + u.floor + ' floor' : ''}`, mode, `${String(dispNo(u)).replace(/\s+/g,'_')}_layout${mode==='colour'?'_colour':''}`);
   }catch(e){
     console.error(e); alert('Could not prepare the layout download. Please try again.');
   }finally{
     if(btn){ btn.textContent = old; btn.disabled = false; }
   }
 }
-async function downloadMasterPlan(u, btn, mode){
+async function downloadMasterPlan(u, btn, mode, action){
   mode = mode || 'black';
   const f = floorOf(u); if(f == null) return;
   const no = normNo(u.unit_no), label = dispNo(u), st = DL_STYLE[mode];
   const old = btn ? btn.textContent : '';
   if(btn){ btn.textContent = 'Preparing…'; btn.disabled = true; }
   try{
-    try{ track('masterplan_download', unitLabelForTrack(u)); }catch(e){}
+    try{ track(action === 'print' ? 'masterplan_print' : 'masterplan_download', unitLabelForTrack(u)); }catch(e){}
     if(!floorCache[f]){ const r = await fetch(`floors/F${f}.svg`); if(!r.ok) throw new Error('missing'); floorCache[f] = await r.text(); }
     const fl = FLOORS_MANIFEST[f], vb = (floorCache[f].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
     const W = 3508, H = Math.round(W * vb[3] / vb[2]);
@@ -3693,7 +3718,7 @@ async function downloadMasterPlan(u, btn, mode){
     svg = svg.replace(/<g class="ft">/, `<g class="mk">${mark}</g><g class="ft">`);
     const cv = await svgToCanvas(svg, vb, W, H, st.bg);
     const fN = Number(f);
-    savePdf(cv, 'l', `${(pmIndex()[no]||{}).kind==='shop' ? 'Shop' : 'Unit'} ${label} · Location`, `${u.project||'Sea Breeze Resort'} · ${fN === 0 ? 'Ground floor' : pmOrd(fN) + ' floor'} master plan`, mode, `${String(label).replace(/\s+/g,'_')}_master_plan${mode==='colour'?'_colour':''}`);
+    (action === 'print' ? printSheet : savePdf)(cv, 'l', `${(pmIndex()[no]||{}).kind==='shop' ? 'Shop' : 'Unit'} ${label} · Location`, `${u.project||'Sea Breeze Resort'} · ${fN === 0 ? 'Ground floor' : pmOrd(fN) + ' floor'} master plan`, mode, `${String(label).replace(/\s+/g,'_')}_master_plan${mode==='colour'?'_colour':''}`);
   }catch(e){
     console.error(e); alert('Could not prepare the master plan download. Please try again.');
   }finally{
@@ -3707,20 +3732,21 @@ document.getElementById('layActions').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b || !layCur) return;
   const u = layCur;
   if(b.dataset.act === 'share'){ shareUnit(u, b); return; }
-  if(b.dataset.act === 'dl'){
+  if(b.dataset.act === 'dl' || b.dataset.act === 'pr'){
+    const action = b.dataset.act === 'pr' ? 'print' : 'pdf';
     let pop = document.getElementById('dlPop');
-    if(pop){ pop.remove(); return; }
+    if(pop){ const same = pop.dataset.for === b.dataset.act; pop.remove(); if(same) return; }
     if(!featureOn('can_dl_colour')){   // black only
-      if(layMode === 'location') downloadMasterPlan(u, b, 'black'); else downloadLayout(u, b, 'black');
+      if(layMode === 'location') downloadMasterPlan(u, b, 'black', action); else downloadLayout(u, b, 'black', action);
       return;
     }
-    pop = document.createElement('div'); pop.id = 'dlPop'; pop.className = 'dl-pop';
+    pop = document.createElement('div'); pop.id = 'dlPop'; pop.className = 'dl-pop'; pop.dataset.for = b.dataset.act;
     pop.innerHTML = `<button data-m="colour"><i class="sw c"></i>Colour <small>as the CAD file</small></button><button data-m="black"><i class="sw b"></i>Black <small>for printing</small></button>`;
     b.parentNode.style.position = 'relative'; b.parentNode.appendChild(pop);
     const r = b.getBoundingClientRect(), pr = b.parentNode.getBoundingClientRect();
     pop.style.left = (r.left - pr.left) + 'px'; pop.style.width = r.width + 'px';
     pop.addEventListener('click', ev=>{ const m = ev.target.closest('button'); if(!m) return; ev.stopPropagation(); pop.remove();
-      if(layMode === 'location') downloadMasterPlan(u, b, m.dataset.m); else downloadLayout(u, b, m.dataset.m); });
+      if(layMode === 'location') downloadMasterPlan(u, b, m.dataset.m, action); else downloadLayout(u, b, m.dataset.m, action); });
     return;
   }
   layoutOverlay.classList.remove('open');
@@ -4823,7 +4849,7 @@ const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} �
 
 /* Admin view */
 function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', masterplan_download:'Master plans downloaded', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
+const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', masterplan_download:'Master plans downloaded', layout_print:'Layouts printed', masterplan_print:'Master plans printed', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
 async function loadActivity(days){
   const box = document.getElementById('activityBody');
   box.innerHTML = '<div class="analytics-loading">Loading…</div>';
