@@ -3031,9 +3031,9 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Unavailable units on map']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Unavailable units on map'],['can_dl_layout','Download layout'],['can_dl_masterplan','Download master plan'],['can_dl_colour','Download in CAD colour']];
 // Features listed here stay OFF for a user until an admin ticks them on the Users screen.
-const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable'];
+const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour'];
 function featureDefault(k){ return !FEATURE_DEFAULT_OFF.includes(k); }
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return k in f ? f[k] !== false : featureDefault(k); }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
@@ -3520,8 +3520,8 @@ async function openLayout(u, navList, mode){
   if(featureOn('can_roi')) acts.push(['roi','ROI Calc', false]);
   if(featureOn('can_share')) acts.push(['share','Share', false]);
   }
-  if(layMode === 'layout' && okLay) acts.push(['dl','⬇ Download layout', false]);
-  if(layMode === 'location' && okLoc) acts.push(['dl','⬇ Download master plan', false]);
+  if(layMode === 'layout' && okLay && featureOn('can_dl_layout')) acts.push(['dl','⬇ Download layout', false]);
+  if(layMode === 'location' && okLoc && featureOn('can_dl_masterplan')) acts.push(['dl','⬇ Download master plan', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
   box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}">${t}</button>`).join('');
@@ -3710,6 +3710,10 @@ document.getElementById('layActions').addEventListener('click', e=>{
   if(b.dataset.act === 'dl'){
     let pop = document.getElementById('dlPop');
     if(pop){ pop.remove(); return; }
+    if(!featureOn('can_dl_colour')){   // black only
+      if(layMode === 'location') downloadMasterPlan(u, b, 'black'); else downloadLayout(u, b, 'black');
+      return;
+    }
     pop = document.createElement('div'); pop.id = 'dlPop'; pop.className = 'dl-pop';
     pop.innerHTML = `<button data-m="colour"><i class="sw c"></i>Colour <small>as the CAD file</small></button><button data-m="black"><i class="sw b"></i>Black <small>for printing</small></button>`;
     b.parentNode.style.position = 'relative'; b.parentNode.appendChild(pop);
