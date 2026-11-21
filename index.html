@@ -1491,6 +1491,7 @@ html body #loginGate .login-card{ background:linear-gradient(160deg, rgba(14,16,
 .lay-modes button.on{ background:var(--gold); color:#1a1610; }
 .loc-btn{ font-size:13px; opacity:.85; }
 .floor-svg .co{ stroke:var(--cream); stroke-width:.03; opacity:.55; }
+.floor-svg .cad-t text{ fill:var(--cream); opacity:.75; font-family:Arial,Helvetica,sans-serif; }
 .floor-svg .cs{ fill:var(--cream); opacity:.07; stroke:none; }
 .floor-svg .ch{ stroke:var(--stone); stroke-width:.02; opacity:.45; }
 .floor-svg .cw{ stroke:var(--cream); stroke-width:.05; opacity:.85; }
@@ -1568,6 +1569,13 @@ td.star-cell{ text-align:left; }
 .loc-arrow .la-label rect{ fill:color-mix(in srgb, var(--surface) 92%, transparent); stroke:var(--gold); stroke-width:.12; }
 .loc-arrow .la-no{ fill:var(--gold-bright); font:800 1.25px 'Inter',sans-serif; text-anchor:middle; letter-spacing:.03em; }
 .loc-arrow .la-sub{ fill:var(--stone); font:500 .72px 'Inter',sans-serif; text-anchor:middle; }
+
+/* Floor plans & layouts: crisper, slightly stronger CAD lines so thin details stay visible */
+.floor-svg path{ shape-rendering:geometricPrecision; }
+.floor-svg .co{ stroke-width:.035 !important; opacity:.85 !important; }
+.floor-svg .ch{ stroke-width:.022 !important; opacity:.6 !important; }
+.floor-svg .cw{ stroke-width:.06 !important; opacity:1 !important; }
+.plan-cad:not(.floor-svg) .cs{ fill:var(--cream); opacity:.55; }
 </style>
 </head>
 <body>
@@ -3589,7 +3597,7 @@ async function downloadLayout(u, btn){
     const vb = (layoutCache[key].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
     const vw = vb[2], vh = vb[3], PX = 3200;
     const W = Math.round(vw >= vh ? PX : PX * vw / vh), H = Math.round(vw >= vh ? PX * vh / vw : PX);
-    const style = '<style>.co{stroke:#222;stroke-width:.02}.ch{stroke:#555;stroke-width:.012}.cc{stroke:#000;stroke-width:.03}.cw{stroke:#000;stroke-width:.035}text{fill:#000;font-family:Arial,Helvetica,sans-serif}</style>';
+    const style = '<style>.cs{fill:#333}.co{stroke:#222;stroke-width:.02}.ch{stroke:#555;stroke-width:.012}.cc{stroke:#000;stroke-width:.03}.cw{stroke:#000;stroke-width:.035}text{fill:#000;font-family:Arial,Helvetica,sans-serif}</style>';
     const svg = layoutCache[key].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}"><rect x="${vb[0]}" y="${vb[1]}" width="${vw}" height="${vh}" fill="#fff"/>${style}`);
     const url = URL.createObjectURL(new Blob([svg], { type:'image/svg+xml' }));
     const img = await new Promise((res, rej)=>{ const i = new Image(); i.onload = ()=>res(i); i.onerror = rej; i.src = url; });
