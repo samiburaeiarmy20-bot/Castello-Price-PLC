@@ -1576,6 +1576,14 @@ td.star-cell{ text-align:left; }
 .floor-svg .ch{ stroke-width:.022 !important; opacity:.6 !important; }
 .floor-svg .cw{ stroke-width:.06 !important; opacity:1 !important; }
 .plan-cad:not(.floor-svg) .cs{ fill:var(--cream); opacity:.55; }
+
+.dl-pop{ position:absolute; bottom:calc(100% + 6px); z-index:10; display:flex; flex-direction:column; gap:4px; padding:6px; border-radius:12px; background:var(--surface); border:1px solid var(--line); box-shadow:0 14px 34px rgba(0,0,0,.4); }
+.dl-pop button{ display:flex; align-items:center; gap:8px; text-align:left; padding:9px 10px !important; border-radius:9px !important; border:none !important; background:transparent !important; color:var(--cream) !important; font:600 12.5px 'Inter',sans-serif; cursor:pointer; flex:none !important; }
+.dl-pop button:hover{ background:color-mix(in srgb, var(--gold) 14%, transparent) !important; }
+.dl-pop small{ font-weight:400; color:var(--stone); margin-left:auto; font-size:11px; }
+.dl-pop .sw{ width:14px; height:14px; border-radius:4px; flex:none; }
+.dl-pop .sw.c{ background:conic-gradient(#ffbf00 0 25%, #0000ff 0 50%, #ff3f00 0 75%, #00c0c0 0); }
+.dl-pop .sw.b{ background:#fff; border:2px solid #000; }
 </style>
 </head>
 <body>
@@ -3512,7 +3520,8 @@ async function openLayout(u, navList, mode){
   if(featureOn('can_roi')) acts.push(['roi','ROI Calc', false]);
   if(featureOn('can_share')) acts.push(['share','Share', false]);
   }
-  if(layMode === 'layout' && okLay) acts.push(['dl','⬇ Download', false]);
+  if(layMode === 'layout' && okLay) acts.push(['dl','⬇ Download layout', false]);
+  if(layMode === 'location' && okLoc) acts.push(['dl','⬇ Download master plan', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
   box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}">${t}</button>`).join('');
@@ -3600,7 +3609,44 @@ async function showUnitLocation(u){
 document.getElementById('layModes').addEventListener('click', e=>{ const b = e.target.closest('button'); if(!b || !layCur) return; openLayout(layCur, undefined, b.dataset.m); });
 
 // Download the plan exactly as drawn: black lines on white paper (like a CAD print), A4 PDF named by unit number.
-async function downloadLayout(u, btn){
+// ---- Downloads: unit layout (A4 portrait) and master plan with the unit marked (A4 landscape),
+//      in CAD colours (as drawn, on the dark CAD background) or plain black on white paper.
+const DL_STYLE = {
+  black:  { bg:'#ffffff', ink:'#000000', style:'.cs{fill:#000;opacity:.12}.co,.ch,.cc,.cw{stroke:#000 !important}text{fill:#000 !important}.ft text{fill:#888 !important}', stamp:[110,110,110] },
+  colour: { bg:'#1e232b', ink:'#ffffff', style:'.cs{opacity:.35}.ft text{fill:#9aa3ad !important}', stamp:[170,175,182] }
+};
+function dlStamp(){
+  const who = sessionStorage.getItem('castelloFullName') || currentAgentName() || 'Unknown';
+  const when = new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true });
+  return `Downloaded by ${who}  ·  ${when}`;
+}
+async function svgToCanvas(svgText, vb, W, H, bg){
+  const url = URL.createObjectURL(new Blob([svgText], { type:'image/svg+xml' }));
+  const img = await new Promise((res, rej)=>{ const i = new Image(); i.onload = ()=>res(i); i.onerror = rej; i.src = url; });
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const cx = cv.getContext('2d'); cx.fillStyle = bg; cx.fillRect(0,0,W,H); cx.drawImage(img, 0, 0, W, H);
+  URL.revokeObjectURL(url);
+  return cv;
+}
+function savePdf(cv, orient, title, sub, mode, filename){
+  const st = DL_STYLE[mode], stamp = dlStamp();
+  if(!(window.jspdf && window.jspdf.jsPDF)){
+    const a = document.createElement('a'); a.href = cv.toDataURL('image/png'); a.download = filename + '.png'; a.click(); return;
+  }
+  const pdf = new window.jspdf.jsPDF(orient, 'pt', 'a4');
+  const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight(), m = 26, top = 54, bot = 30;
+  const hex = c => [parseInt(c.slice(1,3),16), parseInt(c.slice(3,5),16), parseInt(c.slice(5,7),16)];
+  pdf.setFillColor(...hex(st.bg)); pdf.rect(0, 0, pw, ph, 'F');
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15); pdf.setTextColor(...hex(st.ink)); pdf.text(title, m, 32);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(...st.stamp); pdf.text(sub, m, 45);
+  const aw = pw - 2*m, ah = ph - top - bot, s = Math.min(aw / cv.width, ah / cv.height);
+  pdf.addImage(cv.toDataURL('image/png'), 'PNG', m + (aw - cv.width*s)/2, top + (ah - cv.height*s)/2, cv.width*s, cv.height*s);
+  pdf.setFontSize(7.5); pdf.setTextColor(...st.stamp); pdf.text(stamp, m, ph - 12);
+  pdf.text('Indicative only. Final areas and finishes as per the contract.', pw - m, ph - 12, { align:'right' });
+  pdf.save(filename + '.pdf');
+}
+async function downloadLayout(u, btn, mode){
+  mode = mode || 'black';
   const key = layoutKeyFor(u); if(!key) return;
   const old = btn ? btn.textContent : '';
   if(btn){ btn.textContent = 'Preparing…'; btn.disabled = true; }
@@ -3608,36 +3654,48 @@ async function downloadLayout(u, btn){
     try{ track('layout_download', unitLabelForTrack(u)); }catch(e){}
     if(!layoutCache[key]){ const r = await fetch(`${LAYOUT_BASE}${key}.svg`); if(!r.ok) throw new Error('missing'); layoutCache[key] = await r.text(); }
     const vb = (layoutCache[key].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
-    const vw = vb[2], vh = vb[3], PX = 3200;
-    const W = Math.round(vw >= vh ? PX : PX * vw / vh), H = Math.round(vw >= vh ? PX * vh / vw : PX);
-    const style = '<style>.cs{fill:#333}.co{stroke:#222;stroke-width:.02}.ch{stroke:#555;stroke-width:.012}.cc{stroke:#000;stroke-width:.03}.cw{stroke:#000;stroke-width:.035}text{fill:#000;font-family:Arial,Helvetica,sans-serif}</style>';
-    const svg = layoutCache[key].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}"><rect x="${vb[0]}" y="${vb[1]}" width="${vw}" height="${vh}" fill="#fff"/>${style}`);
-    const url = URL.createObjectURL(new Blob([svg], { type:'image/svg+xml' }));
-    const img = await new Promise((res, rej)=>{ const i = new Image(); i.onload = ()=>res(i); i.onerror = rej; i.src = url; });
-    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-    const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0,0,W,H); cx.drawImage(img, 0, 0, W, H);
-    URL.revokeObjectURL(url);
-    const name = String(u.unit_no).replace(/[\\/:*?"<>|\s]+/g,'_');
-    const who = sessionStorage.getItem('castelloFullName') || currentAgentName() || 'Unknown';
-    const when = new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true });
-    const stamp = `Downloaded by ${who}  ·  ${when}`;
-    if(window.jspdf && window.jspdf.jsPDF){
-      const land = W > H;
-      const pdf = new window.jspdf.jsPDF(land ? 'l' : 'p', 'pt', 'a4');
-      const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight(), m = 28;
-      const s = Math.min((pw - 2*m) / W, (ph - 2*m) / H);
-      pdf.addImage(cv.toDataURL('image/png'), 'PNG', (pw - W*s)/2, (ph - H*s)/2, W*s, H*s);
-      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(110, 110, 110);
-      pdf.text(stamp, m, ph - 14);
-      pdf.save(`${name}.pdf`);
-    } else {
-      const fs = Math.round(Math.max(W, H) * 0.012);
-      cx.font = `${fs}px Arial, sans-serif`; cx.fillStyle = '#6e6e6e'; cx.textBaseline = 'bottom';
-      cx.fillText(stamp, fs, H - fs * 0.6);
-      const a = document.createElement('a'); a.href = cv.toDataURL('image/png'); a.download = `${name}.png`; a.click();
-    }
+    const H = 3300, W = Math.round(H * vb[2] / vb[3]), st = DL_STYLE[mode];
+    const style = `<style>.co{stroke-width:.02}.ch{stroke-width:.012}.cc{stroke-width:.03}.cw{stroke-width:.035}text{font-family:Arial,Helvetica,sans-serif}${st.style}</style>`;
+    const svg = layoutCache[key].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}">${style}`);
+    const cv = await svgToCanvas(svg, vb, W, H, st.bg);
+    savePdf(cv, 'p', `Unit ${dispNo(u)} · Layout`, `${u.project||'Sea Breeze Resort'} · ${u.unit_type||''}${u.area ? ' · ' + u.area + ' m²' : ''}${u.floor ? ' · ' + u.floor + ' floor' : ''}`, mode, `${String(dispNo(u)).replace(/\s+/g,'_')}_layout${mode==='colour'?'_colour':''}`);
   }catch(e){
     console.error(e); alert('Could not prepare the layout download. Please try again.');
+  }finally{
+    if(btn){ btn.textContent = old; btn.disabled = false; }
+  }
+}
+async function downloadMasterPlan(u, btn, mode){
+  mode = mode || 'black';
+  const f = floorOf(u); if(f == null) return;
+  const no = normNo(u.unit_no), label = dispNo(u), st = DL_STYLE[mode];
+  const old = btn ? btn.textContent : '';
+  if(btn){ btn.textContent = 'Preparing…'; btn.disabled = true; }
+  try{
+    try{ track('masterplan_download', unitLabelForTrack(u)); }catch(e){}
+    if(!floorCache[f]){ const r = await fetch(`floors/F${f}.svg`); if(!r.ok) throw new Error('missing'); floorCache[f] = await r.text(); }
+    const fl = FLOORS_MANIFEST[f], vb = (floorCache[f].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
+    const W = 3508, H = Math.round(W * vb[3] / vb[2]);
+    const hl = '#ff5a1f', shape = (fl.shapes || {})[no], arw = (fl.arrows || {})[no];
+    let mark = '';
+    if(shape) mark += `<path d="${shape}" fill="${hl}" fill-opacity=".38" stroke="${hl}" stroke-width=".18" stroke-linejoin="round"/>`;
+    if(arw){
+      const L = arw.len, i = pmIndex()[no] || {};
+      const sub = `${i.type ? String(i.type).replace(' Bedroom',' BR') : ''}${i.sqm ? ' · ' + i.sqm + ' m²' : ''}`;
+      mark += `<g transform="translate(${arw.tip[0]} ${arw.tip[1]}) rotate(${arw.ang})"><path d="M1.3 -.2L${L} -.06L${L} .06L1.3 .2Z" fill="${hl}"/><path d="M0 0L1.9 -1L1.5 0L1.9 1Z" fill="${hl}"/></g>
+        <g transform="translate(${arw.lab[0]} ${arw.lab[1]})"><rect x="-3.3" y="-1.45" width="6.6" height="2.9" rx="1.45" fill="${mode==='colour'?'#1e232b':'#fff'}" stroke="${hl}" stroke-width=".14"/>
+        <text y="-.1" font-family="Arial" font-weight="700" font-size="1.25" fill="${hl}" text-anchor="middle">${label}</text>
+        <text y=".95" font-family="Arial" font-size=".7" fill="${mode==='colour'?'#cfd5dc':'#444'}" text-anchor="middle">${sub}</text></g>`;
+    }
+    const style = `<style>.co{stroke-width:.035}.ch{stroke-width:.02}.cw{stroke-width:.07}text{font-family:Arial,Helvetica,sans-serif}.ft text{font-size:.75px;font-weight:600;text-anchor:middle}${st.style}</style>`;
+    let svg = floorCache[f].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}">${style}`);
+    svg = svg.replace(new RegExp(`<text([^>]*)>${label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}</text>`), '');
+    svg = svg.replace(/<g class="ft">/, `<g class="mk">${mark}</g><g class="ft">`);
+    const cv = await svgToCanvas(svg, vb, W, H, st.bg);
+    const fN = Number(f);
+    savePdf(cv, 'l', `${(pmIndex()[no]||{}).kind==='shop' ? 'Shop' : 'Unit'} ${label} · Location`, `${u.project||'Sea Breeze Resort'} · ${fN === 0 ? 'Ground floor' : pmOrd(fN) + ' floor'} master plan`, mode, `${String(label).replace(/\s+/g,'_')}_master_plan${mode==='colour'?'_colour':''}`);
+  }catch(e){
+    console.error(e); alert('Could not prepare the master plan download. Please try again.');
   }finally{
     if(btn){ btn.textContent = old; btn.disabled = false; }
   }
@@ -3649,7 +3707,18 @@ document.getElementById('layActions').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b || !layCur) return;
   const u = layCur;
   if(b.dataset.act === 'share'){ shareUnit(u, b); return; }
-  if(b.dataset.act === 'dl'){ downloadLayout(u, b); return; }
+  if(b.dataset.act === 'dl'){
+    let pop = document.getElementById('dlPop');
+    if(pop){ pop.remove(); return; }
+    pop = document.createElement('div'); pop.id = 'dlPop'; pop.className = 'dl-pop';
+    pop.innerHTML = `<button data-m="colour"><i class="sw c"></i>Colour <small>as the CAD file</small></button><button data-m="black"><i class="sw b"></i>Black <small>for printing</small></button>`;
+    b.parentNode.style.position = 'relative'; b.parentNode.appendChild(pop);
+    const r = b.getBoundingClientRect(), pr = b.parentNode.getBoundingClientRect();
+    pop.style.left = (r.left - pr.left) + 'px'; pop.style.width = r.width + 'px';
+    pop.addEventListener('click', ev=>{ const m = ev.target.closest('button'); if(!m) return; ev.stopPropagation(); pop.remove();
+      if(layMode === 'location') downloadMasterPlan(u, b, m.dataset.m); else downloadLayout(u, b, m.dataset.m); });
+    return;
+  }
   layoutOverlay.classList.remove('open');
   if(b.dataset.act === 'plan') openPaymentModal(u);
   if(b.dataset.act === 'roi') openRoiModal(u);
@@ -4750,7 +4819,7 @@ const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} �
 
 /* Admin view */
 function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
+const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', masterplan_download:'Master plans downloaded', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
 async function loadActivity(days){
   const box = document.getElementById('activityBody');
   box.innerHTML = '<div class="analytics-loading">Loading…</div>';
