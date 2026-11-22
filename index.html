@@ -3031,9 +3031,9 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Unavailable units on map'],['can_dl_layout','Download layout'],['can_dl_masterplan','Download master plan'],['can_dl_colour','Download / print in CAD colour'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Unavailable units on map'],['can_dl_layout','Download layout'],['can_dl_masterplan','Download master plan'],['can_dl_colour','Colour (as CAD) download / print'],['can_dl_black','Black download / print'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan']];
 // Features listed here stay OFF for a user until an admin ticks them on the Users screen.
-const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_print_layout','can_print_masterplan'];
+const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_dl_black','can_print_layout','can_print_masterplan'];
 function featureDefault(k){ return !FEATURE_DEFAULT_OFF.includes(k); }
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return k in f ? f[k] !== false : featureDefault(k); }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
@@ -3520,10 +3520,11 @@ async function openLayout(u, navList, mode){
   if(featureOn('can_roi')) acts.push(['roi','ROI Calc', false]);
   if(featureOn('can_share')) acts.push(['share','Share', false]);
   }
-  if(layMode === 'layout' && okLay && featureOn('can_dl_layout')) acts.push(['dl','⬇ Download layout', false]);
-  if(layMode === 'location' && okLoc && featureOn('can_dl_masterplan')) acts.push(['dl','⬇ Download master plan', false]);
-  if(layMode === 'layout' && okLay && featureOn('can_print_layout')) acts.push(['pr','🖨 Print layout', false]);
-  if(layMode === 'location' && okLoc && featureOn('can_print_masterplan')) acts.push(['pr','🖨 Print master plan', false]);
+  const anyInk = featureOn('can_dl_colour') || featureOn('can_dl_black');
+  if(layMode === 'layout' && okLay && anyInk && featureOn('can_dl_layout')) acts.push(['dl','⬇ Download layout', false]);
+  if(layMode === 'location' && okLoc && anyInk && featureOn('can_dl_masterplan')) acts.push(['dl','⬇ Download master plan', false]);
+  if(layMode === 'layout' && okLay && anyInk && featureOn('can_print_layout')) acts.push(['pr','🖨 Print layout', false]);
+  if(layMode === 'location' && okLoc && anyInk && featureOn('can_print_masterplan')) acts.push(['pr','🖨 Print master plan', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
   box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}">${t}</button>`).join('');
@@ -3736,8 +3737,10 @@ document.getElementById('layActions').addEventListener('click', e=>{
     const action = b.dataset.act === 'pr' ? 'print' : 'pdf';
     let pop = document.getElementById('dlPop');
     if(pop){ const same = pop.dataset.for === b.dataset.act; pop.remove(); if(same) return; }
-    if(!featureOn('can_dl_colour')){   // black only
-      if(layMode === 'location') downloadMasterPlan(u, b, 'black', action); else downloadLayout(u, b, 'black', action);
+    const okC = featureOn('can_dl_colour'), okB = featureOn('can_dl_black');
+    if(!(okC && okB)){   // only one colour allowed: no menu
+      const only = okC ? 'colour' : 'black';
+      if(layMode === 'location') downloadMasterPlan(u, b, only, action); else downloadLayout(u, b, only, action);
       return;
     }
     pop = document.createElement('div'); pop.id = 'dlPop'; pop.className = 'dl-pop'; pop.dataset.for = b.dataset.act;
