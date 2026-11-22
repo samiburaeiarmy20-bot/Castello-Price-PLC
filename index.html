@@ -1584,6 +1584,11 @@ td.star-cell{ text-align:left; }
 .dl-pop .sw{ width:14px; height:14px; border-radius:4px; flex:none; }
 .dl-pop .sw.c{ background:conic-gradient(#ffbf00 0 25%, #0000ff 0 50%, #ff3f00 0 75%, #00c0c0 0); }
 .dl-pop .sw.b{ background:#fff; border:2px solid #000; }
+
+.lay-actions button.ic{ display:inline-flex; align-items:center; justify-content:center; gap:7px; flex:0 0 auto; min-width:118px; }
+.lay-actions button.ic svg{ flex:none; }
+.uc-perm-grid .uc-group-title{ display:flex; align-items:center; gap:6px; }
+@media (max-width:760px){ .lay-actions{ flex-wrap:wrap; } .lay-actions button.ic{ flex:1 1 40%; min-width:0; } }
 </style>
 </head>
 <body>
@@ -3031,8 +3036,15 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Unavailable units on map'],['can_dl_layout','Download layout'],['can_dl_masterplan','Download master plan'],['can_dl_colour','Colour (as CAD) download / print'],['can_dl_black','Black download / print'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Open unavailable units'],['can_dl_layout','Download layout (PDF)'],['can_dl_masterplan','Download master plan (PDF)'],['can_dl_colour','Colour, as the CAD file'],['can_dl_black','Black & white'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan']];
 // Features listed here stay OFF for a user until an admin ticks them on the Users screen.
+// How the permission switches are grouped on the Users screen
+const FEATURE_GROUPS = [
+  ['Pricing & plans', '💳', ['can_payment_plan','can_download_plan','can_roi','can_price_tags']],
+  ['Sharing & browsing', '🔎', ['can_share','can_compare','can_saved_filters','can_hold_alerts']],
+  ['Unit plans', '🏢', ['can_unit_layout','can_unit_location','can_project_map','can_view_unavailable']],
+  ['Download & print', '🖨', ['can_dl_layout','can_dl_masterplan','can_print_layout','can_print_masterplan','can_dl_colour','can_dl_black']]
+];
 const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_dl_black','can_print_layout','can_print_masterplan'];
 function featureDefault(k){ return !FEATURE_DEFAULT_OFF.includes(k); }
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return k in f ? f[k] !== false : featureDefault(k); }
@@ -3459,6 +3471,8 @@ layStage.addEventListener('wheel', e=>{ e.preventDefault(); const r = layStage.g
   const end = e=>{ pts.delete(e.pointerId); lastD = 0; if(!pts.size) layStage.classList.remove('drag'); };
   layStage.addEventListener('pointerup', end); layStage.addEventListener('pointercancel', end);
 })();
+const DL_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>';
+const PR_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6H7z"/><circle cx="17" cy="12" r=".6" fill="currentColor"/></svg>';
 const LAY_KINDS = { rec:['Reception','#e8a948'], room:['Bedroom','#9d8cff'], bath:['Bathroom','#4cc3ee'], kit:['Kitchen','#4fd6a0'] };
 let layCur = null;
 let layNavList = null;   // set when the viewer is opened from the project map
@@ -3521,13 +3535,13 @@ async function openLayout(u, navList, mode){
   if(featureOn('can_share')) acts.push(['share','Share', false]);
   }
   const anyInk = featureOn('can_dl_colour') || featureOn('can_dl_black');
-  if(layMode === 'layout' && okLay && anyInk && featureOn('can_dl_layout')) acts.push(['dl','⬇ Download layout', false]);
-  if(layMode === 'location' && okLoc && anyInk && featureOn('can_dl_masterplan')) acts.push(['dl','⬇ Download master plan', false]);
-  if(layMode === 'layout' && okLay && anyInk && featureOn('can_print_layout')) acts.push(['pr','🖨 Print layout', false]);
-  if(layMode === 'location' && okLoc && anyInk && featureOn('can_print_masterplan')) acts.push(['pr','🖨 Print master plan', false]);
+  if(layMode === 'layout' && okLay && anyInk && featureOn('can_dl_layout')) acts.push(['dl','Download', false]);
+  if(layMode === 'location' && okLoc && anyInk && featureOn('can_dl_masterplan')) acts.push(['dl','Download', false]);
+  if(layMode === 'layout' && okLay && anyInk && featureOn('can_print_layout')) acts.push(['pr','Print', false]);
+  if(layMode === 'location' && okLoc && anyInk && featureOn('can_print_masterplan')) acts.push(['pr','Print', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
-  box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}">${t}</button>`).join('');
+  box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}${k==='dl'||k==='pr'?' ic':''}" title="${k==='dl'?(layMode==='location'?'Download master plan (A4 landscape)':'Download layout (A4 portrait)'):k==='pr'?(layMode==='location'?'Print master plan (A4 landscape)':'Print layout (A4 portrait)'):''}">${k==='dl'?DL_ICON:k==='pr'?PR_ICON:''}<span>${t}</span></button>`).join('');
   layT = { s:1, x:0, y:0 }; layApply();
   layPan.innerHTML = `<div class="lay-msg">Loading ${layMode === 'location' ? 'floor plan' : 'layout'}…</div>`;
   layoutOverlay.classList.add('open');
@@ -3674,8 +3688,8 @@ function printSheet(cv, orient, title, sub, mode){
 async function downloadLayout(u, btn, mode, action){
   mode = mode || 'black';
   const key = layoutKeyFor(u); if(!key) return;
-  const old = btn ? btn.textContent : '';
-  if(btn){ btn.textContent = 'Preparing…'; btn.disabled = true; }
+  const old = btn ? btn.innerHTML : '';
+  if(btn){ btn.innerHTML = '<span>Preparing…</span>'; btn.disabled = true; }
   try{
     try{ track(action === 'print' ? 'layout_print' : 'layout_download', unitLabelForTrack(u)); }catch(e){}
     if(!layoutCache[key]){ const r = await fetch(`${LAYOUT_BASE}${key}.svg`); if(!r.ok) throw new Error('missing'); layoutCache[key] = await r.text(); }
@@ -3688,15 +3702,15 @@ async function downloadLayout(u, btn, mode, action){
   }catch(e){
     console.error(e); alert('Could not prepare the layout download. Please try again.');
   }finally{
-    if(btn){ btn.textContent = old; btn.disabled = false; }
+    if(btn){ btn.innerHTML = old; btn.disabled = false; }
   }
 }
 async function downloadMasterPlan(u, btn, mode, action){
   mode = mode || 'black';
   const f = floorOf(u); if(f == null) return;
   const no = normNo(u.unit_no), label = dispNo(u), st = DL_STYLE[mode];
-  const old = btn ? btn.textContent : '';
-  if(btn){ btn.textContent = 'Preparing…'; btn.disabled = true; }
+  const old = btn ? btn.innerHTML : '';
+  if(btn){ btn.innerHTML = '<span>Preparing…</span>'; btn.disabled = true; }
   try{
     try{ track(action === 'print' ? 'masterplan_print' : 'masterplan_download', unitLabelForTrack(u)); }catch(e){}
     if(!floorCache[f]){ const r = await fetch(`floors/F${f}.svg`); if(!r.ok) throw new Error('missing'); floorCache[f] = await r.text(); }
@@ -3723,7 +3737,7 @@ async function downloadMasterPlan(u, btn, mode, action){
   }catch(e){
     console.error(e); alert('Could not prepare the master plan download. Please try again.');
   }finally{
-    if(btn){ btn.textContent = old; btn.disabled = false; }
+    if(btn){ btn.innerHTML = old; btn.disabled = false; }
   }
 }
 function layStep(d){ const list = layList(); const i = list.indexOf(layCur); const n = list[i + d]; if(n) openLayout(n); }
@@ -4985,13 +4999,13 @@ function umRenderUsers(users){
         ${isAdminRole ? '<div class="uc-note">👑 Admins have every permission, can manage users and see all reserved units.</div>'
           : isTest ? '<div class="uc-note">👁 Test accounts are view-only: no holds, archive, export or analytics.</div>'
           : `<div class="uc-perm-grid">
-              <div class="uc-group"><div class="uc-group-title">Actions</div>
+              <div class="uc-group"><div class="uc-group-title">⚡ Actions</div>
                 ${UC_PERM_COLUMNS.map(([k,l])=> ucSwitch('um-perm', `data-user="${un}" data-perm="${k}"`, !!u[k], l)).join('')}
               </div>
-              <div class="uc-group"><div class="uc-group-title">Sales tools</div>
-                ${FEATURE_DEFS.map(([k,l])=> ucSwitch('um-feat', `data-user="${un}" data-feat="${k}"`, (k in feats ? feats[k] !== false : featureDefault(k)), l)).join('')}
-              </div>
-              <div class="uc-group"><div class="uc-group-title">Reserved units</div>
+              ${FEATURE_GROUPS.map(([gt, ic, keys])=> `<div class="uc-group"><div class="uc-group-title">${ic} ${gt}</div>
+                ${keys.map(k=> FEATURE_DEFS.find(d=>d[0]===k)).filter(Boolean).map(([k,l])=> ucSwitch('um-feat', `data-user="${un}" data-feat="${k}"`, (k in feats ? feats[k] !== false : featureDefault(k)), l)).join('')}
+              </div>`).join('')}
+              <div class="uc-group"><div class="uc-group-title">🔒 Reserved units</div>
                 <div class="uc-reserved ${u.title?'yes':''}">${u.title==='Sales Director' ? '✔ Sees both teams’ reservations' : u.title==='Sales Manager' ? `✔ Sees ${ucEsc(teamName||'no team yet — set a team')} reservations` : '✖ No access — give a Sales Manager or Director title'}</div>
               </div>
             </div>`}
