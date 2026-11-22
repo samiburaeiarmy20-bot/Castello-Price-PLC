@@ -3036,16 +3036,16 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Open unavailable units'],['can_dl_layout','Download layout (PDF)'],['can_dl_masterplan','Download master plan (PDF)'],['can_dl_colour','Colour, as the CAD file'],['can_dl_black','Black & white'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Open unavailable units'],['can_dl_layout','Download layout (PDF)'],['can_dl_masterplan','Download master plan (PDF)'],['can_dl_colour','Colour, as the CAD file'],['can_dl_black','Black & white'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan'],['can_offer','Client offer (PDF)']];
 // Features listed here stay OFF for a user until an admin ticks them on the Users screen.
 // How the permission switches are grouped on the Users screen
 const FEATURE_GROUPS = [
   ['Pricing & plans', '💳', ['can_payment_plan','can_download_plan','can_roi','can_price_tags']],
   ['Sharing & browsing', '🔎', ['can_share','can_compare','can_saved_filters','can_hold_alerts']],
   ['Unit plans', '🏢', ['can_unit_layout','can_unit_location','can_project_map','can_view_unavailable']],
-  ['Download & print', '🖨', ['can_dl_layout','can_dl_masterplan','can_print_layout','can_print_masterplan','can_dl_colour','can_dl_black']]
+  ['Download & print', '🖨', ['can_offer','can_dl_layout','can_dl_masterplan','can_print_layout','can_print_masterplan','can_dl_colour','can_dl_black']]
 ];
-const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_dl_black','can_print_layout','can_print_masterplan'];
+const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_dl_black','can_print_layout','can_print_masterplan','can_offer'];
 function featureDefault(k){ return !FEATURE_DEFAULT_OFF.includes(k); }
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return k in f ? f[k] !== false : featureDefault(k); }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
@@ -3175,6 +3175,12 @@ function plansFor(u){
 }
 // Maintenance fee is 10% of the original price -- except on the Building B launch offer,
 // where it is 10% of the price after the 5% discount.
+// Cash price: on Building B launch units the cash discount is taken after the 5% (price x 0.95 x 0.80).
+function cashPriceFor(u){
+  const pl = plansFor(u), pct = (pl && pl.cashDiscount) || 0, price = Number(u.price) || 0;
+  const base = (SB_PROMO_ACTIVE && isSbPromoUnit(u)) ? price * (1 - SB_PROMO_PCT/100) : price;
+  return { pct, promo: base !== price, base, cash: base * (1 - pct/100) };
+}
 function maintFeeFor(unit, plan, effPrice){ return (plan && plan.promo ? effPrice : unit.price) * MAINTENANCE_FEE_PCT / 100; }
 async function fetchPromo(){
   const headers = { 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY };
@@ -3472,6 +3478,7 @@ layStage.addEventListener('wheel', e=>{ e.preventDefault(); const r = layStage.g
   layStage.addEventListener('pointerup', end); layStage.addEventListener('pointercancel', end);
 })();
 const DL_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>';
+const OF_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>';
 const PR_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6H7z"/><circle cx="17" cy="12" r=".6" fill="currentColor"/></svg>';
 const LAY_KINDS = { rec:['Reception','#e8a948'], room:['Bedroom','#9d8cff'], bath:['Bathroom','#4cc3ee'], kit:['Kitchen','#4fd6a0'] };
 let layCur = null;
@@ -3535,13 +3542,14 @@ async function openLayout(u, navList, mode){
   if(featureOn('can_share')) acts.push(['share','Share', false]);
   }
   const anyInk = featureOn('can_dl_colour') || featureOn('can_dl_black');
+  if(!u.__unavailable && u.price && featureOn('can_offer')) acts.push(['of','Offer', false]);
   if(layMode === 'layout' && okLay && anyInk && featureOn('can_dl_layout')) acts.push(['dl','Download', false]);
   if(layMode === 'location' && okLoc && anyInk && featureOn('can_dl_masterplan')) acts.push(['dl','Download', false]);
   if(layMode === 'layout' && okLay && anyInk && featureOn('can_print_layout')) acts.push(['pr','Print', false]);
   if(layMode === 'location' && okLoc && anyInk && featureOn('can_print_masterplan')) acts.push(['pr','Print', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
-  box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}${k==='dl'||k==='pr'?' ic':''}" title="${k==='dl'?(layMode==='location'?'Download master plan (A4 landscape)':'Download layout (A4 portrait)'):k==='pr'?(layMode==='location'?'Print master plan (A4 landscape)':'Print layout (A4 portrait)'):''}">${k==='dl'?DL_ICON:k==='pr'?PR_ICON:''}<span>${t}</span></button>`).join('');
+  box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}${k==='dl'||k==='pr'||k==='of'?' ic':''}" title="${k==='of'?'Client offer PDF: price, payment plan, layout and location':k==='dl'?(layMode==='location'?'Download master plan (A4 landscape)':'Download layout (A4 portrait)'):k==='pr'?(layMode==='location'?'Print master plan (A4 landscape)':'Print layout (A4 portrait)'):''}">${k==='dl'?DL_ICON:k==='pr'?PR_ICON:k==='of'?OF_ICON:''}<span>${t}</span></button>`).join('');
   layT = { s:1, x:0, y:0 }; layApply();
   layPan.innerHTML = `<div class="lay-msg">Loading ${layMode === 'location' ? 'floor plan' : 'layout'}…</div>`;
   layoutOverlay.classList.add('open');
@@ -3692,12 +3700,7 @@ async function downloadLayout(u, btn, mode, action){
   if(btn){ btn.innerHTML = '<span>Preparing…</span>'; btn.disabled = true; }
   try{
     try{ track(action === 'print' ? 'layout_print' : 'layout_download', unitLabelForTrack(u)); }catch(e){}
-    if(!layoutCache[key]){ const r = await fetch(`${LAYOUT_BASE}${key}.svg`); if(!r.ok) throw new Error('missing'); layoutCache[key] = await r.text(); }
-    const vb = (layoutCache[key].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
-    const H = 3300, W = Math.round(H * vb[2] / vb[3]), st = DL_STYLE[mode];
-    const style = `<style>.co{stroke-width:.02}.ch{stroke-width:.012}.cc{stroke-width:.03}.cw{stroke-width:.035}text{font-family:Arial,Helvetica,sans-serif}${st.style}</style>`;
-    const svg = layoutCache[key].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}">${style}`);
-    const cv = await svgToCanvas(svg, vb, W, H, st.bg);
+    const cv = await layoutCanvas(u, mode);
     (action === 'print' ? printSheet : savePdf)(cv, 'p', `Unit ${dispNo(u)} · Layout`, `${u.project||'Sea Breeze Resort'} · ${u.unit_type||''}${u.area ? ' · ' + u.area + ' m²' : ''}${u.floor ? ' · ' + u.floor + ' floor' : ''}`, mode, `${String(dispNo(u)).replace(/\s+/g,'_')}_layout${mode==='colour'?'_colour':''}`);
   }catch(e){
     console.error(e); alert('Could not prepare the layout download. Please try again.');
@@ -3713,6 +3716,27 @@ async function downloadMasterPlan(u, btn, mode, action){
   if(btn){ btn.innerHTML = '<span>Preparing…</span>'; btn.disabled = true; }
   try{
     try{ track(action === 'print' ? 'masterplan_print' : 'masterplan_download', unitLabelForTrack(u)); }catch(e){}
+    const cv = await masterCanvas(u, mode);
+    const fN = Number(f);
+    (action === 'print' ? printSheet : savePdf)(cv, 'l', `${(pmIndex()[no]||{}).kind==='shop' ? 'Shop' : 'Unit'} ${label} · Location`, `${u.project||'Sea Breeze Resort'} · ${fN === 0 ? 'Ground floor' : pmOrd(fN) + ' floor'} master plan`, mode, `${String(label).replace(/\s+/g,'_')}_master_plan${mode==='colour'?'_colour':''}`);
+  }catch(e){
+    console.error(e); alert('Could not prepare the master plan download. Please try again.');
+  }finally{
+    if(btn){ btn.innerHTML = old; btn.disabled = false; }
+  }
+}
+async function layoutCanvas(u, mode, H){
+  const key = layoutKeyFor(u); if(!key) return null;
+  if(!layoutCache[key]){ const r = await fetch(`${LAYOUT_BASE}${key}.svg`); if(!r.ok) throw new Error('missing'); layoutCache[key] = await r.text(); }
+  const vb = (layoutCache[key].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
+  H = H || 3300; const W = Math.round(H * vb[2] / vb[3]), st = DL_STYLE[mode];
+  const style = `<style>.co{stroke-width:.02}.ch{stroke-width:.012}.cc{stroke-width:.03}.cw{stroke-width:.035}text{font-family:Arial,Helvetica,sans-serif}${st.style}</style>`;
+  const svg = layoutCache[key].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}">${style}`);
+  return svgToCanvas(svg, vb, W, H, st.bg);
+}
+async function masterCanvas(u, mode){
+    const f = floorOf(u); if(f == null) return null;
+    const no = normNo(u.unit_no), label = dispNo(u), st = DL_STYLE[mode];
     if(!floorCache[f]){ const r = await fetch(`floors/F${f}.svg`); if(!r.ok) throw new Error('missing'); floorCache[f] = await r.text(); }
     const fl = FLOORS_MANIFEST[f], vb = (floorCache[f].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
     const W = 3508, H = Math.round(W * vb[3] / vb[2]);
@@ -3731,12 +3755,132 @@ async function downloadMasterPlan(u, btn, mode, action){
     let svg = floorCache[f].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}">${style}`);
     svg = svg.replace(new RegExp(`<text([^>]*)>${label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}</text>`), '');
     svg = svg.replace(/<g class="ft">/, `<g class="mk">${mark}</g><g class="ft">`);
-    const cv = await svgToCanvas(svg, vb, W, H, st.bg);
-    const fN = Number(f);
-    (action === 'print' ? printSheet : savePdf)(cv, 'l', `${(pmIndex()[no]||{}).kind==='shop' ? 'Shop' : 'Unit'} ${label} · Location`, `${u.project||'Sea Breeze Resort'} · ${fN === 0 ? 'Ground floor' : pmOrd(fN) + ' floor'} master plan`, mode, `${String(label).replace(/\s+/g,'_')}_master_plan${mode==='colour'?'_colour':''}`);
+    return svgToCanvas(svg, vb, W, H, st.bg);
+}
+
+/* ================= CLIENT OFFER (per unit): offer page + layout + location ================= */
+const OFFER_BASE = 'offer/';
+let offerFontsReady = null;
+function offerFonts(){
+  if(offerFontsReady) return offerFontsReady;
+  // real @font-face rules (not the FontFace API), so html2canvas's cloned page gets them too
+  const abs = p => new URL(OFFER_BASE + p, location.href).href;
+  const st = document.createElement('style');
+  st.textContent = `@font-face{font-family:Michroma;src:url(${abs('michroma.woff2')}) format('woff2');font-display:block}
+@font-face{font-family:OfferSerif;font-style:italic;src:url(${abs('cormorant-italic.woff2')}) format('woff2');font-display:block}`;
+  document.head.appendChild(st);
+  offerFontsReady = Promise.all([document.fonts.load('20px Michroma'), document.fonts.load('italic 20px OfferSerif')]).catch(()=>{});
+  return offerFontsReady;
+}
+function offerNum(v){ return Math.round(v).toLocaleString('en-US'); }
+function offerFigures(u){
+  const pl = plansFor(u), plan = pl && pl.options && pl.options[0];
+  const price = Number(u.price) || 0, cashPct = (pl && pl.cashDiscount) || 0;
+  if(u.cash_only || !plan) return { price, cashOnly:true, cash: price, maint: Number(u.maintenance_fee) || price * MAINTENANCE_FEE_PCT / 100 };
+  const disc = plan.discount || 0, eff = price * (1 - disc/100), dp = eff * plan.dp / 100, n = Math.round(plan.years * 4);
+  return { price, disc, promo: !!plan.promo, eff, dpPct: plan.dp, dp, n, years: plan.years, q: (eff - dp) / n,
+    maint: maintFeeFor(u, plan, eff), cashPct, cash: cashPriceFor(u).cash };
+}
+function offerPageHtml(u, F, who, validUntil, stamp){
+  const B = OFFER_BASE, lbl = dispNo(u), shop = (pmIndex()[normNo(u.unit_no)] || {}).kind === 'shop';
+  const facts = [u.unit_type, u.area ? u.area + ' m²' : '', u.floor ? (String(u.floor).match(/^\d|Ground/i) ? u.floor + ' floor' : u.floor) : '', u.view].filter(Boolean);
+  const card = (big, small, hot) => `<div style="flex:1;border:1px solid ${hot?'#f6b878':'rgba(255,255,255,.18)'};border-radius:12px;padding:18px 8px;text-align:center;background:${hot?'linear-gradient(160deg,#f6a650,#e47c2a)':'rgba(255,255,255,.06)'}"><div style="font-family:Michroma;font-size:19px;color:#fff;line-height:1.1;white-space:nowrap">${big}</div><div style="font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:${hot?'#fff':'#bcd2df'};margin-top:7px;line-height:1.4">${small}</div></div>`;
+  const pay = F.cashOnly
+    ? `<div style="display:flex;gap:10px">${card(offerNum(F.cash), 'Cash price (EGP)')}${card(offerNum(F.maint), 'Maintenance (10%)')}</div>`
+    : `<div style="display:flex;gap:10px">${card(F.dpPct + '%', 'Down payment<br>' + offerNum(F.dp) + ' EGP')}${card(F.n, 'Quarterly installments<br>over ' + F.years + ' years')}${card(offerNum(F.q), 'Each installment<br>(EGP)', true)}${card(F.cashPct + '%', 'Cash discount<br>' + offerNum(F.cash) + ' EGP')}</div>`;
+  const priceBlock = F.promo
+    ? `<div style="font-size:11px;color:#9fb6c6;text-decoration:line-through">${offerNum(F.price)} EGP</div><div style="font-family:Michroma;font-size:28px;color:#fff;margin-top:2px">${offerNum(F.eff)}<span style="font-family:Inter;font-size:12px;color:#bcd2df;margin-left:6px">EGP</span></div><div style="display:inline-block;margin-top:6px;font-size:9.5px;font-weight:700;letter-spacing:.12em;color:#fff;background:#e8832f;padding:4px 10px;border-radius:20px">5% LAUNCH DISCOUNT · BUILDING B</div>`
+    : `<div style="font-family:Michroma;font-size:28px;color:#fff">${offerNum(F.price)}<span style="font-family:Inter;font-size:12px;color:#bcd2df;margin-left:6px">EGP</span></div>`;
+  const rows = F.cashOnly ? [['Cash price', offerNum(F.cash) + ' EGP'], ['Maintenance (10%, at delivery)', offerNum(F.maint) + ' EGP']]
+    : [[F.promo ? 'Price after 5% launch discount' : 'Unit price', offerNum(F.eff) + ' EGP'], ['Down payment (' + F.dpPct + '%) at contract', offerNum(F.dp) + ' EGP'],
+       [F.n + ' quarterly installments', offerNum(F.q) + ' EGP each'], ['Maintenance (10%' + (F.promo ? ' of discounted price' : '') + ', at delivery)', offerNum(F.maint) + ' EGP'],
+       ['Or pay cash (' + F.cashPct + '% off' + (F.promo ? ' the discounted price' : '') + ')', offerNum(F.cash) + ' EGP']];
+  const why = [['90% panoramic sea views','The sea is part of everyday life'],['Private jacuzzi','On every sea-view balcony'],['Private beach & marina','Exclusive to residents'],['55% open space','Gardens, pools & beach'],['Smart home & spa','Fitness, spa & concierge'],['Prime location','Airport 10 min · El Gouna 30 min']];
+  return `<div style="width:1123px;height:794px;background:#fff;font-family:Inter,Arial,sans-serif;color:#1d2b36;position:relative;overflow:hidden;display:flex">
+    <div style="width:430px;height:794px;position:relative;flex:none">
+      <div style="position:absolute;left:0;top:0;width:430px;height:610px;background:url(${B}seaview.jpg) 70% center/cover">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,44,70,.6) 0%,rgba(8,44,70,0) 28%,rgba(8,44,70,.25) 55%,rgba(8,44,70,.95) 100%)"></div>
+        <img src="${B}sb_white.png" style="position:absolute;left:34px;top:30px;height:66px">
+        <div style="position:absolute;left:34px;right:30px;bottom:28px;color:#fff">
+          <div style="display:inline-block;font-size:9.5px;letter-spacing:.24em;border:1px solid rgba(255,255,255,.6);padding:6px 12px;border-radius:30px;margin-bottom:14px">${shop ? 'SHOP OFFER' : 'UNIT OFFER'}</div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.28em;color:#f6a650;text-shadow:0 1px 6px rgba(0,0,0,.6)">SEA BREEZE RESORT · HURGHADA</div>
+          <div style="font-family:Michroma;font-size:36px;margin-top:8px;white-space:nowrap">${shop ? 'SHOP' : 'UNIT'} ${lbl}</div>
+          <div style="font-size:12.5px;color:#dbe6ee;margin-top:6px;line-height:1.5">${facts.join('  ·  ')}</div>
+          <div style="font-family:OfferSerif;font-style:italic;font-size:19px;color:#e9dccb;margin-top:12px">Slow down. Stay awhile.</div></div></div>
+      <div style="position:absolute;left:0;top:610px;width:430px;height:110px;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:4px;padding:4px 0 0">
+        <div style="background:url(${B}jacuzzi.jpg) center/cover"></div><div style="background:url(${B}pool.jpg) center/cover"></div><div style="background:url(${B}marina.jpg) center/cover"></div></div>
+    </div>
+    <div style="flex:1;position:relative">
+      <div style="background:#0b3a5b;color:#fff;padding:30px 34px 28px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px">
+          <div><div style="font-size:10px;letter-spacing:.22em;color:#9fb6c6;margin-bottom:6px">${F.cashOnly ? 'CASH PRICE' : 'UNIT PRICE'}</div>${priceBlock}</div>
+          <div style="text-align:right;font-size:10px;color:#9fb6c6;letter-spacing:.1em;line-height:1.6">OFFER VALID UNTIL<br><b style="color:#fff;font-size:12px;letter-spacing:.04em">${validUntil}</b></div></div>
+        ${pay}</div>
+      <div style="padding:24px 34px 0">
+        <div style="font-family:Michroma;font-size:12.5px;color:#0b3a5b;display:flex;align-items:center;gap:12px">YOUR PAYMENT PLAN<span style="flex:1;height:1px;background:linear-gradient(90deg,#2aa3b8,transparent)"></span></div>
+        <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px">${rows.map((r,i)=>`<tr><td style="padding:8px 0;border-bottom:1px solid #eee5d8;color:${i===2&&!F.cashOnly?'#d9771f':'#1d2b36'}">${r[0]}</td><td style="padding:8px 0;border-bottom:1px solid #eee5d8;text-align:right;font-weight:600;color:${i===2&&!F.cashOnly?'#d9771f':'#0b3a5b'}">${r[1]}</td></tr>`).join('')}</table>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px 16px;margin-top:24px">${why.map(w=>`<div style="border-left:2px solid #2aa3b8;padding-left:9px"><div style="font-size:11.5px;font-weight:600;color:#0b3a5b">${w[0]}</div><div style="font-size:9.5px;color:#6c7a86;margin-top:2px">${w[1]}</div></div>`).join('')}</div>
+        <div style="position:absolute;left:34px;right:34px;bottom:88px;font-size:7.8px;color:#93a0ab;line-height:1.45">Prices and availability are subject to change. Installments are paid quarterly, starting 3 months after the contract date. ${F.promo ? 'The 5% launch discount applies to the first 20 units sold in Building B only. ' : ''}Images are indicative. The layout and location of this unit are on the next page.</div></div>
+    </div>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:74px;box-sizing:border-box;background:#082c46;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 34px">
+      <div><div style="font-size:9px;letter-spacing:.2em;color:#9fb6c6">YOUR CONSULTANT</div><div style="font-size:15px;font-weight:600;margin-top:3px">${who}</div><div style="font-size:8.5px;color:#7f98aa;margin-top:3px">${stamp}</div></div>
+      <div style="display:flex;align-items:center;gap:22px"><img src="${B}castello.png" style="height:38px;background:#fff;border-radius:8px;padding:5px 9px"><div style="text-align:right"><div style="font-family:Michroma;font-size:22px;color:#f39a45;white-space:nowrap">15423</div><div style="font-size:10px;color:#9fb6c6;letter-spacing:.08em">www.castelloeg.com</div></div></div></div>
+  </div>`;
+}
+function offerPlansHtml(u, lay, loc, stamp){
+  const lbl = dispNo(u), f = Number(floorOf(u));
+  const sub = [u.unit_type, u.area ? u.area + ' m²' : '', u.view].filter(Boolean).join(' · ');
+  const panel = (title, note, src, w) => `<div style="width:${w}px;flex:none;display:flex;flex-direction:column;border:1px solid #e6ddd0;border-radius:12px;overflow:hidden;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f6f0e7;border-bottom:1px solid #e6ddd0"><span style="font-family:Michroma;font-size:11px;color:#0b3a5b;letter-spacing:.06em">${title}</span><span style="font-size:10px;color:#6c7a86">${note}</span></div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:14px"><img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain"></div></div>`;
+  const H = 794 - 70 - 40 - 36, W = 1123 - 68 - 18;
+  let lw = 0; if(lay && loc){ lw = Math.round(Math.max(290, Math.min(W * 0.42, (H - 70) * lay.width / lay.height + 30))); }
+  const parts = [];
+  if(lay) parts.push(panel('UNIT LAYOUT', 'Not to scale', lay.toDataURL('image/png'), loc ? lw : W + 18));
+  if(loc) parts.push(panel('UNIT LOCATION', (f === 0 ? 'Ground floor' : pmOrd(f) + ' floor') + ' master plan', loc.toDataURL('image/png'), lay ? W - lw : W + 18));
+  return `<div style="width:1123px;height:794px;background:#fff;font-family:Inter,Arial,sans-serif;position:relative;overflow:hidden">
+    <div style="height:70px;background:#0b3a5b;display:flex;align-items:center;justify-content:space-between;padding:0 34px;color:#fff">
+      <div><div style="font-family:Michroma;font-size:20px">UNIT ${lbl}</div><div style="font-size:10.5px;color:#bcd2df;margin-top:4px">${sub}</div></div>
+      <img src="${OFFER_BASE}sb_white.png" style="height:46px"></div>
+    <div style="position:absolute;left:34px;right:34px;top:90px;height:${H}px;display:flex;gap:18px">${parts.join('')}</div>
+    <div style="position:absolute;left:34px;right:34px;bottom:14px;display:flex;justify-content:space-between;font-size:8.5px;color:#8a96a0"><span>${stamp}</span><span>Layout and location are indicative only. Final areas and finishes as per the contract.</span></div>
+  </div>`;
+}
+async function offerShot(host, html){
+  host.innerHTML = html;
+  await Promise.all([...host.querySelectorAll('img')].map(i=> i.complete ? 0 : new Promise(r=>{ i.onload = i.onerror = r; })));
+  return html2canvas(host.firstElementChild, { scale:2, useCORS:true, backgroundColor:'#ffffff', logging:false, width:1123, height:794, windowWidth:1123 });
+}
+async function downloadOffer(u, btn){
+  if(!u || !u.price) return;
+  const old = btn ? btn.innerHTML : '';
+  if(btn){ btn.innerHTML = '<span>Preparing…</span>'; btn.disabled = true; }
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-12000px;top:0;width:1123px;z-index:-1;';
+  document.body.appendChild(host);
+  try{
+    try{ track('offer_download', unitLabelForTrack(u)); }catch(e){}
+    await offerFonts();
+    const F = offerFigures(u), who = sessionStorage.getItem('castelloFullName') || currentAgentName() || 'Castello Sales';
+    const vd = new Date(); vd.setDate(vd.getDate() + 14);
+    const validUntil = vd.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+    const stamp = dlStamp();
+    await Promise.all(['seaview','jacuzzi','pool','marina'].map(k=> new Promise(r=>{ const i = new Image(); i.onload = i.onerror = r; i.src = OFFER_BASE + k + '.jpg'; })));
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const pdf = new window.jspdf.jsPDF('l', 'pt', 'a4');
+    const page1 = await offerShot(host, offerPageHtml(u, F, who, validUntil, stamp));
+    pdf.addImage(page1.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 841.89, 595.28);
+    const [lay, loc] = await Promise.all([layoutCanvas(u, 'black').catch(()=>null), masterCanvas(u, 'black').catch(()=>null)]);
+    if(lay || loc){
+      const page2 = await offerShot(host, offerPlansHtml(u, lay, loc, stamp));
+      pdf.addPage('a4', 'l');
+      pdf.addImage(page2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 841.89, 595.28);
+    }
+    pdf.save(`Sea_Breeze_Offer_${String(dispNo(u)).replace(/\s+/g,'_')}.pdf`);
   }catch(e){
-    console.error(e); alert('Could not prepare the master plan download. Please try again.');
+    console.error(e); alert('Could not prepare the offer. Please try again.');
   }finally{
+    host.remove();
     if(btn){ btn.innerHTML = old; btn.disabled = false; }
   }
 }
@@ -3747,6 +3891,7 @@ document.getElementById('layActions').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b || !layCur) return;
   const u = layCur;
   if(b.dataset.act === 'share'){ shareUnit(u, b); return; }
+  if(b.dataset.act === 'of'){ downloadOffer(u, b); return; }
   if(b.dataset.act === 'dl' || b.dataset.act === 'pr'){
     const action = b.dataset.act === 'pr' ? 'print' : 'pdf';
     let pop = document.getElementById('dlPop');
@@ -4069,10 +4214,10 @@ function renderPPCashCard(){
   const pl = plansFor(u);
   const cashCard = document.getElementById('ppCashCard');
   if(pl && pl.cashDiscount > 0){
-    const cashPrice = u.price * (1 - pl.cashDiscount/100);
+    const C = cashPriceFor(u), cashPrice = C.cash;
     const save = u.price - cashPrice;
     cashCard.className = 'pp-cash-card';
-    cashCard.innerHTML = `<div><div class="cc-label">Cash Payment · ${pl.cashDiscount}% Discount</div><div class="cc-price">${fmtCur(cashPrice)}</div></div><div class="cc-save">You save ${fmtCur(save)}</div>`;
+    cashCard.innerHTML = `<div><div class="cc-label">Cash Payment · ${C.promo ? SB_PROMO_PCT + '% + ' : ''}${pl.cashDiscount}% Discount</div><div class="cc-price">${fmtCur(cashPrice)}</div></div><div class="cc-save">You save ${fmtCur(save)}</div>`;
   } else {
     cashCard.className = 'pp-cash-card none';
     cashCard.innerHTML = `<div><div class="cc-label">Cash Payment</div><div class="cc-price">${fmtCur(u.price)}</div></div><div class="cc-save">No cash discount on this project</div>`;
@@ -4866,7 +5011,7 @@ const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} �
 
 /* Admin view */
 function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', masterplan_download:'Master plans downloaded', layout_print:'Layouts printed', masterplan_print:'Master plans printed', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
+const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', masterplan_download:'Master plans downloaded', layout_print:'Layouts printed', offer_download:'Offers downloaded', masterplan_print:'Master plans printed', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
 async function loadActivity(days){
   const box = document.getElementById('activityBody');
   box.innerHTML = '<div class="analytics-loading">Loading…</div>';
