@@ -3824,20 +3824,22 @@ function offerPageHtml(u, F, who, validUntil, stamp){
     </div>
     <div style="position:absolute;left:0;right:0;bottom:0;height:74px;box-sizing:border-box;background:#082c46;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 34px">
       <div><div style="font-size:9px;letter-spacing:.2em;color:#9fb6c6">YOUR CONSULTANT</div><div style="font-size:15px;font-weight:600;margin-top:3px">${who}</div><div style="font-size:8.5px;color:#7f98aa;margin-top:3px">${stamp}</div></div>
-      <div style="display:flex;align-items:center;gap:22px"><img src="${B}castello.png" style="height:38px;background:#fff;border-radius:8px;padding:5px 9px"><div style="text-align:right"><div style="font-family:Michroma;font-size:22px;color:#f39a45;white-space:nowrap">15423</div><div style="font-size:10px;color:#9fb6c6;letter-spacing:.08em">www.castelloeg.com</div></div></div></div>
+      <div style="display:flex;align-items:center;gap:22px"><img src="${B}castello.png" style="height:46px"><div style="text-align:right"><div style="font-family:Michroma;font-size:22px;color:#f39a45;white-space:nowrap">15423</div><div style="font-size:10px;color:#9fb6c6;letter-spacing:.08em">www.castelloeg.com</div></div></div></div>
   </div>`;
 }
 function offerPlansHtml(u, lay, loc, stamp){
   const lbl = dispNo(u), f = Number(floorOf(u));
   const sub = [u.unit_type, u.area ? u.area + ' m²' : '', u.view].filter(Boolean).join(' · ');
-  const panel = (title, note, src, w) => `<div style="width:${w}px;flex:none;display:flex;flex-direction:column;border:1px solid #e6ddd0;border-radius:12px;overflow:hidden;background:#fff">
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f6f0e7;border-bottom:1px solid #e6ddd0"><span style="font-family:Michroma;font-size:11px;color:#0b3a5b;letter-spacing:.06em">${title}</span><span style="font-size:10px;color:#6c7a86">${note}</span></div>
-      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:14px"><img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain"></div></div>`;
   const H = 794 - 70 - 40 - 36, W = 1123 - 68 - 18;
-  let lw = 0; if(lay && loc){ lw = Math.round(Math.max(290, Math.min(W * 0.42, (H - 70) * lay.width / lay.height + 30))); }
+  // explicit image size (html2canvas ignores max-height inside flex): fit inside panel minus header and padding
+  const fit = (cv, w) => { const aw = w - 36, ah = H - 38 - 36, s = Math.min(aw / cv.width, ah / cv.height); return [Math.floor(cv.width * s), Math.floor(cv.height * s)]; };
+  const panel = (title, note, cv, w) => { const [iw, ih] = fit(cv, w); return `<div style="width:${w}px;flex:none;display:flex;flex-direction:column;border:1px solid #e6ddd0;border-radius:12px;overflow:hidden;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f6f0e7;border-bottom:1px solid #e6ddd0"><span style="font-family:Michroma;font-size:11px;color:#0b3a5b;letter-spacing:.06em">${title}</span><span style="font-size:10px;color:#6c7a86">${note}</span></div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:0"><img src="${cv.toDataURL('image/png')}" style="width:${iw}px;height:${ih}px;display:block"></div></div>`; };
+  let lw = 0; if(lay && loc){ lw = Math.round(Math.max(300, Math.min(W * 0.42, (H - 74) * lay.width / lay.height + 36))); }
   const parts = [];
-  if(lay) parts.push(panel('UNIT LAYOUT', 'Not to scale', lay.toDataURL('image/png'), loc ? lw : W + 18));
-  if(loc) parts.push(panel('UNIT LOCATION', (f === 0 ? 'Ground floor' : pmOrd(f) + ' floor') + ' master plan', loc.toDataURL('image/png'), lay ? W - lw : W + 18));
+  if(lay) parts.push(panel('UNIT LAYOUT', 'Not to scale', lay, loc ? lw : W + 18));
+  if(loc) parts.push(panel('UNIT LOCATION', (f === 0 ? 'Ground floor' : pmOrd(f) + ' floor') + ' master plan', loc, lay ? W - lw : W + 18));
   return `<div style="width:1123px;height:794px;background:#fff;font-family:Inter,Arial,sans-serif;position:relative;overflow:hidden">
     <div style="height:70px;background:#0b3a5b;display:flex;align-items:center;justify-content:space-between;padding:0 34px;color:#fff">
       <div><div style="font-family:Michroma;font-size:20px">UNIT ${lbl}</div><div style="font-size:10.5px;color:#bcd2df;margin-top:4px">${sub}</div></div>
