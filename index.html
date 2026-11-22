@@ -1590,6 +1590,12 @@ td.star-cell{ text-align:left; }
 .uc-perm-grid .uc-group-title{ display:flex; align-items:center; gap:6px; }
 @media (max-width:760px){ .lay-actions{ flex-wrap:wrap; } .lay-actions button.ic{ flex:1 1 40%; min-width:0; } }
 </style>
+<style id="cxoCritical">
+/* first paint: never show the old entrance; the office login appears only once its own styles are ready */
+#loginGate .login-bg-svg, #loginGate .cs-orbit-system, #accessBlocked .login-bg-svg, #accessBlocked .cs-orbit-system, #loginGate .advice-quote{ display:none !important; }
+#loginGate, #accessBlocked{ background:#0a0705 !important; }
+html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocked .login-stack{ visibility:hidden !important; }
+</style>
 </head>
 <body>
 
@@ -6530,7 +6536,7 @@ setInterval(()=>{
 #loginGate .login-bg-svg, #loginGate .cs-orbit-system,
 #accessBlocked .login-bg-svg, #accessBlocked .cs-orbit-system,
 .login-stack::before{ display:none !important; }
-#loginGate, #accessBlocked{ background:#05070c !important; }
+#loginGate, #accessBlocked{ background:#0a0705 !important; }
 
 .cx-scene{ position:absolute; inset:0; overflow:hidden; z-index:0; pointer-events:none; }
 .cx-frame{ position:absolute; left:50%; top:50%; width:max(100vw, 177.78vh); height:max(56.25vw, 100vh);
@@ -6987,6 +6993,7 @@ html body #loginGate .login-card, html body #accessBlocked .login-card{
   }
   build(document.getElementById('loginGate'));
   build(document.getElementById('accessBlocked'));
+  document.documentElement.classList.add('cxo-ready');
 
   // Golden Calligraphy: add a moving gradient as a 2nd mask layer so the Bismillah writes itself in
   (function(){
