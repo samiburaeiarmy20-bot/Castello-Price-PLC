@@ -4854,7 +4854,7 @@ const PL_STYLE = {
     cols:[['seq','Seq.',8],['section','Building',11.1],['unit_no','Unit No.',11.4],['unit_type','Type',12.4],['floor','Floor',9],['view','View',17.7],['area','Area m²',11.9],['pm2','Price/m²',10.1],['price','Unit Price',19.1]] },
 };
 // Rows per page, from the fixed sheet geometry (with a row of slack).
-const PL_ROWS = { classic:{ first:41, next:49 }, seabreeze:{ first:35, next:38 } };   // measured fit is 42/50 and 36/39; one row of slack
+const PL_ROWS = { classic:{ first:41, next:49 }, seabreeze:{ first:35, next:38 }, seabreezeOffer:{ first:35, next:38 } };   // measured fit is 42/50 and 36/39; one row of slack
 
 function plEsc(v){ return String(v ?? '').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function plListPrice(u){
@@ -4871,6 +4871,19 @@ function plRowValues(u, i){
            area:(u.area ?? ''), pm2:fmt(pm2), price:fmt(list), cash: u.cash_only ? fmt(u.price) : '' };
 }
 
+// Sea Breeze sheet: payment plan + Building B launch offer, under the header.
+// The offer part shows only while the launch offer is running (first 20 Building B units).
+function plSbNotice(){
+  const plan = `<div class="plx-sbn-plan"><div class="k">STANDARD PAYMENT PLAN</div>
+      <div class="v">20% Down Payment ${SB_PROMO_ACTIVE ? '<br>' : '<span>·</span> '}5 Years Installments</div></div>`;
+  if(!SB_PROMO_ACTIVE) return `<div class="plx-sbn">${plan}</div>`;
+  return `<div class="plx-sbn">${plan}
+    <div class="plx-sbn-offer"><div class="plx-sbn-tag">LIMITED-TIME OFFER</div>
+      <div class="t">Building B – Special Discounts</div>
+      <ul><li><b>5% Discount</b> on installment payment plans.</li>
+          <li><b>20% Cash Discount</b> on cash payments, applicable after the initial 5% discount.</li></ul>
+      <div class="n">Building B prices in this price list are shown before the discount.</div></div></div>`;
+}
 function buildPriceListPages(projectKey){
   const st = PL_STYLE[projectKey]; if(!st) return [];
   const proj = PROJECTS.find(p=>p.key===projectKey) || {};
@@ -4879,7 +4892,7 @@ function buildPriceListPages(projectKey){
   const rows = units.map(plRowValues);
   const pm2s = rows.map((r,i)=> Number(String(r.pm2).replace(/,/g,''))).filter(n=>n>0);
   const date = new Date().toLocaleDateString('en-GB');
-  const lim = st.seabreeze ? PL_ROWS.seabreeze : PL_ROWS.classic;
+  const lim = st.seabreeze ? (SB_PROMO_ACTIVE ? PL_ROWS.seabreezeOffer : PL_ROWS.seabreeze) : PL_ROWS.classic;
   const chunks = []; let at = 0;
   while(at < rows.length){ const n = chunks.length ? lim.next : lim.first; chunks.push(rows.slice(at, at+n)); at += n; }
   const totalW = st.cols.reduce((a,c)=>a+c[2],0);
@@ -4899,7 +4912,7 @@ function buildPriceListPages(projectKey){
         head = `<div class="plx-sb-head"><img src="${PL_LOGOS.seabreeze}" alt="">
           <div class="plx-sb-title">Sea Breeze Resort</div>
           <div class="plx-sb-by">BY CASTELLO DEVELOPMENT</div>
-          <div class="plx-sb-web">www.Castelloeg.com   |   Hotline 15423</div></div><div class="plx-sb-bar"></div>`;
+          <div class="plx-sb-web">www.Castelloeg.com   |   Hotline 15423</div></div><div class="plx-sb-bar"></div>${plSbNotice()}`;
       } else {
         const logos = st.logos.map(([k])=>`<img src="${PL_LOGOS[k]}" style="height:${st.logoH || 64}px; width:auto" alt="">`).join('');
         head = `<div class="plx-bar"></div>
@@ -4917,7 +4930,7 @@ function buildPriceListPages(projectKey){
     }
     const pageNo = chunks.length > 1 ? `Page ${pi+1} of ${chunks.length}` : '';
     const vars = st.seabreeze ? '' : `--acc:${st.accent}; --pri:${st.primary};`;
-    return `<div class="plx-page ${st.seabreeze ? 'plx-sb' : ''}" style="${vars}">${head}
+    return `<div class="plx-page ${st.seabreeze ? 'plx-sb' : ''}${st.seabreeze && pi === 0 ? ' plx-sb-first' : ''}" style="${vars}">${head}
       <table class="plx-table ${st.band ? 'plx-band' : ''}">${colgroup}${thead}<tbody>${body}</tbody></table>
       <div class="plx-foot"><span>${plEsc(footText)}</span><span>${pageNo}</span></div></div>`;
   });
@@ -6797,6 +6810,20 @@ setInterval(()=>{
   font-size:10.7px; letter-spacing:.34em; color:#B8935A; }
 .plx-sb-web{ position:absolute; right:0; top:52px; font-size:12px; font-style:italic; color:#6A7A80; white-space:pre; }
 .plx-sb-bar{ height:5px; background:#B8935A; margin-bottom:0; }
+.plx-page.plx-sb-first .plx-table td{ height:24px; }   /* room for the payment-plan / offer notice on page 1 */
+.plx-sbn{ display:flex; gap:10px; margin:8px 0 8px; align-items:stretch; }
+.plx-sbn-plan{ flex:0 0 205px; background:#00707F; color:#fff; border-radius:6px; padding:9px 12px; display:flex; flex-direction:column; justify-content:center; }
+.plx-sbn-plan .k{ font-size:10px; font-weight:700; letter-spacing:.14em; color:#BFE3E6; }
+.plx-sbn-plan .v{ font-size:15px; font-weight:700; margin-top:5px; line-height:1.3; }
+.plx-sbn-plan .v span{ color:#E9C98F; }
+.plx-sbn > .plx-sbn-plan:only-child{ flex:1; flex-direction:row; align-items:center; gap:14px; padding:8px 14px; }
+.plx-sbn > .plx-sbn-plan:only-child .v{ margin:0; }
+.plx-sbn-offer{ flex:1; position:relative; border:1.5px solid #B8935A; border-radius:6px; background:#FBF6EE; padding:8px 12px 7px; }
+.plx-sbn-tag{ position:absolute; right:10px; top:-9px; background:#B8935A; color:#fff; font-size:9.5px; font-weight:700; letter-spacing:.14em; padding:3px 9px; border-radius:20px; }
+.plx-sbn-offer .t{ font-size:13.5px; font-weight:700; color:#004E58; }
+.plx-sbn-offer ul{ margin:3px 0 0; padding-left:16px; font-size:11.5px; color:#2E2E2E; line-height:1.45; }
+.plx-sbn-offer b{ color:#00707F; }
+.plx-sbn-offer .n{ margin-top:3px; font-size:10.5px; font-style:italic; color:#8A6A33; }
 .plx-sb .plx-table th{ background:#00707F; font-size:16px; height:29px; border:1px solid #00707F; }
 .plx-sb .plx-table td{ height:26px; font-size:14.7px; color:#2E2E2E; border:1px solid #D9D3C7; }
 .plx-sb .plx-table tbody tr:nth-child(odd) td{ background:#E6E0EC; }
