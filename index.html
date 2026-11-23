@@ -3851,7 +3851,7 @@ function offerPlansHtml(u, lay, loc, stamp){
   const fit = (cv, w) => { const aw = w - 36, ah = H - 38 - 36, s = Math.min(aw / cv.width, ah / cv.height); return [Math.floor(cv.width * s), Math.floor(cv.height * s)]; };
   const panel = (title, note, cv, w) => { const [iw, ih] = fit(cv, w); return `<div style="width:${w}px;flex:none;display:flex;flex-direction:column;border:1px solid #e6ddd0;border-radius:12px;overflow:hidden;background:#fff">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f6f0e7;border-bottom:1px solid #e6ddd0"><span style="font-family:Michroma;font-size:11px;color:#0b3a5b;letter-spacing:.06em">${title}</span><span style="font-size:10px;color:#6c7a86">${note}</span></div>
-      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:0"><img src="${cv.toDataURL('image/png')}" style="width:${iw}px;height:${ih}px;display:block"></div></div>`; };
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:0"><img src="${cv.toDataURL('image/jpeg', 0.92)}" style="width:${iw}px;height:${ih}px;display:block"></div></div>`; };
   let lw = 0; if(lay && loc){ lw = Math.round(Math.max(300, Math.min(W * 0.42, (H - 74) * lay.width / lay.height + 36))); }
   const parts = [];
   if(lay) parts.push(panel('UNIT LAYOUT', 'Not to scale', lay, loc ? lw : W + 18));
@@ -3887,12 +3887,14 @@ function offerScheduleHtml(u, F, stamp){
     <div style="position:absolute;left:34px;right:34px;bottom:14px;display:flex;justify-content:space-between;font-size:8.5px;color:#8a96a0"><span>${stamp}</span><span>Dates assume a contract signed today. The maintenance fee is paid separately at delivery.</span></div>
   </div>`;
 }
+const OFFER_SCALE = (navigator.maxTouchPoints > 1 || /iPhone|iPad|Android/i.test(navigator.userAgent)) ? 1.5 : 2;
 async function offerShot(host, html){
   host.innerHTML = html;
   await Promise.all([...host.querySelectorAll('img')].map(i=> i.complete ? 0 : new Promise(r=>{ i.onload = i.onerror = r; })));
   const page = host.firstElementChild, o = page.getBoundingClientRect();
   const links = [...page.querySelectorAll('[data-link]')].map(e=>{ const r = e.getBoundingClientRect(); return { url: e.dataset.link, x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height }; });
-  const cv = await html2canvas(page, { scale:2, useCORS:true, backgroundColor:'#ffffff', logging:false, width:1123, height:794, windowWidth:1123 });
+  const cv = await html2canvas(page, { scale:OFFER_SCALE, useCORS:true, backgroundColor:'#ffffff', logging:false, width:1123, height:794, windowWidth:1123,
+    ignoreElements: el => el.parentElement === document.body && el !== host });
   cv.links = links;
   return cv;
 }
@@ -3904,6 +3906,9 @@ function offerPlace(pdf, cv, q){
 }
 async function downloadOffer(u, btn){
   if(!u || !u.price) return;
+  if(typeof html2canvas === 'undefined' || !(window.jspdf && window.jspdf.jsPDF)){
+    alert('Could not prepare the offer: the PDF tools did not load. Check the internet connection, then refresh the page and try again.'); return;
+  }
   const old = btn ? btn.innerHTML : '';
   if(btn){ btn.innerHTML = '<span>Preparing…</span>'; btn.disabled = true; }
   const host = document.createElement('div');
@@ -3922,18 +3927,25 @@ async function downloadOffer(u, btn){
     const page1 = await offerShot(host, offerPageHtml(u, F, who, validUntil, stamp));
     offerPlace(pdf, page1, 0.9);
     if(!F.cashOnly){
-      const sched = await offerShot(host, offerScheduleHtml(u, F, stamp));
-      pdf.addPage('a4', 'l'); offerPlace(pdf, sched, 0.92);
+      try{
+        const sched = await offerShot(host, offerScheduleHtml(u, F, stamp));
+        pdf.addPage('a4', 'l'); offerPlace(pdf, sched, 0.92);
+      }catch(e){ console.warn('offer: payment plan page skipped', e); try{ track('offer_error', unitLabelForTrack(u) + ' · plan page · ' + (e && e.message || e)); }catch(_){} }
     }
-    const [lay, loc] = await Promise.all([layoutCanvas(u, 'black').catch(()=>null), masterCanvas(u, 'black').catch(()=>null)]);
-    if(lay || loc){
-      const page2 = await offerShot(host, offerPlansHtml(u, lay, loc, stamp));
-      pdf.addPage('a4', 'l');
-      offerPlace(pdf, page2, 0.92);
-    }
+    try{
+      const [lay, loc] = await Promise.all([layoutCanvas(u, 'black').catch(()=>null), masterCanvas(u, 'black').catch(()=>null)]);
+      if(lay || loc){
+        const page2 = await offerShot(host, offerPlansHtml(u, lay, loc, stamp));
+        pdf.addPage('a4', 'l');
+        offerPlace(pdf, page2, 0.92);
+      }
+    }catch(e){ console.warn('offer: layout/location page skipped', e); try{ track('offer_error', unitLabelForTrack(u) + ' · plans page · ' + (e && e.message || e)); }catch(_){} }
     pdf.save(`Sea_Breeze_Offer_${String(dispNo(u)).replace(/\s+/g,'_')}.pdf`);
   }catch(e){
-    console.error(e); alert('Could not prepare the offer. Please try again.');
+    console.error(e);
+    const why = (e && (e.message || e.name)) || String(e);
+    try{ track('offer_error', unitLabelForTrack(u) + ' · ' + why); }catch(_){}
+    alert('Could not prepare the offer. Please refresh the page and try again.\n\nDetails: ' + why);
   }finally{
     host.remove();
     if(btn){ btn.innerHTML = old; btn.disabled = false; }
@@ -5079,7 +5091,7 @@ const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} �
 
 /* Admin view */
 function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', masterplan_download:'Master plans downloaded', layout_print:'Layouts printed', offer_download:'Offers downloaded', masterplan_print:'Master plans printed', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
+const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', masterplan_download:'Master plans downloaded', layout_print:'Layouts printed', offer_download:'Offers downloaded', offer_error:'Offer errors', masterplan_print:'Master plans printed', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
 async function loadActivity(days){
   const box = document.getElementById('activityBody');
   box.innerHTML = '<div class="analytics-loading">Loading…</div>';
