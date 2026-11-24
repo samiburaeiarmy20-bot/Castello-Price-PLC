@@ -2665,7 +2665,7 @@ function canProjPlan(k, what){
   if(isAdminUser()) return true;
   if(!canSeeProject(k)) return false;
   const f = userPerms().features || {}, key = `proj_${what}_` + projSlug(k);
-  return key in f ? f[key] !== false : featureOn(what === 'layout' ? 'can_unit_layout' : 'can_unit_location');
+  return key in f ? f[key] === true : false;   // off until an admin ticks it for this project
 }
 function exportableProjects(){ return PROJECTS.filter(p=> canExportProject(p.key)); }
 function applyProjectAccess(rerender){
@@ -5289,7 +5289,7 @@ function umRenderUsers(users){
     const feats = u.features || {};
     const fOn = k => (k in feats ? feats[k] !== false : featureDefault(k));
     const pExp = k => { const key = 'proj_export_' + projSlug(k); return key in feats ? feats[key] !== false : !!u.can_export; };
-    const pPlan = (k, w) => { const key = `proj_${w}_` + projSlug(k); return key in feats ? feats[key] !== false : fOn(w === 'layout' ? 'can_unit_layout' : 'can_unit_location'); };
+    const pPlan = (k, w) => { const key = `proj_${w}_` + projSlug(k); return key in feats ? feats[key] === true : false; };
     const hasPlans = k => { try{ return !!PLAN_SETS[k]; }catch(e){ return false; } };
     const permStates = [...UC_PERM_COLUMNS.map(([k])=> !!u[k]), ...FEATURE_DEFS.map(([k])=> fOn(k)),
       ...ALL_PROJECTS.flatMap(p=> [fOn('proj_view_' + projSlug(p.key)), pExp(p.key), ...(hasPlans(p.key) ? [pPlan(p.key,'layout'), pPlan(p.key,'location')] : [])]), ...COL_DEFS.map(([k])=> fOn(k))];
