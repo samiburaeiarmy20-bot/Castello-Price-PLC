@@ -3805,7 +3805,7 @@ function offerPageHtml(u, F, who, validUntil, stamp){
     ? `<div style="display:flex;gap:10px">${card(offerNum(F.cash), 'Cash price (EGP)')}${card(offerNum(F.maint), 'Maintenance (10%)')}</div>`
     : `<div style="display:flex;gap:10px">${card(F.dpPct + '%', 'Down payment<br>' + offerNum(F.dp) + ' EGP')}${card(F.n, 'Quarterly installments<br>over ' + F.years + ' years')}${card(offerNum(F.q), 'Each installment<br>(EGP)', true)}${card(F.cashPct + '%', 'Cash discount<br>' + offerNum(F.cash) + ' EGP')}</div>`;
   const priceBlock = F.promo
-    ? `<div style="font-size:11px;color:#9fb6c6;text-decoration:line-through">${offerNum(F.price)} EGP</div><div style="font-family:Michroma;font-size:28px;color:#fff;margin-top:2px">${offerNum(F.eff)}<span style="font-family:Inter;font-size:12px;color:#bcd2df;margin-left:6px">EGP</span></div><div style="display:inline-block;margin-top:6px;font-size:9.5px;font-weight:700;letter-spacing:.12em;color:#fff;background:#e8832f;padding:4px 10px;border-radius:20px">5% LAUNCH DISCOUNT · BUILDING B</div>`
+    ? `<div style="font-size:11px;color:#9fb6c6;text-decoration:line-through">${offerNum(F.price)} EGP</div><div style="font-family:Michroma;font-size:28px;color:#fff;margin-top:2px">${offerNum(F.eff)}<span style="font-family:Inter;font-size:12px;color:#bcd2df;margin-left:6px">EGP</span></div><div style="display:inline-block;margin-top:6px;font-size:9.5px;font-weight:700;letter-spacing:.12em;color:#fff;background:#e8832f;padding:4px 10px;border-radius:20px">5% LAUNCH DISCOUNT · BUILDING B · FIRST 20 UNITS ONLY</div>`
     : `<div style="font-family:Michroma;font-size:28px;color:#fff">${offerNum(F.price)}<span style="font-family:Inter;font-size:12px;color:#bcd2df;margin-left:6px">EGP</span></div>`;
   const rows = F.cashOnly ? [['Cash price', offerNum(F.cash) + ' EGP'], ['Maintenance (10%, at delivery)', offerNum(F.maint) + ' EGP']]
     : [[F.promo ? 'Price after 5% launch discount' : 'Unit price', offerNum(F.eff) + ' EGP'], ['Down payment (' + F.dpPct + '%) at contract', offerNum(F.dp) + ' EGP'],
@@ -4891,8 +4891,8 @@ function plSbNotice(){
   if(!SB_PROMO_ACTIVE) return `<div class="plx-sbn">${plan}</div>`;
   return `<div class="plx-sbn">${plan}
     <div class="plx-sbn-offer"><div class="plx-sbn-tag">LIMITED-TIME OFFER</div>
-      <div class="t">Building B – Special Discounts</div>
-      <ul><li><b>5% Discount</b> on installment payment plans.</li>
+      <div class="t">Building B – Special Discounts <span class="lim">Limited to the first 20 units</span></div>
+      <ul><li><b>5% Discount</b> on installment payment plans, for the first 20 units sold in Building B only.</li>
           <li><b>20% Cash Discount</b> on cash payments, applicable after the initial 5% discount.</li></ul>
       <div class="n">Building B prices in this price list are shown before the discount.</div></div></div>`;
 }
@@ -6833,6 +6833,7 @@ setInterval(()=>{
 .plx-sbn-offer{ flex:1; position:relative; border:1.5px solid #B8935A; border-radius:6px; background:#FBF6EE; padding:8px 12px 7px; }
 .plx-sbn-tag{ position:absolute; right:10px; top:-9px; background:#B8935A; color:#fff; font-size:9.5px; font-weight:700; letter-spacing:.14em; padding:3px 9px; border-radius:20px; }
 .plx-sbn-offer .t{ font-size:13.5px; font-weight:700; color:#004E58; }
+.plx-sbn-offer .t .lim{ margin-left:6px; font-size:10px; font-weight:700; letter-spacing:.04em; color:#fff; background:#00707F; padding:2px 8px; border-radius:20px; vertical-align:2px; }
 .plx-sbn-offer ul{ margin:3px 0 0; padding-left:16px; font-size:11.5px; color:#2E2E2E; line-height:1.45; }
 .plx-sbn-offer b{ color:#00707F; }
 .plx-sbn-offer .n{ margin-top:3px; font-size:10.5px; font-style:italic; color:#8A6A33; }
