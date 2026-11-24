@@ -3501,7 +3501,7 @@ function defaultsForUnit(u){
 // floor. Atlantis Building C (Atlantis PH2): one drawing per unit, cut from the CAD floor plans.
 const PLAN_SETS = {
   'Sea Breeze':   { name:'Sea Breeze', layouts:'layouts/', floors:'floors/', blocks:['A','B','C','D','P'], keyFor: sbLayoutKey },
-  'Atlantis PH2': { name:'Atlantis · Building C', layouts:'atlantis_c/layouts/', floors:'atlantis_c/floors/', blocks:['C1','C2'],
+  'Atlantis PH2': { name:'Atlantis · Building C', layouts:'atlantis_c/layouts/', floors:'atlantis_c/floors/', blocks:['C1','C2','C3'],
                     thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } }
 };
 const PLAN_DATA = {};   // project -> { lay: layout manifest, floors: floor plans, idx: unit index }
