@@ -2661,6 +2661,12 @@ function canExportProject(k){
   const f = userPerms().features || {}, key = 'proj_export_' + projSlug(k);
   return key in f ? f[key] !== false : userPerms().can_export === true;   // not set yet: follows the old "Export price list" switch
 }
+function canProjPlan(k, what){
+  if(isAdminUser()) return true;
+  if(!canSeeProject(k)) return false;
+  const f = userPerms().features || {}, key = `proj_${what}_` + projSlug(k);
+  return key in f ? f[key] !== false : featureOn(what === 'layout' ? 'can_unit_layout' : 'can_unit_location');
+}
 function exportableProjects(){ return PROJECTS.filter(p=> canExportProject(p.key)); }
 function applyProjectAccess(rerender){
   const prevSel = (typeof state !== 'undefined' && state && state.projects) ? [...state.projects] : null;
@@ -3116,7 +3122,7 @@ const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','
 const FEATURE_GROUPS = [
   ['Pricing & plans', '💳', ['can_payment_plan','can_download_plan','can_roi','can_price_tags']],
   ['Sharing & browsing', '🔎', ['can_share','can_compare','can_saved_filters','can_hold_alerts']],
-  ['Unit plans', '🏢', ['can_unit_layout','can_unit_location','can_project_map','can_view_unavailable']],
+  ['Unit plans', '🏢', ['can_project_map','can_view_unavailable']],
   ['Download & print', '🖨', ['can_offer','can_dl_layout','can_dl_masterplan','can_print_layout','can_print_masterplan','can_dl_colour','can_dl_black']]
 ];
 const FEATURE_DEFAULT_OFF = ['can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_dl_black','can_print_layout','can_print_masterplan','can_offer'];
@@ -3502,7 +3508,7 @@ const PLAN_DATA = {};   // project -> { lay: layout manifest, floors: floor plan
 function planSet(sheet){ try{ return PLAN_SETS[sheet] || null; }catch(e){ return null; } }   // safe before this block has run
 function planLay(sheet){ try{ return (PLAN_DATA[sheet] || {}).lay || null; }catch(e){ return null; } }
 function planFloors(sheet){ try{ return (PLAN_DATA[sheet] || {}).floors || null; }catch(e){ return null; } }
-function planProjects(){ let ks; try{ ks = Object.keys(PLAN_SETS); }catch(e){ return []; } return ks.filter(k=> (planLay(k) || planFloors(k)) && canSeeProject(k)); }
+function planProjects(){ let ks; try{ ks = Object.keys(PLAN_SETS); }catch(e){ return []; } return ks.filter(k=> ((planLay(k) && canProjPlan(k,'layout')) || (planFloors(k) && canProjPlan(k,'location')))); }
 let LAYOUT_BASE = 'layouts/';
 const layoutCache = {};
 // Unit numbers are Block + Floor + 2-digit unit (B106 = block B, floor 1, unit 06). The same plan repeats
@@ -3599,8 +3605,8 @@ function floorOf(u){
   return i ? String(i.plan != null ? i.plan : i.floor) : null;
 }
 function floorUrl(u, f){ return planSet(u.sheet).floors + 'F' + f + '.svg'; }
-function canLay(u){ return !!layoutKeyFor(u) && featureOn('can_unit_layout'); }
-function canLoc(u){ return floorOf(u) != null && featureOn('can_unit_location'); }
+function canLay(u){ return !!layoutKeyFor(u) && canProjPlan(u.sheet, 'layout'); }
+function canLoc(u){ return floorOf(u) != null && canProjPlan(u.sheet, 'location'); }
 let layMode = 'layout';
 const floorCache = {};
 function layList(){ return (layNavList || lastRows).filter(x=> canLay(x) || canLoc(x)); }
@@ -5283,8 +5289,10 @@ function umRenderUsers(users){
     const feats = u.features || {};
     const fOn = k => (k in feats ? feats[k] !== false : featureDefault(k));
     const pExp = k => { const key = 'proj_export_' + projSlug(k); return key in feats ? feats[key] !== false : !!u.can_export; };
+    const pPlan = (k, w) => { const key = `proj_${w}_` + projSlug(k); return key in feats ? feats[key] !== false : fOn(w === 'layout' ? 'can_unit_layout' : 'can_unit_location'); };
+    const hasPlans = k => { try{ return !!PLAN_SETS[k]; }catch(e){ return false; } };
     const permStates = [...UC_PERM_COLUMNS.map(([k])=> !!u[k]), ...FEATURE_DEFS.map(([k])=> fOn(k)),
-      ...ALL_PROJECTS.flatMap(p=> [fOn('proj_view_' + projSlug(p.key)), pExp(p.key)]), ...COL_DEFS.map(([k])=> fOn(k))];
+      ...ALL_PROJECTS.flatMap(p=> [fOn('proj_view_' + projSlug(p.key)), pExp(p.key), ...(hasPlans(p.key) ? [pPlan(p.key,'layout'), pPlan(p.key,'location')] : [])]), ...COL_DEFS.map(([k])=> fOn(k))];
     const enabled = permStates.filter(Boolean).length;
     const permSummary = isAdminRole ? 'Full access' : (isTest ? 'View only' : `${enabled} of ${permStates.length} permissions on`);
     const locked = ucIsLocked(u);
@@ -5344,12 +5352,15 @@ function umRenderUsers(users){
               <div class="uc-group"><div class="uc-group-title">🔒 Reserved units</div>
                 <div class="uc-reserved ${u.title?'yes':''}">${u.title==='Sales Director' ? '✔ Sees both teams’ reservations' : u.title==='Sales Manager' ? `✔ Sees ${ucEsc(teamName||'no team yet — set a team')} reservations` : '✖ No access — give a Sales Manager or Director title'}</div>
               </div>
-              <div class="uc-group uc-wide"><div class="uc-group-title">🏗 Projects <small>see the project · export its price list</small></div>
-                <table class="uc-ptab"><thead><tr><th></th><th>See</th><th>Export</th></tr></thead><tbody>
+              <div class="uc-group uc-wide"><div class="uc-group-title">🏗 Projects <small>see the project · export its price list · unit layout · unit location</small></div>
+                <table class="uc-ptab"><thead><tr><th></th><th>See</th><th>Export</th><th>Layout</th><th>Location</th></tr></thead><tbody>
                 ${ALL_PROJECTS.map(p=>{ const s = projSlug(p.key), see = fOn('proj_view_' + s);
                   return `<tr><td>${ucEsc(p.project)}${p.subtitle?` <span>· ${ucEsc(p.subtitle)}</span>`:''}</td>
                     <td><label class="uc-cb"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="proj_view_${s}" ${see?'checked':''}><i></i></label></td>
-                    <td><label class="uc-cb"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="proj_export_${s}" ${pExp(p.key)&&see?'checked':''} ${see?'':'disabled'}><i></i></label></td></tr>`; }).join('')}
+                    <td><label class="uc-cb"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="proj_export_${s}" ${pExp(p.key)&&see?'checked':''} ${see?'':'disabled'}><i></i></label></td>
+                    ${['layout','location'].map(w=> hasPlans(p.key)
+                      ? `<td><label class="uc-cb"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="proj_${w}_${s}" ${pPlan(p.key,w)&&see?'checked':''} ${see?'':'disabled'}><i></i></label></td>`
+                      : '<td><span class="uc-na" title="No drawings for this project yet">—</span></td>').join('')}</tr>`; }).join('')}
                 </tbody></table>
               </div>
               <div class="uc-group uc-wide"><div class="uc-group-title">📋 Table columns <small>untick to hide a column from this person</small></div>
@@ -6893,6 +6904,7 @@ setInterval(()=>{
 .uc-cols{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px 14px; }
 .uc-cbl span{ font-size:12.5px; color:var(--cream); }
 .uc-row{ display:flex; padding:5px 0; } .uc-row span small{ display:block; font-size:10.5px; color:var(--stone-dim); }
+.uc-na{ color:var(--stone-dim); }
 .uc-hint{ margin-top:8px; font-size:10.5px; color:var(--stone-dim); font-style:italic; }
 .uc-sw{ display:flex; align-items:center; gap:10px; padding:6px 0; cursor:pointer; font-size:12.5px; }
 .uc-sw input{ position:absolute; opacity:0; pointer-events:none; }
