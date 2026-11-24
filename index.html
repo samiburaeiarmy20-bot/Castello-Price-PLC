@@ -2645,6 +2645,60 @@ function unitDefaultCompare(a, b){
 UNITS.sort(unitDefaultCompare);
 UNITS.forEach((u,i)=> u.__idx = i);
 
+/* ===== Per-person access: projects (see / export) and table columns =====
+   ALL_UNITS / ALL_PROJECTS hold everything that was loaded; UNITS / PROJECTS are what this
+   person is allowed to see, so every screen (table, seals, compare, map, price lists) follows it. */
+let ALL_UNITS = UNITS, ALL_PROJECTS = PROJECTS;
+function projSlug(k){ return String(k||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
+function canSeeProject(k){ return featureOn('proj_view_' + projSlug(k)); }
+function canExportProject(k){
+  if(isAdminUser()) return true;
+  if(isTestUser() || !canSeeProject(k)) return false;
+  const f = userPerms().features || {}, key = 'proj_export_' + projSlug(k);
+  return key in f ? f[key] !== false : userPerms().can_export === true;   // not set yet: follows the old "Export price list" switch
+}
+function exportableProjects(){ return PROJECTS.filter(p=> canExportProject(p.key)); }
+function applyProjectAccess(rerender){
+  const prevSel = (typeof state !== 'undefined' && state && state.projects) ? [...state.projects] : null;
+  UNITS = ALL_UNITS.filter(u=> canSeeProject(u.sheet));
+  UNITS.forEach((u,i)=> u.__idx = i);
+  PROJECTS = ALL_PROJECTS.filter(p=> canSeeProject(p.key));
+  if(typeof state !== 'undefined' && state){
+    const keep = (prevSel || []).filter(k=> PROJECTS.some(p=>p.key===k));
+    state.projects = new Set(keep.length ? keep : PROJECTS.map(p=>p.key));
+  }
+  if(rerender){
+    try{ buildFilterOptions(); }catch(e){}
+    try{ renderProjectSeals(); }catch(e){}
+    try{ render(); }catch(e){}
+    try{ renderHeroLedger(); }catch(e){}
+  }
+}
+// Table columns that can be switched off per person. Project and Unit No. always show.
+const COL_DEFS = [['col_section','Section',3],['col_unit_type','Type',5],['col_floor','Floor',6],['col_view','View',7],['col_area','Area (m²)',8],['col_price_m2','Price / m²',9],['col_price','Unit price',10],['col_actions','Actions',11]];
+function colOn(k){ return featureOn('col_' + k); }
+function applyColumnAccess(){
+  let st = document.getElementById('colPermStyle');
+  if(!st){ st = document.createElement('style'); st.id = 'colPermStyle'; document.head.appendChild(st); }
+  const css = [];
+  COL_DEFS.forEach(([k,,n])=>{ if(!featureOn(k)) css.push(`.table-scroll table tr > :nth-child(${n}){ display:none !important; }`); });
+  if(!colOn('unit_type')) css.push('#typeChips{ display:none !important; }');
+  if(!colOn('view')) css.push('.filterbar .selectbox{ display:none !important; }');
+  if(!colOn('price')) css.push('.filterbar .rangebox{ display:none !important; }');
+  st.textContent = css.join('\n');
+  const sel = document.getElementById('sortSelect');
+  if(sel){
+    const need = { price:'price', area:'area', pricem2:'price_m2' };
+    [...sel.options].forEach(o=>{ const b = o.value.split('_')[0]; const off = need[b] && !colOn(need[b]); o.hidden = !!off; o.disabled = !!off; });
+    if(sel.selectedOptions[0] && sel.selectedOptions[0].disabled){ sel.value = 'default'; if(typeof state !== 'undefined') state.sort = 'default'; }
+  }
+  if(typeof state !== 'undefined' && state){
+    if(!colOn('price')){ state.min = ''; state.max = ''; }
+    if(!colOn('view')) state.view = '';
+    if(!colOn('unit_type') && state.types) state.types.clear();
+  }
+}
+
 const fmt = n => n==null ? '—' : Math.round(n).toLocaleString('en-US');
 const fmtM = n => n==null ? '—' : (n/1e6).toFixed(2) + 'M';
 
@@ -2981,9 +3035,9 @@ function openCompare(){
   const bp = best('price', true), bm = best('price_m2', true), ba = best('area', false);
   const rows = [
     ['Project', u=> `${u.project}${u.subtitle?' · '+u.subtitle:''}`],
-    ['Unit', u=> u.unit_no], ['Type', u=> u.unit_type||'—'], ['Floor', u=> u.floor||'—'], ['View', u=> u.view||'—'],
-    ['Area (m²)', u=> u.area ?? '—', 'area', ba], ['Price / m²', u=> fmtCur(u.price_m2), 'price_m2', bm],
-    ['Unit price', u=> fmtCur(u.price), 'price', bp], ...(us.some(u=>u.cash_only) ? [['10% fee', u=> u.cash_only ? fmtCur(u.maintenance_fee) : '—']] : []),
+    ['Unit', u=> u.unit_no], ...(colOn('unit_type') ? [['Type', u=> u.unit_type||'—']] : []), ...(colOn('floor') ? [['Floor', u=> u.floor||'—']] : []), ...(colOn('view') ? [['View', u=> u.view||'—']] : []),
+    ...(colOn('area') ? [['Area (m²)', u=> u.area ?? '—', 'area', ba]] : []), ...(colOn('price_m2') ? [['Price / m²', u=> fmtCur(u.price_m2), 'price_m2', bm]] : []),
+    ...(colOn('price') ? [['Unit price', u=> fmtCur(u.price), 'price', bp]] : []), ...(colOn('price') && us.some(u=>u.cash_only) ? [['10% fee', u=> u.cash_only ? fmtCur(u.maintenance_fee) : '—']] : []),
     ['Payment', u=> u.cash_only ? 'Cash only' : 'Installments available']
   ];
   let ov = document.getElementById('cmpOverlay');
@@ -3001,9 +3055,10 @@ function openCompare(){
 function unitShareText(u){
   const n = v => Math.round(Number(v)||0).toLocaleString('en-US');
   const lines = [`🏢 ${u.project}${u.subtitle?' · '+u.subtitle:''}`,
-    `Unit ${u.unit_no}${u.unit_type?' · '+u.unit_type:''}${u.area?' · '+u.area+' m²':''}${u.floor?' · Floor '+u.floor:''}${u.view?' · '+u.view:''}`,
-    `💰 ${n(u.price)} EGP${u.price_m2?'  ('+n(u.price_m2)+' EGP/m²)':''}`];
-  if(u.cash_only) lines.push(`💵 Cash only — minimum fee ${n(u.maintenance_fee)} EGP`);
+    `Unit ${u.unit_no}${u.unit_type&&colOn('unit_type')?' · '+u.unit_type:''}${u.area&&colOn('area')?' · '+u.area+' m²':''}${u.floor&&colOn('floor')?' · Floor '+u.floor:''}${u.view&&colOn('view')?' · '+u.view:''}`];
+  if(colOn('price')) lines.push(`💰 ${n(u.price)} EGP${u.price_m2&&colOn('price_m2')?'  ('+n(u.price_m2)+' EGP/m²)':''}`);
+  else if(colOn('price_m2') && u.price_m2) lines.push(`💰 ${n(u.price_m2)} EGP/m²`);
+  if(u.cash_only && colOn('price')) lines.push(`💵 Cash only — minimum fee ${n(u.maintenance_fee)} EGP`);
   lines.push('', 'Castello Development');
   return lines.join('\n');
 }
@@ -3277,7 +3332,7 @@ async function loadLiveInventory(){
       if(u.price) agg.prices.push(u.price);
       if(u.price_m2) agg.pricesM2.push(u.price_m2);
     });
-    const newProjects = PROJECTS.map(p=>{
+    const newProjects = ALL_PROJECTS.map(p=>{
       const agg = aggByKey[p.key];
       if(!agg || agg.total === 0) return { ...p, total_units: 0 };
       return {
@@ -3290,10 +3345,11 @@ async function loadLiveInventory(){
       };
     });
 
-    UNITS = newUnits;
+    ALL_UNITS = newUnits;
     const projRank = k => { const i = PROJECT_ORDER.indexOf(k); return i < 0 ? 99 : i; };
-    PROJECTS = newProjects.sort((a,b)=> projRank(a.key) - projRank(b.key));
-    state.projects = new Set(PROJECTS.map(p=>p.key));
+    ALL_PROJECTS = newProjects.sort((a,b)=> projRank(a.key) - projRank(b.key));
+    state.projects = new Set();
+    applyProjectAccess(false);
     buildFilterOptions();
     renderProjectSeals();
     render();
@@ -3538,6 +3594,7 @@ async function openLayout(u, navList, mode){
   document.getElementById('laySub').textContent = `${u.project}${u.subtitle?' · '+u.subtitle:''}`;
   document.getElementById('layArea').textContent = u.area ? u.area : (meta.sqm || '—');
   document.getElementById('layPrice').innerHTML = u.__unavailable ? '<b style="color:var(--stone)">Not available</b>' : u.price ? `${u.cash_only ? 'Cash price ' : 'From '}<b>${fmtCur(u.price)}</b>` : '';
+  if(!colOn('price') && !u.__unavailable) document.getElementById('layPrice').innerHTML = '';
   document.getElementById('layChips').innerHTML =
     (u.unit_type ? `<span class="lay-chip type">${esc(u.unit_type)}</span>` : '') +
     (u.floor ? `<span class="lay-chip">🏢 ${esc(u.floor)} floor</span>` : '') +
@@ -4697,10 +4754,12 @@ function refreshAdminUI(){
   // that's a real action that affects what everyone else sees.
   document.getElementById('curEditBtn').style.display = isTestUser() ? 'none' : 'inline-flex';
   document.getElementById('adminAnalyticsBtn').classList.toggle('show', canViewAnalytics());
-  document.getElementById('exportPriceListBtn').classList.toggle('show', canExport());
+  document.getElementById('exportPriceListBtn').classList.toggle('show', exportableProjects().length > 0);
   document.getElementById('adminUsersBtn').classList.toggle('show', isAdmin);
   document.getElementById('adminReservedBtn').classList.toggle('show', canViewReserved());
-  document.getElementById('projectMapBtn').classList.toggle('show', !!(LAYOUT_MANIFEST || FLOORS_MANIFEST) && featureOn('can_project_map'));
+  document.getElementById('projectMapBtn').classList.toggle('show', !!(LAYOUT_MANIFEST || FLOORS_MANIFEST) && featureOn('can_project_map') && canSeeProject('Sea Breeze'));
+  const accKey = JSON.stringify([sessionStorage.getItem('castelloRole'), sessionStorage.getItem('castelloPerms')]);
+  if(accKey !== window.__accKey){ window.__accKey = accKey; applyColumnAccess(); applyProjectAccess(true); }
 }
 refreshAdminUI();
 
@@ -4785,7 +4844,7 @@ function darken(hex, pct){
 }
 
 function renderPriceListPrintArea(projectKey){
-  const projectsToExport = projectKey === '__all__' ? PROJECTS : PROJECTS.filter(p=>p.key===projectKey);
+  const projectsToExport = (projectKey === '__all__' ? PROJECTS : PROJECTS.filter(p=>p.key===projectKey)).filter(p=> canExportProject(p.key));
   const today = new Date().toLocaleDateString('en-GB');
   const curNote = currency==='EGP' ? '' : ` · Prices shown in ${currency} (approx.)`;
 
@@ -4896,8 +4955,10 @@ function plSbNotice(){
           <li><b>20% Cash Discount</b> on cash payments, applicable after the initial 5% discount.</li></ul>
       <div class="n">Building B prices in this price list are shown before the discount.</div></div></div>`;
 }
+const PL_COL_PERM = { section:'section', unit_type:'unit_type', floor:'floor', view:'view', area:'area', pm2:'price_m2', price:'price', cash:'price' };
 function buildPriceListPages(projectKey){
-  const st = PL_STYLE[projectKey]; if(!st) return [];
+  const st0 = PL_STYLE[projectKey]; if(!st0) return [];
+  const st = { ...st0, cols: st0.cols.filter(c=> !PL_COL_PERM[c[0]] || colOn(PL_COL_PERM[c[0]])) };
   const proj = PROJECTS.find(p=>p.key===projectKey) || {};
   const units = UNITS.filter(u=>u.sheet===projectKey && !u.archived);   // archived units never go on a client list
   if(!units.length) return [];
@@ -4964,7 +5025,7 @@ function plWaitImages(root){
 
 async function exportPriceListPdf(projectKey, filename, triggerBtn, onlyKeys){
   try{ track('export_pricelist', projectKey); }catch(e){}
-  const keys = projectKey === '__all__' ? (onlyKeys || PROJECTS.map(p=>p.key)) : [projectKey];
+  const keys = (projectKey === '__all__' ? (onlyKeys || PROJECTS.map(p=>p.key)) : [projectKey]).filter(k=> canExportProject(k));
   const pages = []; keys.forEach(k => pages.push(...buildPriceListPages(k)));
   if(!pages.length){ alert('There are no released units to export for this selection.'); return; }
   if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
@@ -5005,9 +5066,10 @@ async function exportPriceListPdf(projectKey, filename, triggerBtn, onlyKeys){
 const exportPriceListOverlay = document.getElementById('exportPriceListOverlay');
 document.getElementById('exportPriceListBtn').addEventListener('click', ()=>{
   const sel = document.getElementById('epl_project');
-  sel.innerHTML = '<option value="__all__">All Projects (full portfolio)</option>' +
-    PROJECTS.map(p=>`<option value="${p.key}">${p.project}${p.subtitle?' · '+p.subtitle:''}</option>`).join('');
-  document.getElementById('epl_except_list').innerHTML = PROJECTS.map(p=>
+  const EXP = exportableProjects();
+  sel.innerHTML = (EXP.length > 1 ? '<option value="__all__">All my projects</option>' : '') +
+    EXP.map(p=>`<option value="${p.key}">${p.project}${p.subtitle?' · '+p.subtitle:''}</option>`).join('');
+  document.getElementById('epl_except_list').innerHTML = EXP.map(p=>
     `<label class="epl-item on"><input type="checkbox" class="epl-inc" value="${p.key}" checked><span class="epl-box"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.5 2.5L10 3.5"/></svg></span><span class="epl-name"><b>${p.project}</b>${p.subtitle||''}</span></label>`).join('');
   document.getElementById('epl_except').style.display = 'block';
   eplRefresh();
@@ -5043,7 +5105,6 @@ document.getElementById('exportPriceListGenBtn').addEventListener('click', async
   if(projectKey === '__all__'){
     onlyKeys = [...document.querySelectorAll('.epl-inc:checked')].map(c=>c.value);
     if(!onlyKeys.length){ alert('Tick at least one project to export.'); return; }
-    if(onlyKeys.length === PROJECTS.length) onlyKeys = null;
   }
   await exportPriceListPdf(projectKey, filename, btn, onlyKeys);
   exportPriceListOverlay.classList.remove('open');
@@ -5133,7 +5194,7 @@ async function umCall(payload){
   return data;
 }
 function umSetMsg(id, text, ok){ const el = document.getElementById(id); el.textContent = text || ''; el.className = 'um-msg' + (text ? (ok ? ' ok' : ' err') : ''); }
-const UC_PERM_COLUMNS = [['can_hold','Hold units'],['can_archive','Archive units'],['can_export','Export price list'],['can_view_analytics','Analytics']];
+const UC_PERM_COLUMNS = [['can_hold','Hold units'],['can_archive','Archive units'],['can_view_analytics','Analytics']];   // price-list export is now per project (Projects card)
 let umUsersCache = [], umOpenCards = new Set();
 function ucEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function ucInitials(u){
@@ -5143,7 +5204,7 @@ function ucInitials(u){
 function ucHue(name){ let h = 0; for(const ch of String(name).toLowerCase()) h = (h*31 + ch.charCodeAt(0)) % 360; return h; }
 function ucIsLocked(u){ return !!(u.locked_until && new Date(u.locked_until) > new Date()); }
 function ucSwitch(cls, attrs, checked, label, hint){
-  return `<label class="uc-sw"><input type="checkbox" class="${cls}" ${attrs} ${checked?'checked':''}><span class="uc-track"><span class="uc-knob"></span></span><span class="uc-sw-label">${label}${hint?`<small>${hint}</small>`:''}</span></label>`;
+  return `<label class="uc-cb uc-cbl uc-row"><input type="checkbox" class="${cls}" ${attrs} ${checked?'checked':''}><i></i><span>${label}${hint?`<small>${hint}</small>`:''}</span></label>`;
 }
 function umRenderUsers(users){
   if(Array.isArray(users)) umUsersCache = users;
@@ -5173,7 +5234,10 @@ function umRenderUsers(users){
     const hue = ucHue(u.username);
     const isAdminRole = u.role === 'admin', isTest = u.role === 'test';
     const feats = u.features || {};
-    const permStates = [...UC_PERM_COLUMNS.map(([k])=> !!u[k]), ...FEATURE_DEFS.map(([k])=> (k in feats ? feats[k] !== false : featureDefault(k)))];
+    const fOn = k => (k in feats ? feats[k] !== false : featureDefault(k));
+    const pExp = k => { const key = 'proj_export_' + projSlug(k); return key in feats ? feats[key] !== false : !!u.can_export; };
+    const permStates = [...UC_PERM_COLUMNS.map(([k])=> !!u[k]), ...FEATURE_DEFS.map(([k])=> fOn(k)),
+      ...ALL_PROJECTS.flatMap(p=> [fOn('proj_view_' + projSlug(p.key)), pExp(p.key)]), ...COL_DEFS.map(([k])=> fOn(k))];
     const enabled = permStates.filter(Boolean).length;
     const permSummary = isAdminRole ? 'Full access' : (isTest ? 'View only' : `${enabled} of ${permStates.length} permissions on`);
     const locked = ucIsLocked(u);
@@ -5232,6 +5296,18 @@ function umRenderUsers(users){
               </div>`).join('')}
               <div class="uc-group"><div class="uc-group-title">🔒 Reserved units</div>
                 <div class="uc-reserved ${u.title?'yes':''}">${u.title==='Sales Director' ? '✔ Sees both teams’ reservations' : u.title==='Sales Manager' ? `✔ Sees ${ucEsc(teamName||'no team yet — set a team')} reservations` : '✖ No access — give a Sales Manager or Director title'}</div>
+              </div>
+              <div class="uc-group uc-wide"><div class="uc-group-title">🏗 Projects <small>see the project · export its price list</small></div>
+                <table class="uc-ptab"><thead><tr><th></th><th>See</th><th>Export</th></tr></thead><tbody>
+                ${ALL_PROJECTS.map(p=>{ const s = projSlug(p.key), see = fOn('proj_view_' + s);
+                  return `<tr><td>${ucEsc(p.project)}${p.subtitle?` <span>· ${ucEsc(p.subtitle)}</span>`:''}</td>
+                    <td><label class="uc-cb"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="proj_view_${s}" ${see?'checked':''}><i></i></label></td>
+                    <td><label class="uc-cb"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="proj_export_${s}" ${pExp(p.key)&&see?'checked':''} ${see?'':'disabled'}><i></i></label></td></tr>`; }).join('')}
+                </tbody></table>
+              </div>
+              <div class="uc-group uc-wide"><div class="uc-group-title">📋 Table columns <small>untick to hide a column from this person</small></div>
+                <div class="uc-cols">${COL_DEFS.map(([k,l])=> `<label class="uc-cb uc-cbl"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="${k}" ${fOn(k)?'checked':''}><i></i><span>${l}</span></label>`).join('')}</div>
+                <div class="uc-hint">Project and Unit No. always show. A hidden column is also left out of Compare, Share and the price-list PDF.</div>
               </div>
             </div>`}
       </div>
@@ -5632,7 +5708,7 @@ async function downloadPriceListPdf(projectKey, filename, triggerBtn){
     const firstPageRowCap = Math.max(1, Math.floor((contentHeightPt - headerPt - summaryPt - theadPt) / rowPt));
     const contPageRowCap = Math.max(1, Math.floor((contentHeightPt - theadPt) / rowPt));
 
-    const projectsToExport = projectKey === '__all__' ? PROJECTS : PROJECTS.filter(p=>p.key===projectKey);
+    const projectsToExport = (projectKey === '__all__' ? PROJECTS : PROJECTS.filter(p=>p.key===projectKey)).filter(p=> canExportProject(p.key));
     const today = new Date().toLocaleDateString('en-GB');
     const curNote = currency==='EGP' ? '' : ` · Prices shown in ${currency} (approx.)`;
 
@@ -6753,6 +6829,24 @@ setInterval(()=>{
 .uc-perm-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; }
 .uc-group{ border:1px solid var(--line-soft); border-radius:12px; padding:12px 14px; background:rgba(255,255,255,0.02); }
 .uc-group-title{ font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-bright,#e6c35c); margin-bottom:8px; }
+.uc-group-title small{ text-transform:none; letter-spacing:0; color:var(--stone-dim); font-size:10.5px; margin-left:6px; }
+.uc-wide{ grid-column:1 / -1; }
+.uc-ptab{ width:100%; border-collapse:collapse; font-size:12.5px; }
+.uc-ptab th{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--stone-dim); font-weight:600; padding:0 6px 6px; text-align:center; width:70px; }
+.uc-ptab th:first-child{ width:auto; }
+.uc-ptab td{ padding:6px; border-top:1px solid var(--line-soft); color:var(--cream); text-align:center; }
+.uc-ptab td:first-child{ text-align:left; } .uc-ptab td span{ color:var(--stone-dim); }
+.uc-cb{ position:relative; display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none; }
+.uc-cb input{ position:absolute; opacity:0; pointer-events:none; }
+.uc-cb i{ width:18px; height:18px; border-radius:5px; border:1.5px solid var(--line, rgba(255,255,255,.25)); background:rgba(0,0,0,.2); display:inline-grid; place-items:center; transition:.15s; }
+.uc-cb input:checked + i{ background:var(--gold, #c9a659); border-color:var(--gold, #c9a659); }
+.uc-cb input:checked + i::after{ content:""; width:9px; height:5px; border-left:2px solid #1a1408; border-bottom:2px solid #1a1408; transform:translateY(-1px) rotate(-45deg); }
+.uc-cb input:disabled + i{ opacity:.35; cursor:not-allowed; }
+.uc-cb input:focus-visible + i{ outline:2px solid var(--gold-bright, #e6c35c); outline-offset:2px; }
+.uc-cols{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px 14px; }
+.uc-cbl span{ font-size:12.5px; color:var(--cream); }
+.uc-row{ display:flex; padding:5px 0; } .uc-row span small{ display:block; font-size:10.5px; color:var(--stone-dim); }
+.uc-hint{ margin-top:8px; font-size:10.5px; color:var(--stone-dim); font-style:italic; }
 .uc-sw{ display:flex; align-items:center; gap:10px; padding:6px 0; cursor:pointer; font-size:12.5px; }
 .uc-sw input{ position:absolute; opacity:0; pointer-events:none; }
 .uc-track{ width:34px; height:19px; border-radius:20px; background:rgba(255,255,255,0.14); position:relative; flex:none; transition:background .2s; }
