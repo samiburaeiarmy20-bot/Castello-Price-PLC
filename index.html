@@ -1554,6 +1554,9 @@ td.star-cell{ text-align:left; }
 .promo-pill b{ color:var(--gold-bright); }
 .promo-pill.ended{ opacity:.6; }
 
+.pm-proj-sw{ display:flex; gap:6px; margin:0 0 10px; flex-wrap:wrap; }
+.pm-proj{ border:1px solid var(--line-soft); background:transparent; color:var(--stone); border-radius:999px; padding:7px 14px; font-size:12.5px; cursor:pointer; }
+.pm-proj.on{ background:var(--gold); border-color:var(--gold); color:#1a1408; font-weight:700; }
 .floor-svg .unit-hl{ fill:var(--gold); opacity:.32; animation:unitHl 2.4s ease-in-out infinite; }
 .floor-svg .unit-ol{ fill:none; stroke:var(--gold-bright); stroke-width:.14; stroke-linejoin:round; filter:drop-shadow(0 0 .35px var(--gold)); }
 @keyframes unitHl{ 0%,100%{ opacity:.24; } 50%{ opacity:.42; } }
@@ -1769,6 +1772,7 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
       <button class="modal-close" id="pmapClose">×</button>
     </div>
     <div class="pm-bar">
+      <div class="pm-proj-sw" id="pmProj" style="display:none"></div>
       <div class="pm-tabs" id="pmTabs"></div>
       <div class="pm-sep"></div>
       <div class="pm-types" id="pmTypes"></div>
@@ -1780,7 +1784,7 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
       <span><i style="border-style:dashed;border-color:#e8a948"></i>On hold</span>
       <span><i style="opacity:.35"></i>Not available</span>
       <span class="sp"></span>
-      <span>Floors and unit order follow the unit numbers (B106 = block B, floor 1, unit 06).</span>
+      <span id="pmNote">Floors and unit order follow the unit numbers (B106 = block B, floor 1, unit 06).</span>
     </div>
   </div>
 </div>
@@ -3486,14 +3490,31 @@ function defaultsForUnit(u){
 }
 
 
-/* ================= UNIT LAYOUTS (Sea Breeze first) ================= */
-const LAYOUT_BASE = 'layouts/';
+/* ================= UNIT LAYOUTS + FLOOR PLANS, per project ================= */
+// Each project with drawings has its own folder. Sea Breeze: one drawing per position, repeated on every
+// floor. Atlantis Building C (Atlantis PH2): one drawing per unit, cut from the CAD floor plans.
+const PLAN_SETS = {
+  'Sea Breeze':   { name:'Sea Breeze', layouts:'layouts/', floors:'floors/', blocks:['A','B','C','D','P'], keyFor: sbLayoutKey },
+  'Atlantis PH2': { name:'Atlantis · Building C', layouts:'atlantis_c/layouts/', floors:'atlantis_c/floors/', blocks:['C1','C2'],
+                    thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } }
+};
+const PLAN_DATA = {};   // project -> { lay: layout manifest, floors: floor plans, idx: unit index }
+function planSet(sheet){ try{ return PLAN_SETS[sheet] || null; }catch(e){ return null; } }   // safe before this block has run
+function planLay(sheet){ try{ return (PLAN_DATA[sheet] || {}).lay || null; }catch(e){ return null; } }
+function planFloors(sheet){ try{ return (PLAN_DATA[sheet] || {}).floors || null; }catch(e){ return null; } }
+function planProjects(){ let ks; try{ ks = Object.keys(PLAN_SETS); }catch(e){ return []; } return ks.filter(k=> (planLay(k) || planFloors(k)) && canSeeProject(k)); }
+let LAYOUT_BASE = 'layouts/';
 const layoutCache = {};
 // Unit numbers are Block + Floor + 2-digit unit (B106 = block B, floor 1, unit 06). The same plan repeats
 // on every floor, so B106, B206, B306... all use the "B106" drawing. Block D's units 10-13 have their own
 // upper-floor plans (D210-D213).
 function layoutKeyFor(u){
-  if(!LAYOUT_MANIFEST || !u || u.sheet !== 'Sea Breeze') return null;
+  const S = u && planSet(u.sheet), lay = u && planLay(u.sheet);
+  return (S && lay) ? S.keyFor(u, lay) : null;
+}
+function layMetaFor(u){ const k = layoutKeyFor(u), lay = u && planLay(u.sheet); return (k && lay && lay[k]) || {}; }
+function layUrl(u, key){ return planSet(u.sheet).layouts + key + '.svg'; }
+function sbLayoutKey(u, LAYOUT_MANIFEST){
   const m = String(u.unit_no||'').trim().toUpperCase().match(/^([A-Z])(\d)(\d{2})$/);
   if(!m) return null;
   const [, b, f, n] = m;
@@ -3502,18 +3523,16 @@ function layoutKeyFor(u){
   return LAYOUT_MANIFEST[key] ? key : null;
 }
 async function loadLayoutManifest(){
-  if(LAYOUT_MANIFEST) return;
-  try{
-    const res = await fetch(LAYOUT_BASE + 'manifest.json', { cache:'no-cache' });
-    if(!res.ok) return;
-    LAYOUT_MANIFEST = await res.json();
-    try{ refreshAdminUI(); }catch(e){}
-    render();
-  }catch(e){}
-  try{
-    const r2 = await fetch('floors/floors.json', { cache:'no-cache' });
-    if(r2.ok){ FLOORS_MANIFEST = await r2.json(); PM_INDEX = null; try{ refreshAdminUI(); }catch(e){} render(); }
-  }catch(e){}
+  if(loadLayoutManifest.done) return; loadLayoutManifest.done = true;
+  await Promise.all(Object.entries(PLAN_SETS).map(async ([sheet, S])=>{
+    const D = PLAN_DATA[sheet] = PLAN_DATA[sheet] || {};
+    try{ const r = await fetch(S.layouts + 'manifest.json', { cache:'no-cache' }); if(r.ok) D.lay = await r.json(); }catch(e){}
+    try{ const r = await fetch(S.floors + 'floors.json', { cache:'no-cache' }); if(r.ok){ D.floors = await r.json(); D.idx = null; } }catch(e){}
+    if(S.thumbsJson){ try{ const r = await fetch(S.layouts + 'thumbs.json', { cache:'no-cache' }); if(r.ok) D.thumbs = await r.json(); }catch(e){} }
+  }));
+  LAYOUT_MANIFEST = planLay('Sea Breeze'); FLOORS_MANIFEST = planFloors('Sea Breeze');   // kept for older checks
+  try{ refreshAdminUI(); }catch(e){}
+  render();
 }
 const layoutOverlay = document.getElementById('layoutOverlay');
 const layStage = document.getElementById('layStage'), layPan = document.getElementById('layPan');
@@ -3556,22 +3575,30 @@ let layCur = null;
 let layNavList = null;   // set when the viewer is opened from the project map
 // "Sh 1" -> "SH01", "b 206" -> "B206"
 function normNo(s){ const t = String(s||'').toUpperCase().replace(/\s+/g,''); const m = t.match(/^SH(\d+)$/); return m ? 'SH' + m[1].padStart(2,'0') : t; }
-let PM_INDEX = null;   // every unit in the floor plans: floor, block, label, kind, area, type
-function pmIndex(){
-  if(PM_INDEX || !FLOORS_MANIFEST) return PM_INDEX || {};
-  PM_INDEX = {};
-  Object.entries(FLOORS_MANIFEST).forEach(([f, fl])=> Object.keys(fl.units).forEach(k=>{
+let PM_INDEX = null;   // (old name, unused)
+// every unit in a project's floor plans: floor, block, column, label, kind, area, type
+function pmIndex(sheet){
+  let D; try{ sheet = sheet || PM_PROJECT; D = PLAN_DATA[sheet]; }catch(e){ return {}; }
+  if(!D || !D.floors) return {};
+  if(D.idx) return D.idx;
+  const idx = D.idx = {}; D.grid = {};
+  Object.entries(D.floors).forEach(([f, fl])=> Object.keys(fl.units).forEach(k=>{
     const i = (fl.info || {})[k] || {};
-    PM_INDEX[k] = { floor:Number(f), block: i.block || k[0], nn: Number(k.slice(2)), label: i.label || k, kind: i.kind || 'unit', sqm: i.sqm || null, type: i.type || null };
+    const floor = i.floor != null ? Number(i.floor) : Number(f);
+    if(idx[k] && floor !== Number(f)) return;   // a loft's upper level: the unit belongs to its entrance floor
+    const nn = i.nn != null ? String(i.nn) : String(Number(k.slice(2)));
+    idx[k] = { floor, plan:Number(f), block: i.block || k[0], nn, label: i.label || k, kind: i.kind || 'unit', sqm: i.sqm || null, type: i.type || null };
+    D.grid[`${idx[k].block}|${floor}|${nn}`] = k;
   }));
-  return PM_INDEX;
+  return idx;
 }
-function dispNo(u){ const i = pmIndex()[normNo(u && u.unit_no)]; return i ? i.label : (u ? u.unit_no : ''); }
+function dispNo(u){ const i = u && pmIndex(u.sheet)[normNo(u.unit_no)]; return i ? i.label : (u ? u.unit_no : ''); }
 function floorOf(u){
-  if(!FLOORS_MANIFEST || !u || u.sheet !== 'Sea Breeze') return null;
-  const i = pmIndex()[normNo(u.unit_no)];
-  return i ? String(i.floor) : null;
+  if(!u || !planFloors(u.sheet)) return null;
+  const i = pmIndex(u.sheet)[normNo(u.unit_no)];
+  return i ? String(i.plan != null ? i.plan : i.floor) : null;
 }
+function floorUrl(u, f){ return planSet(u.sheet).floors + 'F' + f + '.svg'; }
 function canLay(u){ return !!layoutKeyFor(u) && featureOn('can_unit_layout'); }
 function canLoc(u){ return floorOf(u) != null && featureOn('can_unit_location'); }
 let layMode = 'layout';
@@ -3588,9 +3615,9 @@ async function openLayout(u, navList, mode){
   layCur = u;
   try{ track(layMode === 'location' ? 'unit_location' : 'unit_layout', unitLabelForTrack(u)); }catch(e){}
   document.getElementById('layModes').innerHTML = (okLay && okLoc) ? `<button data-m="layout" class="${layMode==='layout'?'on':''}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ROW_ICONS.layout}</svg>Layout</button><button data-m="location" class="${layMode==='location'?'on':''}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ROW_ICONS.pin}</svg>Location</button>` : '';
-  const meta = (key && LAYOUT_MANIFEST[key]) || {};
+  const meta = layMetaFor(u);
   const esc = t => String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  document.getElementById('layTitle').textContent = (pmIndex()[normNo(u.unit_no)] || {}).kind === 'shop' ? `Shop ${dispNo(u)}` : `Unit ${dispNo(u)}`;
+  document.getElementById('layTitle').textContent = (pmIndex(u.sheet)[normNo(u.unit_no)] || {}).kind === 'shop' ? `Shop ${dispNo(u)}` : `Unit ${dispNo(u)}`;
   document.getElementById('laySub').textContent = `${u.project}${u.subtitle?' · '+u.subtitle:''}`;
   document.getElementById('layArea').textContent = u.area ? u.area : (meta.sqm || '—');
   document.getElementById('layPrice').innerHTML = u.__unavailable ? '<b style="color:var(--stone)">Not available</b>' : u.price ? `${u.cash_only ? 'Cash price ' : 'From '}<b>${fmtCur(u.price)}</b>` : '';
@@ -3614,7 +3641,7 @@ async function openLayout(u, navList, mode){
   if(featureOn('can_share')) acts.push(['share','Share', false]);
   }
   const anyInk = featureOn('can_dl_colour') || featureOn('can_dl_black');
-  if(!u.__unavailable && u.price && featureOn('can_offer')) acts.push(['of','Offer', false]);
+  if(!u.__unavailable && u.price && u.sheet === 'Sea Breeze' && featureOn('can_offer')) acts.push(['of','Offer', false]);
   if(layMode === 'layout' && okLay && anyInk && featureOn('can_dl_layout')) acts.push(['dl','Download', false]);
   if(layMode === 'location' && okLoc && anyInk && featureOn('can_dl_masterplan')) acts.push(['dl','Download', false]);
   if(layMode === 'layout' && okLay && anyInk && featureOn('can_print_layout')) acts.push(['pr','Print', false]);
@@ -3627,12 +3654,13 @@ async function openLayout(u, navList, mode){
   layoutOverlay.classList.add('open');
   if(layMode === 'location'){ await showUnitLocation(u); return; }
   try{
-    if(!layoutCache[key]){
-      const res = await fetch(`${LAYOUT_BASE}${key}.svg`);
+    const ck = u.sheet + '|' + key;
+    if(!layoutCache[ck]){
+      const res = await fetch(layUrl(u, key));
       if(!res.ok) throw new Error('missing');
-      layoutCache[key] = await res.text();
+      layoutCache[ck] = await res.text();
     }
-    if(layCur === u) layPan.innerHTML = layoutCache[key];
+    if(layCur === u) layPan.innerHTML = layoutCache[ck];
   }catch(e){
     layPan.innerHTML = '<div class="lay-msg">Layout not available right now.</div>';
   }
@@ -3643,22 +3671,23 @@ async function showUnitLocation(u){
   const f = floorOf(u); if(f == null) return;
   const no = normNo(u.unit_no), noLabel = dispNo(u);
   try{
-    if(!floorCache[f]){ const r = await fetch(`floors/F${f}.svg`); if(!r.ok) throw new Error('missing'); floorCache[f] = await r.text(); }
+    const fk = u.sheet + '|' + f, FL = planFloors(u.sheet)[f];
+    if(!floorCache[fk]){ const r = await fetch(floorUrl(u, f)); if(!r.ok) throw new Error('missing'); floorCache[fk] = await r.text(); }
     if(layCur !== u || layMode !== 'location') return;
-    layPan.innerHTML = floorCache[f];
+    layPan.innerHTML = floorCache[fk];
     const svg = layPan.querySelector('svg'); if(!svg) return;
-    const [px, py] = FLOORS_MANIFEST[f].units[no];
+    const [px, py] = FL.units[no];
     svg.querySelectorAll('.ft text').forEach(t=>{ if(t.textContent === noLabel) t.remove(); });   // the arrow's label names the unit
     const NS = 'http://www.w3.org/2000/svg';
     // Highlight the whole apartment (its floor area from the CAD file), drawn under the linework.
-    const shape = (FLOORS_MANIFEST[f].shapes || {})[no];
+    const shape = (FL.shapes || {})[no];
     if(shape){
       const hl = document.createElementNS(NS, 'path'); hl.setAttribute('class', 'unit-hl'); hl.setAttribute('d', shape);
       svg.insertBefore(hl, svg.firstChild);
       const ol = document.createElementNS(NS, 'path'); ol.setAttribute('class', 'unit-ol'); ol.setAttribute('d', shape);
       svg.insertBefore(ol, svg.querySelector('.ft'));
     }
-    const arw = (FLOORS_MANIFEST[f].arrows || {})[no];
+    const arw = (FL.arrows || {})[no];
     if(LOC_MARKER === 'arrow' && arw){
       // Arrow placed in clear space (corridor / outside the building), never over other apartments.
       const L = arw.len, gid = 'lagr' + Math.random().toString(36).slice(2,7);
@@ -3790,7 +3819,7 @@ async function downloadMasterPlan(u, btn, mode, action){
     try{ track(action === 'print' ? 'masterplan_print' : 'masterplan_download', unitLabelForTrack(u)); }catch(e){}
     const cv = await masterCanvas(u, mode);
     const fN = Number(f);
-    (action === 'print' ? printSheet : savePdf)(cv, 'l', `${(pmIndex()[no]||{}).kind==='shop' ? 'Shop' : 'Unit'} ${label} · Location`, `${u.project||'Sea Breeze Resort'} · ${fN === 0 ? 'Ground floor' : pmOrd(fN) + ' floor'} master plan`, mode, `${String(label).replace(/\s+/g,'_')}_master_plan${mode==='colour'?'_colour':''}`);
+    (action === 'print' ? printSheet : savePdf)(cv, 'l', `${(pmIndex(u.sheet)[no]||{}).kind==='shop' ? 'Shop' : 'Unit'} ${label} · Location`, `${u.project||'Sea Breeze Resort'} · ${fN === 0 ? 'Ground floor' : pmOrd(fN) + ' floor'} master plan`, mode, `${String(label).replace(/\s+/g,'_')}_master_plan${mode==='colour'?'_colour':''}`);
   }catch(e){
     console.error(e); alert('Could not prepare the master plan download. Please try again.');
   }finally{
@@ -3799,24 +3828,26 @@ async function downloadMasterPlan(u, btn, mode, action){
 }
 async function layoutCanvas(u, mode, H){
   const key = layoutKeyFor(u); if(!key) return null;
-  if(!layoutCache[key]){ const r = await fetch(`${LAYOUT_BASE}${key}.svg`); if(!r.ok) throw new Error('missing'); layoutCache[key] = await r.text(); }
-  const vb = (layoutCache[key].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
+  const ck = u.sheet + '|' + key;
+  if(!layoutCache[ck]){ const r = await fetch(layUrl(u, key)); if(!r.ok) throw new Error('missing'); layoutCache[ck] = await r.text(); }
+  const vb = (layoutCache[ck].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
   H = H || 3300; const W = Math.round(H * vb[2] / vb[3]), st = DL_STYLE[mode];
   const style = `<style>.co{stroke-width:.02}.ch{stroke-width:.012}.cc{stroke-width:.03}.cw{stroke-width:.035}text{font-family:Arial,Helvetica,sans-serif}${st.style}</style>`;
-  const svg = layoutCache[key].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}">${style}`);
+  const svg = layoutCache[ck].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}">${style}`);
   return svgToCanvas(svg, vb, W, H, st.bg);
 }
 async function masterCanvas(u, mode){
     const f = floorOf(u); if(f == null) return null;
     const no = normNo(u.unit_no), label = dispNo(u), st = DL_STYLE[mode];
-    if(!floorCache[f]){ const r = await fetch(`floors/F${f}.svg`); if(!r.ok) throw new Error('missing'); floorCache[f] = await r.text(); }
-    const fl = FLOORS_MANIFEST[f], vb = (floorCache[f].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
+    const fk = u.sheet + '|' + f;
+    if(!floorCache[fk]){ const r = await fetch(floorUrl(u, f)); if(!r.ok) throw new Error('missing'); floorCache[fk] = await r.text(); }
+    const fl = planFloors(u.sheet)[f], vb = (floorCache[fk].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
     const W = 3508, H = Math.round(W * vb[3] / vb[2]);
     const hl = '#ff5a1f', shape = (fl.shapes || {})[no], arw = (fl.arrows || {})[no];
     let mark = '';
     if(shape) mark += `<path d="${shape}" fill="${hl}" fill-opacity=".38" stroke="${hl}" stroke-width=".18" stroke-linejoin="round"/>`;
     if(arw){
-      const L = arw.len, i = pmIndex()[no] || {};
+      const L = arw.len, i = pmIndex(u.sheet)[no] || {};
       const sub = `${i.type ? String(i.type).replace(' Bedroom',' BR') : ''}${i.sqm ? ' · ' + i.sqm + ' m²' : ''}`;
       mark += `<g transform="translate(${arw.tip[0]} ${arw.tip[1]}) rotate(${arw.ang})"><path d="M1.3 -.2L${L} -.06L${L} .06L1.3 .2Z" fill="${hl}"/><path d="M0 0L1.9 -1L1.5 0L1.9 1Z" fill="${hl}"/></g>
         <g transform="translate(${arw.lab[0]} ${arw.lab[1]})"><rect x="-3.3" y="-1.45" width="6.6" height="2.9" rx="1.45" fill="${mode==='colour'?'#1e232b':'#fff'}" stroke="${hl}" stroke-width=".14"/>
@@ -3824,7 +3855,7 @@ async function masterCanvas(u, mode){
         <text y=".95" font-family="Arial" font-size=".7" fill="${mode==='colour'?'#cfd5dc':'#444'}" text-anchor="middle">${sub}</text></g>`;
     }
     const style = `<style>.co{stroke-width:.035}.ch{stroke-width:.02}.cw{stroke-width:.07}text{font-family:Arial,Helvetica,sans-serif}.ft text{font-size:.75px;font-weight:600;text-anchor:middle}${st.style}</style>`;
-    let svg = floorCache[f].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}">${style}`);
+    let svg = floorCache[fk].replace(/<svg([^>]*)>/, `<svg$1 width="${W}" height="${H}">${style}`);
     svg = svg.replace(new RegExp(`<text([^>]*)>${label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}</text>`), '');
     svg = svg.replace(/<g class="ft">/, `<g class="mk">${mark}</g><g class="ft">`);
     return svgToCanvas(svg, vb, W, H, st.bg);
@@ -3855,7 +3886,7 @@ function offerFigures(u){
     maint: maintFeeFor(u, plan, eff), cashPct, cash: cashPriceFor(u).cash };
 }
 function offerPageHtml(u, F, who, validUntil, stamp){
-  const B = OFFER_BASE, lbl = dispNo(u), shop = (pmIndex()[normNo(u.unit_no)] || {}).kind === 'shop';
+  const B = OFFER_BASE, lbl = dispNo(u), shop = (pmIndex(u.sheet)[normNo(u.unit_no)] || {}).kind === 'shop';
   const facts = [u.unit_type, u.area ? u.area + ' m²' : '', u.floor ? (String(u.floor).match(/^\d|Ground/i) ? u.floor + ' floor' : u.floor) : '', u.view].filter(Boolean);
   const card = (big, small, hot) => `<div style="flex:1;border:1px solid ${hot?'#f6b878':'rgba(255,255,255,.18)'};border-radius:12px;padding:18px 8px;text-align:center;background:${hot?'linear-gradient(160deg,#f6a650,#e47c2a)':'rgba(255,255,255,.06)'}"><div style="font-family:Michroma;font-size:19px;color:#fff;line-height:1.1;white-space:nowrap">${big}</div><div style="font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:${hot?'#fff':'#bcd2df'};margin-top:7px;line-height:1.4">${small}</div></div>`;
   const pay = F.cashOnly
@@ -4047,38 +4078,53 @@ layoutOverlay.addEventListener('click', e=>{ if(e.target === layoutOverlay) layo
 document.addEventListener('keydown', e=>{ if(!layoutOverlay.classList.contains('open')) return; if(e.key === 'Escape') layoutOverlay.classList.remove('open'); else if(e.key === 'ArrowRight') layStep(1); else if(e.key === 'ArrowLeft') layStep(-1); });
 
 /* ================= PROJECT MAP (Sea Breeze) ================= */
-const PM_PROJECT = 'Sea Breeze';
+let PM_PROJECT = 'Sea Breeze';
 const PM_FLOORS = [5,4,3,2,1];
-const PM_TYPECOL = { 'Studio':'#4cc3ee', '1 Bedroom':'#e8a948', '2 Bedroom':'#9d8cff', '3 Bedroom':'#ff7aa8' };
+const PM_TYPECOL = { 'Studio':'#4cc3ee', '1 Bedroom':'#e8a948', '2 Bedroom':'#9d8cff', '3 Bedroom':'#ff7aa8', 'Condo':'#4fd6a0', 'Loft':'#f07b5a' };
 const pmState = { block:'B', types:new Set(), only:false };
 const pmOverlay = document.getElementById('pmapOverlay');
 const pmTip = document.getElementById('pmTip');
 function pmOrd(n){ return n===1?'1st':n===2?'2nd':n===3?'3rd':n+'th'; }
 function pmAllNos(){
   const s = new Set();
-  if(FLOORS_MANIFEST) Object.values(FLOORS_MANIFEST).forEach(fl=> Object.keys(fl.units).forEach(k=> s.add(k)));
-  else if(LAYOUT_MANIFEST) Object.keys(LAYOUT_MANIFEST).forEach(k=>{ for(let f=1; f<=5; f++){ const no = k[0]+f+k.slice(2); if(layoutKeyFor({sheet:PM_PROJECT, unit_no:no})) s.add(no); } });
+  const FLS = planFloors(PM_PROJECT), LAY = planLay(PM_PROJECT);
+  if(FLS) Object.keys(pmIndex()).forEach(k=> s.add(k));
+  else if(LAY && PM_PROJECT === 'Sea Breeze') Object.keys(LAY).forEach(k=>{ for(let f=1; f<=5; f++){ const no = k[0]+f+k.slice(2); if(layoutKeyFor({sheet:PM_PROJECT, unit_no:no})) s.add(no); } });
   return s;
 }
-function pmI(k){ return pmIndex()[k] || { floor:Number(k[1]), block:k[0], nn:Number(k.slice(2)), label:k, kind:'unit' }; }
-function pmBlocks(){ const order = ['A','B','C','D','P']; return [...new Set([...pmAllNos()].map(k=>pmI(k).block))].sort((a,b)=> (order.indexOf(a)+1||99) - (order.indexOf(b)+1||99)); }
-function pmCols(block){ return [...new Set([...pmAllNos()].filter(k=>pmI(k).block===block && pmI(k).kind==='unit').map(k=>pmI(k).nn))].sort((a,b)=>a-b); }
+function pmI(k){ return pmIndex()[k] || { floor:Number(k[1]), block:k[0], nn:String(Number(k.slice(2))), label:k, kind:'unit' }; }
+function pmBlocks(){ const order = (planSet(PM_PROJECT) || {}).blocks || ['A','B','C','D','P']; return [...new Set([...pmAllNos()].map(k=>pmI(k).block))].sort((a,b)=> (order.indexOf(a)+1||99) - (order.indexOf(b)+1||99)); }
+function pmCols(block){ return [...new Set([...pmAllNos()].filter(k=>pmI(k).block===block && pmI(k).kind==='unit').map(k=>pmI(k).nn))].sort((a,b)=> a.localeCompare(b, 'en', { numeric:true })); }
 function pmFloors(block){ return [...new Set([...pmAllNos()].filter(k=>pmI(k).block===block).map(k=>pmI(k).floor))].sort((a,b)=>b-a); }
-function pmShops(block, floor){ return [...pmAllNos()].filter(k=>{ const i = pmI(k); return i.kind==='shop' && i.block===block && i.floor===floor; }).sort((a,b)=> pmI(a).nn - pmI(b).nn); }
-function pmUnitNo(block, floor, nn){ return `${block}${floor}${String(nn).padStart(2,'0')}`; }
+function pmShops(block, floor){ return [...pmAllNos()].filter(k=>{ const i = pmI(k); return i.kind==='shop' && i.block===block && i.floor===floor; }).sort((a,b)=> Number(pmI(a).nn) - Number(pmI(b).nn)); }
+function pmUnitNo(block, floor, nn){ pmIndex(); const g = (PLAN_DATA[PM_PROJECT] || {}).grid || {}; return g[`${block}|${floor}|${nn}`] || `${block}${floor}${String(nn).padStart(2,'0')}`; }
 function pmUnits(){ const m = new Map(); UNITS.forEach(u=>{ if(u.sheet===PM_PROJECT && !u.archived) m.set(normNo(u.unit_no), u); }); return m; }
 const PM_TYPENAME = { 'Studio':'Studio', '1 BR':'1 Bedroom', '2 BR':'2 Bedroom', '3 BR':'3 Bedroom' };
 // A unit that is not on the market (reserved / blocked / sold): only its drawing info is shown, never price or status.
 function pmGhostUnit(no){
-  const key = layoutKeyFor({ sheet:PM_PROJECT, unit_no:no }), m = (key && LAYOUT_MANIFEST[key]) || {}, i = pmI(no);
+  const key = layoutKeyFor({ sheet:PM_PROJECT, unit_no:no }), m = (key && (planLay(PM_PROJECT) || {})[key]) || {}, i = pmI(no);
   const proj = PROJECTS.find(p=>p.key===PM_PROJECT) || {};
   const f = i.floor, t = m.type || i.type;
-  return { sheet:PM_PROJECT, project:proj.project || 'Sea Breeze Resort', subtitle:proj.subtitle || '', unit_no:no,
+  return { sheet:PM_PROJECT, project:proj.project || (planSet(PM_PROJECT) || {}).name || PM_PROJECT, subtitle:proj.subtitle || '', unit_no:i.label || no,
     unit_type: PM_TYPENAME[t] || t || '', area: m.sqm || i.sqm || null, floor: f === 0 ? 'Ground' : pmOrd(f), view:'', price:null, __unavailable:true };
+}
+// small outline picture of a layout for the map tiles (one file per unit, or all of them in thumbs.json)
+function pmThumbUrl(key){
+  const D = PLAN_DATA[PM_PROJECT] || {}, t = D.thumbs && D.thumbs[key];
+  if(t){ D.turl = D.turl || {}; return D.turl[key] = D.turl[key] || `'data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${t[0]}"><path d="${t[1]}" fill="none" stroke="#000" stroke-width="0.06"/></svg>`).replace(/'/g,'%27')}'`; }
+  return planSet(PM_PROJECT).layouts + 'thumbs/' + key + '.svg';
 }
 function pmCanSeeUnavailable(){ return featureOn('can_view_unavailable'); }
 function pmRender(){
-  if(!LAYOUT_MANIFEST && !FLOORS_MANIFEST) return;
+  const projs = planProjects();
+  if(!projs.includes(PM_PROJECT) && projs.length) PM_PROJECT = projs[0];
+  if(!planLay(PM_PROJECT) && !planFloors(PM_PROJECT)) return;
+  { const pr = PROJECTS.find(p=>p.key===PM_PROJECT) || {};
+    document.getElementById('pmTitle').textContent = PM_PROJECT === 'Sea Breeze' ? 'Sea Breeze Resort' : `${pr.project || 'Atlantis Resort'} · Building C`;
+    document.getElementById('pmNote').textContent = PM_PROJECT === 'Sea Breeze' ? 'Floors and unit order follow the unit numbers (B106 = block B, floor 1, unit 06).'
+      : 'Floors and unit order follow the unit numbers (C2211 = section C2, floor 2, unit 11). Lofts sit on the ground floor.'; }
+  const sw = document.getElementById('pmProj');
+  if(sw){ sw.innerHTML = projs.length > 1 ? projs.map(k=> `<button class="pm-proj ${k===PM_PROJECT?'on':''}" data-p="${k}">${planSet(k).name}</button>`).join('') : ''; sw.style.display = projs.length > 1 ? 'flex' : 'none'; }
   const um = pmUnits(), blocks = pmBlocks(), seeOff = pmCanSeeUnavailable();
   if(!blocks.includes(pmState.block)) pmState.block = blocks[0];
   const all = [...um.values()];
@@ -4090,7 +4136,7 @@ function pmRender(){
     (prices.length ? `<div class="pm-stat"><b style="font-size:16px">${fmtCur(Math.min(...prices))}</b><span>Starting from</span></div>` : '');
   document.getElementById('pmTabs').innerHTML = blocks.map(b=>{
     const n = all.filter(u=> pmI(normNo(u.unit_no)).block===b).length;
-    return `<button class="pm-tab ${b===pmState.block?'on':''}" data-b="${b}">${b==='P' ? 'Top units (P)' : 'Block ' + b}<small>${n} available</small></button>`;
+    return `<button class="pm-tab ${b===pmState.block?'on':''}" data-b="${b}">${b==='P' ? 'Top units (P)' : (PM_PROJECT==='Sea Breeze' ? 'Block ' : 'Section ') + b}<small>${n} available</small></button>`;
   }).join('');
   document.getElementById('pmTypes').innerHTML = typesPresent.map(t=>`<button class="pm-type ${pmState.types.has(t)?'on':''}" data-t="${t}" style="--tc:${PM_TYPECOL[t]}"><i></i>${t}</button>`).join('');
   document.getElementById('pmOnly').checked = pmState.only;
@@ -4105,10 +4151,10 @@ function pmRender(){
       const key = layoutKeyFor({ sheet:PM_PROJECT, unit_no:no });
       const u = um.get(no);
       const i = idx++;
-      const thumb = `style="${key ? `--m:url(${LAYOUT_BASE}thumbs/${key}.svg);` : ''}--i:${Math.min(i,40)}"`;
+      const thumb = `style="${key ? `--m:url(${pmThumbUrl(key)});` : ''}--i:${Math.min(i,40)}"`;
       const th = key ? '<span class="pm-thumb"></span>' : '<span class="pm-thumb pm-nothumb"></span>';
       if(!u){
-        if(seeOff) html += `<button class="pm-cell off seeable ${pmState.only?'dim':''}" ${thumb} data-no="${no}" aria-label="Unit ${no} (not available)"><span class="pm-badge na">N/A</span>${th}<span class="pm-no">${pmI(no).label}</span><span class="pm-meta">${(key && LAYOUT_MANIFEST[key].sqm) ? LAYOUT_MANIFEST[key].sqm + ' m²' : (pmI(no).sqm ? pmI(no).sqm + ' m²' : '')}</span></button>`;
+        if(seeOff) html += `<button class="pm-cell off seeable ${pmState.only?'dim':''}" ${thumb} data-no="${no}" aria-label="Unit ${no} (not available)"><span class="pm-badge na">N/A</span>${th}<span class="pm-no">${pmI(no).label}</span><span class="pm-meta">${(key && ((planLay(PM_PROJECT)||{})[key]||{}).sqm) ? planLay(PM_PROJECT)[key].sqm + ' m²' : (pmI(no).sqm ? pmI(no).sqm + ' m²' : '')}</span></button>`;
         else html += `<div class="pm-cell off ${pmState.only?'dim':''}" ${thumb}>${th}<span class="pm-no">${pmI(no).label}</span><span class="pm-meta"></span></div>`;
         return;
       }
@@ -4148,7 +4194,7 @@ function pmShowTip(cell){
 }
 function pmHideTip(){ pmTip.classList.remove('show'); }
 function openProjectMap(){
-  if(!LAYOUT_MANIFEST && !FLOORS_MANIFEST) return;
+  if(!planProjects().length) return;
   try{ track('project_map_open', PM_PROJECT); }catch(e){}
   pmRender();
   pmOverlay.classList.add('open');
@@ -4156,6 +4202,7 @@ function openProjectMap(){
 document.getElementById('projectMapBtn').addEventListener('click', openProjectMap);
 document.getElementById('pmapClose').addEventListener('click', ()=>{ pmHideTip(); pmOverlay.classList.remove('open'); });
 pmOverlay.addEventListener('click', e=>{ if(e.target === pmOverlay){ pmHideTip(); pmOverlay.classList.remove('open'); } });
+document.getElementById('pmProj').addEventListener('click', e=>{ const b = e.target.closest('.pm-proj'); if(!b) return; PM_PROJECT = b.dataset.p; pmState.block = ''; pmState.types.clear(); pmRender(); });
 document.getElementById('pmTabs').addEventListener('click', e=>{ const b = e.target.closest('.pm-tab'); if(!b) return; pmState.block = b.dataset.b; pmRender(); });
 document.getElementById('pmTypes').addEventListener('click', e=>{ const b = e.target.closest('.pm-type'); if(!b) return; const t = b.dataset.t; pmState.types.has(t) ? pmState.types.delete(t) : pmState.types.add(t); pmRender(); });
 document.getElementById('pmOnly').addEventListener('change', e=>{ pmState.only = e.target.checked; pmRender(); });
@@ -4757,7 +4804,7 @@ function refreshAdminUI(){
   document.getElementById('exportPriceListBtn').classList.toggle('show', exportableProjects().length > 0);
   document.getElementById('adminUsersBtn').classList.toggle('show', isAdmin);
   document.getElementById('adminReservedBtn').classList.toggle('show', canViewReserved());
-  document.getElementById('projectMapBtn').classList.toggle('show', !!(LAYOUT_MANIFEST || FLOORS_MANIFEST) && featureOn('can_project_map') && canSeeProject('Sea Breeze'));
+  document.getElementById('projectMapBtn').classList.toggle('show', featureOn('can_project_map') && (typeof planProjects === 'function') && planProjects().length > 0);
   const accKey = JSON.stringify([sessionStorage.getItem('castelloRole'), sessionStorage.getItem('castelloPerms')]);
   if(accKey !== window.__accKey){ window.__accKey = accKey; applyColumnAccess(); applyProjectAccess(true); }
 }
