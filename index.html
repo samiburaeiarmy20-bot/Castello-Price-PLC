@@ -11,11 +11,11 @@
 <script>
 (function(){
   try{
-    var ok = ['gold-atelier','fintech-orange','graphite-champagne','midnight-navy','desert-sand','porcelain-sage','blush-linen','aurora','neon-nights','golden-glow','ocean-pulse'];
+    var ok = ['fintech-orange','graphite-champagne','midnight-navy','desert-sand','porcelain-sage','blush-linen','aurora','neon-nights','golden-glow','ocean-pulse'];
     var t = localStorage.getItem('castelloTheme');
-    if(ok.indexOf(t) < 0) t = 'gold-atelier';
+    if(ok.indexOf(t) < 0) t = 'desert-sand';
     document.documentElement.setAttribute('data-theme', t);
-  }catch(e){ document.documentElement.setAttribute('data-theme', 'gold-atelier'); }
+  }catch(e){ document.documentElement.setAttribute('data-theme', 'desert-sand'); }
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -4943,7 +4943,6 @@ function renderPPSchedule(){
 
 /* ================= THEME SWITCHER ================= */
 const THEMES = [
-  { id:'gold-atelier',       name:'Gold Atelier',       a:'#0b0b0d', b:'#d4b87a' },
   { id:'fintech-orange',     name:'Fintech Orange',     a:'#0a0a0d', b:'#ff5a1f' },
   { id:'graphite-champagne', name:'Graphite Champagne', a:'#101113', b:'#d4b87a' },
   { id:'midnight-navy',      name:'Midnight Navy',      a:'#0b1220', b:'#e0c48a' },
@@ -5015,7 +5014,7 @@ const SpaceFX = (function(){
 })();
 
 function currentTheme(){
-  try{ const t = localStorage.getItem('castelloTheme'); return THEMES.some(x=>x.id===t) ? t : 'gold-atelier'; }catch(e){ return 'gold-atelier'; }
+  try{ const t = localStorage.getItem('castelloTheme'); return THEMES.some(x=>x.id===t) ? t : 'desert-sand'; }catch(e){ return 'desert-sand'; }
 }
 function refreshLogos(){ document.querySelectorAll('img[data-logo]').forEach(im => { const src = logoFor(im.dataset.logo); if(im.src !== src) im.src = src; }); document.querySelectorAll('img[data-icon]').forEach(im => { const src = iconFor(im.dataset.icon); if(im.src !== src) im.src = src; }); }
 function applyTheme(id){ setTimeout(refreshLogos, 0);
