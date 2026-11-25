@@ -21,7 +21,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Lato:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 
 /* Graphite Champagne — dark graphite with champagne gold */
@@ -7507,6 +7507,34 @@ html[data-theme="gold-atelier"] td.proj .pj-sub{ display:block; }
 html[data-theme="gold-atelier"] td.proj .pj-sub::before{ content:none; }
 html[data-theme="gold-atelier"] td.proj .proj-inner > span{ line-height:1.25; }
 html[data-theme="gold-atelier"] td.mono.unit{ font-size:20px !important; }
+/* ---- Comfortable sizes and regular type (desktop) ---- */
+html[data-theme="gold-atelier"] body{ -webkit-font-smoothing:antialiased; }
+html[data-theme="gold-atelier"] .hb-unit,html[data-theme="gold-atelier"] #holdBanner b{ font-family:var(--font-body) !important; font-weight:600 !important; font-size:inherit !important; letter-spacing:0 !important; }
+@media (min-width:761px){
+  html[data-theme="gold-atelier"] .table-scroll thead th{ font-size:11.5px !important; font-weight:600 !important; letter-spacing:.06em !important; }
+  html[data-theme="gold-atelier"] #tbody td{ font-size:14.5px !important; font-weight:400 !important; color:#ddd6c8; }
+  html[data-theme="gold-atelier"] #tbody td.proj img{ width:36px !important; height:36px !important; }
+  html[data-theme="gold-atelier"] td.proj .pj-name{ font-size:15px !important; font-weight:600 !important; }
+  html[data-theme="gold-atelier"] td.proj .pj-sub{ font-size:12.5px !important; }
+  html[data-theme="gold-atelier"] .table-scroll #tbody td.mono.unit{ font-family:var(--font-body) !important; font-size:17px !important; font-weight:600 !important; letter-spacing:0 !important; color:var(--cream) !important; }
+  html[data-theme="gold-atelier"] td.mono.unit .held-by-you{ font-size:12.5px !important; font-weight:500 !important; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(5) *{ font-size:13px !important; font-weight:500 !important; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(10){ font-size:16.5px !important; font-weight:700 !important; color:var(--gold-bright) !important; }
+  html[data-theme="gold-atelier"] .act-row{ gap:8px !important; }
+  html[data-theme="gold-atelier"] #tbody .act-row .act-plan,html[data-theme="gold-atelier"] #tbody .act-row .act-cash{ height:40px !important; font-size:14px !important; padding:0 18px !important; }
+  html[data-theme="gold-atelier"] .act-row .act-ic,html[data-theme="gold-atelier"] .act-row .act-hold{ width:40px !important; min-width:40px !important; height:40px !important; }
+  html[data-theme="gold-atelier"] .act-row .act-ic svg{ width:20px !important; height:20px !important; }
+  html[data-theme="gold-atelier"] .act-row .act-hold::before{ width:19px !important; height:19px !important; }
+  html[data-theme="gold-atelier"] .searchbox input,html[data-theme="gold-atelier"] .fdd-btn,html[data-theme="gold-atelier"] .selectbox select{ font-size:14.5px !important; }
+  html[data-theme="gold-atelier"] .results-meta{ font-size:14.5px !important; }
+  html[data-theme="gold-atelier"] #holdBanner{ font-size:15px !important; }
+}
+html[data-theme="gold-atelier"] .seal .pname{ font-family:var(--font-body) !important; font-weight:600 !important; letter-spacing:-0.01em !important; }
+@media (min-width:761px){
+  html[data-theme="gold-atelier"] .seal .pname{ font-size:19px !important; }
+  html[data-theme="gold-atelier"] .seal .pmeta{ font-size:12.5px !important; }
+  html[data-theme="gold-atelier"] .seal .ptag{ font-size:11.5px !important; }
+}
 /* ---- Header: small visual analysis of prices and available units ---- */
 .ledger.ledger-vis{ display:grid; grid-template-columns:1.25fr 1fr 1.2fr 1fr; gap:12px; border:none; background:transparent; }
 .ledger-vis .cell.lv{ border:1px solid var(--line-soft) !important; border-radius:16px; background:var(--surface); padding:16px 18px; display:flex; flex-direction:column; gap:7px; min-width:0; }
@@ -7542,7 +7570,7 @@ html[data-theme="gold-atelier"]{
   --line:rgba(212,184,122,0.24); --line-soft:rgba(255,255,255,0.07);
   --gold:#d4b87a; --gold-bright:#ecd9a8; --gold-dim:#a08a55; --teal:#b9a68a; --teal-bright:#d6c6a6;
   --cream:#f1ede4; --stone:#a59f93; --stone-dim:#6f6a60; --shadow:0 24px 60px rgba(0,0,0,0.6); --glow:rgba(212,184,122,0.35);
-  --font-display:'Playfair Display'; --font-head:'Playfair Display', Georgia, serif; --font-body:'Manrope', 'Inter', system-ui, sans-serif; --font-mono:'Manrope', 'Inter', system-ui, sans-serif;
+  --font-display:'Playfair Display'; --font-head:'Playfair Display', Georgia, serif; --font-body:'Plus Jakarta Sans', 'Inter', system-ui, sans-serif; --font-mono:'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
 }
 .seal-photo{ display:none; }
 html[data-theme="gold-atelier"] body{ background:#0b0b0d; }
