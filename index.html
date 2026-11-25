@@ -7301,9 +7301,13 @@ html[data-theme="gold-atelier"] .pm-floor b{ font-family:'Cormorant Garamond', G
 html[data-theme="gold-atelier"] .pm-cell{ border-radius:16px; }
 html[data-theme="gold-atelier"] .pm-no{ font-family:'Cormorant Garamond', Georgia, serif; font-size:16px; font-weight:600; }
 /* ================= Top bar: centred pages, account menu (all themes) ================= */
-header.top .top-inner{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; padding-top:12px; padding-bottom:12px; }
+header.top{ position:relative; z-index:300; padding:6px 0 !important; }
+header.top .top-inner{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; padding-top:2px !important; padding-bottom:2px !important; min-height:0 !important; }
+header.top .top-nav .nav-btn{ padding:8px 13px; }
+header.top .acct-btn{ padding:3px 11px 3px 3px; }
+header.top .acct-av{ width:30px; height:30px; }
 header.top .brand{ display:flex; align-items:center; gap:14px; flex:none; }
-header.top .brand img{ height:62px !important; width:auto !important; max-width:none !important; }
+header.top .brand img{ height:54px !important; width:auto !important; max-width:none !important; }
 .brand-sep{ width:1px; height:26px; background:var(--line); }
 .brand-tool{ font-family:'Cormorant Garamond', Georgia, serif; font-size:21px; color:var(--cream); white-space:nowrap; }
 .top-nav{ flex:1 1 420px; display:flex; justify-content:center; flex-wrap:wrap; gap:4px; }
