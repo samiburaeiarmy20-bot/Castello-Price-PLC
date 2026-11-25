@@ -3654,7 +3654,7 @@ async function openLayout(u, navList, mode){
   if(featureOn('can_share')) acts.push(['share','Share', false]);
   }
   const anyInk = featureOn('can_dl_colour') || featureOn('can_dl_black');
-  if(!u.__unavailable && u.price && u.sheet === 'Sea Breeze' && featureOn('can_offer')) acts.push(['of','Offer', false]);
+  if(!u.__unavailable && u.price && ['Sea Breeze','Atlantis PH1','Atlantis PH2'].includes(u.sheet) && featureOn('can_offer')) acts.push(['of','Offer', false]);
   if(layMode === 'layout' && okLay && anyInk && featureOn('can_dl_layout')) acts.push(['dl','Download', false]);
   if(layMode === 'location' && okLoc && anyInk && featureOn('can_dl_masterplan')) acts.push(['dl','Download', false]);
   if(layMode === 'layout' && okLay && anyInk && featureOn('can_print_layout')) acts.push(['pr','Print', false]);
@@ -3898,69 +3898,99 @@ function offerFigures(u){
   return { price, disc, promo: !!plan.promo, eff, dpPct: plan.dp, dp, n, years: plan.years, q: (eff - dp) / n,
     maint: maintFeeFor(u, plan, eff), cashPct, cash: cashPriceFor(u).cash };
 }
+// Look and wording of the client offer, per project
+function offerBrand(u){
+  if(u && (u.sheet === 'Atlantis PH1' || u.sheet === 'Atlantis PH2')){
+    const ph = u.sheet === 'Atlantis PH1' ? 'Phase One' : 'Phase Two', bld = u.sheet === 'Atlantis PH2' ? 'C' : (psk(u) || '').replace('Atlantis ','');
+    return { key:'atlantis', file:'Atlantis', hero:'atl_hero.jpg', heroPos:'center 40%', thumbs:['atl_1.jpg','atl_2.jpg','atl_3.jpg'],
+      logo:'atl_white.png', logoH:44, logoH2:34, place:`ATLANTIS RESORT · ${ph.toUpperCase()}${/^[A-C]$/.test(bld) ? ' · BUILDING ' + bld : ''}`,
+      tag:'Life, unhurried.', dark:'#3a2417', darker:'#271810', rgb:'39,24,16', soft:'#c9b49a', soft2:'#e6d6c0', tagCol:'#f1dfc4', factsCol:'#efe4d6',
+      hotA:'#e7bb72', hotB:'#b9853d', hotBorder:'#efce93', hotBg:'#fbf1e2', line:'#c4924d', hotText:'#a8732b',
+      locPage:'atl_location.jpg',
+      nextNote:'The location, payment schedule, layout and floor plan of this unit are on the next pages.',
+      why: F => [['In the heart of Hurghada','Close to the Mamsha promenade'],['Everything within reach','Airport & Hadaba Road nearby'],['Resort-style living','Lagoon pools & palm courtyards'],
+                 ['Premium living','Classic arches & garden balconies'],[(F.dpPct||20) + '% down payment', F.years ? `Then ${F.years} years of quarterly installments` : 'Flexible payment plans'],['Where you belong','A calm, gated resort community']] };
+  }
+  return { key:'seabreeze', file:'Sea_Breeze', hero:'seaview.jpg', heroPos:'70% center', thumbs:['jacuzzi.jpg','pool.jpg','marina.jpg'],
+    logo:'sb_white.png', logoH:66, logoH2:46, place:'SEA BREEZE RESORT · HURGHADA', tag:'Slow down. Stay awhile.',
+    dark:'#0b3a5b', darker:'#082c46', rgb:'8,44,70', soft:'#9fb6c6', soft2:'#bcd2df', tagCol:'#e9dccb', factsCol:'#dbe6ee',
+    hotA:'#f6a650', hotB:'#e47c2a', hotBorder:'#f6b878', hotBg:'#fdf0e3', line:'#2aa3b8', hotText:'#d9771f', locPage:null,
+    nextNote:'The payment schedule, layout and location of this unit are on the next pages.',
+    why: () => [['90% panoramic sea views','The sea is part of everyday life'],['Private jacuzzi','On every sea-view balcony'],['Private beach & marina','Exclusive to residents'],['55% open space','Gardens, pools & beach'],['Smart home & spa','Fitness, spa & concierge'],['Prime location','Airport 10 min · El Gouna 30 min']] };
+}
+// Atlantis: a full-page location picture after the offer page
+function offerLocationHtml(u, stamp){
+  const BR = offerBrand(u);
+  return `<div style="width:1123px;height:794px;position:relative;overflow:hidden;background:#111;font-family:Inter,Arial,sans-serif"><img src="${OFFER_BASE}${BR.locPage}" style="position:absolute;left:0;top:0;width:1123px;height:794px">
+    <div style="position:absolute;left:0;right:0;bottom:0;height:74px;background:linear-gradient(0deg,rgba(${BR.rgb},.92),rgba(${BR.rgb},0));"></div>
+    <img src="${OFFER_BASE}${BR.logo}" data-link="${CASTELLO_SITE}" style="position:absolute;left:34px;bottom:22px;height:34px">
+    <div style="position:absolute;right:34px;bottom:20px;font-size:8.5px;color:rgba(255,255,255,.75)">${stamp}</div></div>`;
+}
 function offerPageHtml(u, F, who, validUntil, stamp){
+  const BR = offerBrand(u);
   const B = OFFER_BASE, lbl = dispNo(u), shop = (pmIndex(psk(u))[normNo(u.unit_no)] || {}).kind === 'shop';
   const facts = [u.unit_type, u.area ? u.area + ' m²' : '', u.floor ? (String(u.floor).match(/^\d|Ground/i) ? u.floor + ' floor' : u.floor) : '', u.view].filter(Boolean);
-  const card = (big, small, hot) => `<div style="flex:1;border:1px solid ${hot?'#f6b878':'rgba(255,255,255,.18)'};border-radius:12px;padding:18px 8px;text-align:center;background:${hot?'linear-gradient(160deg,#f6a650,#e47c2a)':'rgba(255,255,255,.06)'}"><div style="font-family:Michroma;font-size:19px;color:#fff;line-height:1.1;white-space:nowrap">${big}</div><div style="font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:${hot?'#fff':'#bcd2df'};margin-top:7px;line-height:1.4">${small}</div></div>`;
+  const card = (big, small, hot) => `<div style="flex:1;border:1px solid ${hot?BR.hotBorder:'rgba(255,255,255,.18)'};border-radius:12px;padding:18px 8px;text-align:center;background:${hot?`linear-gradient(160deg,${BR.hotA},${BR.hotB})`:'rgba(255,255,255,.06)'}"><div style="font-family:Michroma;font-size:19px;color:#fff;line-height:1.1;white-space:nowrap">${big}</div><div style="font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:${hot?'#fff':BR.soft2};margin-top:7px;line-height:1.4">${small}</div></div>`;
   const pay = F.cashOnly
     ? `<div style="display:flex;gap:10px">${card(offerNum(F.cash), 'Cash price (EGP)')}${card(offerNum(F.maint), 'Maintenance (10%)')}</div>`
     : `<div style="display:flex;gap:10px">${card(F.dpPct + '%', 'Down payment<br>' + offerNum(F.dp) + ' EGP')}${card(F.n, 'Quarterly installments<br>over ' + F.years + ' years')}${card(offerNum(F.q), 'Each installment<br>(EGP)', true)}${card(F.cashPct + '%', 'Cash discount<br>' + offerNum(F.cash) + ' EGP')}</div>`;
   const priceBlock = F.promo
-    ? `<div style="font-size:11px;color:#9fb6c6;text-decoration:line-through">${offerNum(F.price)} EGP</div><div style="font-family:Michroma;font-size:28px;color:#fff;margin-top:2px">${offerNum(F.eff)}<span style="font-family:Inter;font-size:12px;color:#bcd2df;margin-left:6px">EGP</span></div><div style="display:inline-block;margin-top:6px;font-size:9.5px;font-weight:700;letter-spacing:.12em;color:#fff;background:#e8832f;padding:4px 10px;border-radius:20px">5% LAUNCH DISCOUNT · BUILDING B · FIRST 20 UNITS ONLY</div>`
-    : `<div style="font-family:Michroma;font-size:28px;color:#fff">${offerNum(F.price)}<span style="font-family:Inter;font-size:12px;color:#bcd2df;margin-left:6px">EGP</span></div>`;
+    ? `<div style="font-size:11px;color:${BR.soft};text-decoration:line-through">${offerNum(F.price)} EGP</div><div style="font-family:Michroma;font-size:28px;color:#fff;margin-top:2px">${offerNum(F.eff)}<span style="font-family:Inter;font-size:12px;color:${BR.soft2};margin-left:6px">EGP</span></div><div style="display:inline-block;margin-top:6px;font-size:9.5px;font-weight:700;letter-spacing:.12em;color:#fff;background:#e8832f;padding:4px 10px;border-radius:20px">5% LAUNCH DISCOUNT · BUILDING B · FIRST 20 UNITS ONLY</div>`
+    : `<div style="font-family:Michroma;font-size:28px;color:#fff">${offerNum(F.price)}<span style="font-family:Inter;font-size:12px;color:${BR.soft2};margin-left:6px">EGP</span></div>`;
   const rows = F.cashOnly ? [['Cash price', offerNum(F.cash) + ' EGP'], ['Maintenance (10%, at delivery)', offerNum(F.maint) + ' EGP']]
     : [[F.promo ? 'Price after 5% launch discount' : 'Unit price', offerNum(F.eff) + ' EGP'], ['Down payment (' + F.dpPct + '%) at contract', offerNum(F.dp) + ' EGP'],
        [F.n + ' quarterly installments', offerNum(F.q) + ' EGP each'], ['Maintenance (10%' + (F.promo ? ' of discounted price' : '') + ', at delivery)', offerNum(F.maint) + ' EGP'],
        ['Or pay cash (' + F.cashPct + '% off' + (F.promo ? ' the discounted price' : '') + ')', offerNum(F.cash) + ' EGP']];
-  const why = [['90% panoramic sea views','The sea is part of everyday life'],['Private jacuzzi','On every sea-view balcony'],['Private beach & marina','Exclusive to residents'],['55% open space','Gardens, pools & beach'],['Smart home & spa','Fitness, spa & concierge'],['Prime location','Airport 10 min · El Gouna 30 min']];
+  const why = BR.why(F);
   return `<div style="width:1123px;height:794px;background:#fff;font-family:Inter,Arial,sans-serif;color:#1d2b36;position:relative;overflow:hidden;display:flex">
     <div style="width:430px;height:794px;position:relative;flex:none">
-      <div style="position:absolute;left:0;top:0;width:430px;height:610px;background:url(${B}seaview.jpg) 70% center/cover">
-        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,44,70,.6) 0%,rgba(8,44,70,0) 28%,rgba(8,44,70,.25) 55%,rgba(8,44,70,.95) 100%)"></div>
-        <img src="${B}sb_white.png" data-link="${CASTELLO_SITE}" style="position:absolute;left:34px;top:30px;height:66px">
+      <div style="position:absolute;left:0;top:0;width:430px;height:610px;background:url(${B}${BR.hero}) ${BR.heroPos}/cover">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(${BR.rgb},.6) 0%,rgba(${BR.rgb},0) 28%,rgba(${BR.rgb},.25) 55%,rgba(${BR.rgb},.95) 100%)"></div>
+        <img src="${B}${BR.logo}" data-link="${CASTELLO_SITE}" style="position:absolute;left:34px;top:30px;height:${BR.logoH}px">
         <div style="position:absolute;left:34px;right:30px;bottom:28px;color:#fff">
           <div style="display:inline-block;font-size:9.5px;letter-spacing:.24em;border:1px solid rgba(255,255,255,.6);padding:6px 12px;border-radius:30px;margin-bottom:14px">${shop ? 'SHOP OFFER' : 'UNIT OFFER'}</div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:.28em;color:#f6a650;text-shadow:0 1px 6px rgba(0,0,0,.6)">SEA BREEZE RESORT · HURGHADA</div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.28em;color:${BR.hotA};text-shadow:0 1px 6px rgba(0,0,0,.6)">${BR.place}</div>
           <div style="font-family:Michroma;font-size:36px;margin-top:8px;white-space:nowrap">${shop ? 'SHOP' : 'UNIT'} ${lbl}</div>
-          <div style="font-size:12.5px;color:#dbe6ee;margin-top:6px;line-height:1.5">${facts.join('  ·  ')}</div>
-          <div style="font-family:OfferSerif;font-style:italic;font-size:19px;color:#e9dccb;margin-top:12px">Slow down. Stay awhile.</div></div></div>
+          <div style="font-size:12.5px;color:${BR.factsCol};margin-top:6px;line-height:1.5">${facts.join('  ·  ')}</div>
+          <div style="font-family:OfferSerif;font-style:italic;font-size:19px;color:${BR.tagCol};margin-top:12px">${BR.tag}</div></div></div>
       <div style="position:absolute;left:0;top:610px;width:430px;height:110px;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:4px;padding:4px 0 0">
-        <div style="background:url(${B}jacuzzi.jpg) center/cover"></div><div style="background:url(${B}pool.jpg) center/cover"></div><div style="background:url(${B}marina.jpg) center/cover"></div></div>
+        ${BR.thumbs.map(t=>`<div style="background:url(${B}${t}) center/cover"></div>`).join('')}</div>
     </div>
     <div style="flex:1;position:relative">
-      <div style="background:#0b3a5b;color:#fff;padding:30px 34px 28px">
+      <div style="background:${BR.dark};color:#fff;padding:30px 34px 28px">
         <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px">
-          <div><div style="font-size:10px;letter-spacing:.22em;color:#9fb6c6;margin-bottom:6px">${F.cashOnly ? 'CASH PRICE' : 'UNIT PRICE'}</div>${priceBlock}</div>
-          <div style="text-align:right;font-size:10px;color:#9fb6c6;letter-spacing:.1em;line-height:1.6">OFFER VALID UNTIL<br><b style="color:#fff;font-size:12px;letter-spacing:.04em">${validUntil}</b></div></div>
+          <div><div style="font-size:10px;letter-spacing:.22em;color:${BR.soft};margin-bottom:6px">${F.cashOnly ? 'CASH PRICE' : 'UNIT PRICE'}</div>${priceBlock}</div>
+          <div style="text-align:right;font-size:10px;color:${BR.soft};letter-spacing:.1em;line-height:1.6">OFFER VALID UNTIL<br><b style="color:#fff;font-size:12px;letter-spacing:.04em">${validUntil}</b></div></div>
         ${pay}</div>
       <div style="padding:24px 34px 0">
-        <div style="font-family:Michroma;font-size:12.5px;color:#0b3a5b;display:flex;align-items:center;gap:12px">YOUR PAYMENT PLAN<span style="flex:1;height:1px;background:linear-gradient(90deg,#2aa3b8,transparent)"></span></div>
-        <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px">${rows.map((r,i)=>`<tr><td style="padding:8px 0;border-bottom:1px solid #eee5d8;color:${i===2&&!F.cashOnly?'#d9771f':'#1d2b36'}">${r[0]}</td><td style="padding:8px 0;border-bottom:1px solid #eee5d8;text-align:right;font-weight:600;color:${i===2&&!F.cashOnly?'#d9771f':'#0b3a5b'}">${r[1]}</td></tr>`).join('')}</table>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px 16px;margin-top:24px">${why.map(w=>`<div style="border-left:2px solid #2aa3b8;padding-left:9px"><div style="font-size:11.5px;font-weight:600;color:#0b3a5b">${w[0]}</div><div style="font-size:9.5px;color:#6c7a86;margin-top:2px">${w[1]}</div></div>`).join('')}</div>
-        <div style="position:absolute;left:34px;right:34px;bottom:88px;font-size:7.8px;color:#93a0ab;line-height:1.45">Prices and availability are subject to change. Installments are paid quarterly, starting 3 months after the contract date. ${F.promo ? 'The 5% launch discount applies to the first 20 units sold in Building B only. ' : ''}Images are indicative. The payment schedule, layout and location of this unit are on the next pages.</div></div>
+        <div style="font-family:Michroma;font-size:12.5px;color:${BR.dark};display:flex;align-items:center;gap:12px">YOUR PAYMENT PLAN<span style="flex:1;height:1px;background:linear-gradient(90deg,${BR.line},transparent)"></span></div>
+        <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px">${rows.map((r,i)=>`<tr><td style="padding:8px 0;border-bottom:1px solid #eee5d8;color:${i===2&&!F.cashOnly?BR.hotText:'#1d2b36'}">${r[0]}</td><td style="padding:8px 0;border-bottom:1px solid #eee5d8;text-align:right;font-weight:600;color:${i===2&&!F.cashOnly?BR.hotText:BR.dark}">${r[1]}</td></tr>`).join('')}</table>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px 16px;margin-top:24px">${why.map(w=>`<div style="border-left:2px solid ${BR.line};padding-left:9px"><div style="font-size:11.5px;font-weight:600;color:${BR.dark}">${w[0]}</div><div style="font-size:9.5px;color:#6c7a86;margin-top:2px">${w[1]}</div></div>`).join('')}</div>
+        <div style="position:absolute;left:34px;right:34px;bottom:88px;font-size:7.8px;color:#93a0ab;line-height:1.45">Prices and availability are subject to change. Installments are paid quarterly, starting 3 months after the contract date. ${F.promo ? 'The 5% launch discount applies to the first 20 units sold in Building B only. ' : ''}Images are indicative. ${BR.nextNote}</div></div>
     </div>
-    <div style="position:absolute;left:0;right:0;bottom:0;height:74px;box-sizing:border-box;background:#082c46;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 34px">
-      <div><div style="font-size:9px;letter-spacing:.2em;color:#9fb6c6">YOUR CONSULTANT</div><div style="font-size:15px;font-weight:600;margin-top:3px">${who}</div><div style="font-size:8.5px;color:#7f98aa;margin-top:3px">${stamp}</div></div>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:74px;box-sizing:border-box;background:${BR.darker};color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 34px">
+      <div><div style="font-size:9px;letter-spacing:.2em;color:${BR.soft}">YOUR CONSULTANT</div><div style="font-size:15px;font-weight:600;margin-top:3px">${who}</div><div style="font-size:8.5px;color:${BR.soft};margin-top:3px">${stamp}</div></div>
       <img src="${B}castello.png" data-link="${CASTELLO_SITE}" style="height:52px"></div>
   </div>`;
 }
 function offerPlansHtml(u, lay, loc, stamp){
+  const BR = offerBrand(u);
   const lbl = dispNo(u), f = Number(floorOf(u));
   const sub = [u.unit_type, u.area ? u.area + ' m²' : '', u.view].filter(Boolean).join(' · ');
   const H = 794 - 70 - 40 - 36, W = 1123 - 68 - 18;
   // explicit image size (html2canvas ignores max-height inside flex): fit inside panel minus header and padding
   const fit = (cv, w) => { const aw = w - 36, ah = H - 38 - 36, s = Math.min(aw / cv.width, ah / cv.height); return [Math.floor(cv.width * s), Math.floor(cv.height * s)]; };
   const panel = (title, note, cv, w) => { const [iw, ih] = fit(cv, w); return `<div style="width:${w}px;flex:none;display:flex;flex-direction:column;border:1px solid #e6ddd0;border-radius:12px;overflow:hidden;background:#fff">
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f6f0e7;border-bottom:1px solid #e6ddd0"><span style="font-family:Michroma;font-size:11px;color:#0b3a5b;letter-spacing:.06em">${title}</span><span style="font-size:10px;color:#6c7a86">${note}</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f6f0e7;border-bottom:1px solid #e6ddd0"><span style="font-family:Michroma;font-size:11px;color:${BR.dark};letter-spacing:.06em">${title}</span><span style="font-size:10px;color:#6c7a86">${note}</span></div>
       <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:0"><img src="${cv.toDataURL('image/jpeg', 0.92)}" style="width:${iw}px;height:${ih}px;display:block"></div></div>`; };
   let lw = 0; if(lay && loc){ lw = Math.round(Math.max(300, Math.min(W * 0.42, (H - 74) * lay.width / lay.height + 36))); }
   const parts = [];
   if(lay) parts.push(panel('UNIT LAYOUT', 'Not to scale', lay, loc ? lw : W + 18));
   if(loc) parts.push(panel('UNIT LOCATION', (f === 0 ? 'Ground floor' : pmOrd(f) + ' floor') + ' master plan', loc, lay ? W - lw : W + 18));
   return `<div style="width:1123px;height:794px;background:#fff;font-family:Inter,Arial,sans-serif;position:relative;overflow:hidden">
-    <div style="height:70px;background:#0b3a5b;display:flex;align-items:center;justify-content:space-between;padding:0 34px;color:#fff">
-      <div><div style="font-family:Michroma;font-size:20px">UNIT ${lbl}</div><div style="font-size:10.5px;color:#bcd2df;margin-top:4px">${sub}</div></div>
-      <img src="${OFFER_BASE}sb_white.png" data-link="${CASTELLO_SITE}" style="height:46px"></div>
+    <div style="height:70px;background:${BR.dark};display:flex;align-items:center;justify-content:space-between;padding:0 34px;color:#fff">
+      <div><div style="font-family:Michroma;font-size:20px">UNIT ${lbl}</div><div style="font-size:10.5px;color:${BR.soft2};margin-top:4px">${sub}</div></div>
+      <img src="${OFFER_BASE}${BR.logo}" data-link="${CASTELLO_SITE}" style="height:${BR.logoH2}px"></div>
     <div style="position:absolute;left:34px;right:34px;top:90px;height:${H}px;display:flex;gap:18px">${parts.join('')}</div>
     <div style="position:absolute;left:34px;right:34px;bottom:14px;display:flex;justify-content:space-between;font-size:8.5px;color:#8a96a0"><span>${stamp}</span><span>Layout and location are indicative only. Final areas and finishes as per the contract.</span></div>
   </div>`;
@@ -3968,23 +3998,24 @@ function offerPlansHtml(u, lay, loc, stamp){
 // Full payment schedule: down payment on the contract date (today), then quarterly installments;
 // rounding goes into the last installment, as in the Payment Plan window.
 function offerScheduleHtml(u, F, stamp){
+  const BR = offerBrand(u);
   const lbl = dispNo(u), start = new Date(); start.setHours(0,0,0,0);
   const total = Math.round(F.eff), dp = Math.round(F.eff * F.dpPct / 100), rest = total - dp, base = Math.floor(rest / F.n);
   const rows = [['—', fmtDate(start), 'Down payment (' + F.dpPct + '%)', dp]];
   for(let i = 1; i <= F.n; i++) rows.push([String(i), fmtDate(addMonths(start, 3*i)), i === F.n ? 'Final installment' : 'Quarterly installment', i === F.n ? rest - base*(F.n-1) : base]);
   const half = Math.ceil(rows.length / 2);
   const table = list => `<table style="width:100%;border-collapse:collapse;font-size:11.5px">
-      <tr>${['#','Due date','Description','Amount (EGP)'].map((t,i)=>`<th style="text-align:${i===3?'right':'left'};font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#6c7a86;font-weight:600;padding:0 8px 8px;border-bottom:2px solid #0b3a5b">${t}</th>`).join('')}</tr>
-      ${list.map((r,k)=>`<tr style="background:${k%2?'#fbf8f3':'#fff'}"><td style="padding:7px 8px;color:#6c7a86;width:26px">${r[0]}</td><td style="padding:7px 8px;color:#1d2b36">${r[1]}</td><td style="padding:7px 8px;color:${r[0]==='—'?'#d9771f':'#1d2b36'};font-weight:${r[0]==='—'?600:400}">${r[2]}</td><td style="padding:7px 8px;text-align:right;font-weight:600;color:#0b3a5b">${offerNum(r[3])}</td></tr>`).join('')}</table>`;
-  const cell = (l, v, hot) => `<div style="flex:1;padding:12px 16px;border-radius:10px;background:${hot?'#fdf0e3':'#f6f0e7'};border:1px solid ${hot?'#f3c79c':'#e6ddd0'}"><div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#6c7a86">${l}</div><div style="font-family:Michroma;font-size:15px;color:${hot?'#d9771f':'#0b3a5b'};margin-top:6px;white-space:nowrap">${v}</div></div>`;
+      <tr>${['#','Due date','Description','Amount (EGP)'].map((t,i)=>`<th style="text-align:${i===3?'right':'left'};font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#6c7a86;font-weight:600;padding:0 8px 8px;border-bottom:2px solid ${BR.dark}">${t}</th>`).join('')}</tr>
+      ${list.map((r,k)=>`<tr style="background:${k%2?'#fbf8f3':'#fff'}"><td style="padding:7px 8px;color:#6c7a86;width:26px">${r[0]}</td><td style="padding:7px 8px;color:#1d2b36">${r[1]}</td><td style="padding:7px 8px;color:${r[0]==='—'?BR.hotText:'#1d2b36'};font-weight:${r[0]==='—'?600:400}">${r[2]}</td><td style="padding:7px 8px;text-align:right;font-weight:600;color:${BR.dark}">${offerNum(r[3])}</td></tr>`).join('')}</table>`;
+  const cell = (l, v, hot) => `<div style="flex:1;padding:12px 16px;border-radius:10px;background:${hot?BR.hotBg:'#f6f0e7'};border:1px solid ${hot?BR.hotBorder:'#e6ddd0'}"><div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#6c7a86">${l}</div><div style="font-family:Michroma;font-size:15px;color:${hot?BR.hotText:BR.dark};margin-top:6px;white-space:nowrap">${v}</div></div>`;
   return `<div style="width:1123px;height:794px;background:#fff;font-family:Inter,Arial,sans-serif;position:relative;overflow:hidden">
-    <div style="height:70px;background:#0b3a5b;display:flex;align-items:center;justify-content:space-between;padding:0 34px;color:#fff">
-      <div><div style="font-family:Michroma;font-size:20px">UNIT ${lbl} · PAYMENT PLAN</div><div style="font-size:10.5px;color:#bcd2df;margin-top:4px">${F.dpPct}% down payment · ${F.n} quarterly installments over ${F.years} years${F.promo ? ' · 5% launch discount' : ''}</div></div>
-      <img src="${OFFER_BASE}sb_white.png" data-link="${CASTELLO_SITE}" style="height:46px"></div>
+    <div style="height:70px;background:${BR.dark};display:flex;align-items:center;justify-content:space-between;padding:0 34px;color:#fff">
+      <div><div style="font-family:Michroma;font-size:20px">UNIT ${lbl} · PAYMENT PLAN</div><div style="font-size:10.5px;color:${BR.soft2};margin-top:4px">${F.dpPct}% down payment · ${F.n} quarterly installments over ${F.years} years${F.promo ? ' · 5% launch discount' : ''}</div></div>
+      <img src="${OFFER_BASE}${BR.logo}" data-link="${CASTELLO_SITE}" style="height:${BR.logoH2}px"></div>
     <div style="padding:20px 34px 0">
       <div style="display:flex;gap:12px">${cell(F.promo ? 'Price after 5% discount' : 'Unit price', offerNum(F.eff) + ' EGP')}${cell('Down payment (' + F.dpPct + '%)', offerNum(dp) + ' EGP')}${cell('Quarterly installment', offerNum(base) + ' EGP', true)}${cell('Maintenance (10%, at delivery)', offerNum(F.maint) + ' EGP')}</div>
       <div style="display:flex;gap:28px;margin-top:20px"><div style="flex:1">${table(rows.slice(0, half))}</div><div style="flex:1">${table(rows.slice(half))}</div></div>
-      <div style="margin-top:12px;font-size:10.5px;color:#0b3a5b;text-align:right">Total: <b>${offerNum(total)} EGP</b> &nbsp;·&nbsp; Or pay cash: <b>${offerNum(F.cash)} EGP</b> (${F.cashPct}% off${F.promo ? ' the discounted price' : ''})</div></div>
+      <div style="margin-top:12px;font-size:10.5px;color:${BR.dark};text-align:right">Total: <b>${offerNum(total)} EGP</b> &nbsp;·&nbsp; Or pay cash: <b>${offerNum(F.cash)} EGP</b> (${F.cashPct}% off${F.promo ? ' the discounted price' : ''})</div></div>
     <div style="position:absolute;left:34px;right:34px;bottom:14px;display:flex;justify-content:space-between;font-size:8.5px;color:#8a96a0"><span>${stamp}</span><span>Dates assume a contract signed today. The maintenance fee is paid separately at delivery.</span></div>
   </div>`;
 }
@@ -4022,11 +4053,14 @@ async function downloadOffer(u, btn){
     const vd = new Date(); vd.setDate(vd.getDate() + 14);
     const validUntil = vd.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
     const stamp = dlStamp();
-    await Promise.all(['seaview','jacuzzi','pool','marina'].map(k=> new Promise(r=>{ const i = new Image(); i.onload = i.onerror = r; i.src = OFFER_BASE + k + '.jpg'; })));
+    { const BR = offerBrand(u); await Promise.all([BR.hero, ...BR.thumbs, BR.locPage].filter(Boolean).map(k=> new Promise(r=>{ const i = new Image(); i.onload = i.onerror = r; i.src = OFFER_BASE + k; }))); }
     if(document.fonts && document.fonts.ready) await document.fonts.ready;
     const pdf = new window.jspdf.jsPDF('l', 'pt', 'a4');
     const page1 = await offerShot(host, offerPageHtml(u, F, who, validUntil, stamp));
     offerPlace(pdf, page1, 0.9);
+    if(offerBrand(u).locPage){
+      try{ const lp = await offerShot(host, offerLocationHtml(u, stamp)); pdf.addPage('a4', 'l'); offerPlace(pdf, lp, 0.9); }catch(e){ console.warn('offer: location page skipped', e); }
+    }
     if(!F.cashOnly){
       try{
         const sched = await offerShot(host, offerScheduleHtml(u, F, stamp));
@@ -4041,7 +4075,7 @@ async function downloadOffer(u, btn){
         offerPlace(pdf, page2, 0.92);
       }
     }catch(e){ console.warn('offer: layout/location page skipped', e); try{ track('offer_error', unitLabelForTrack(u) + ' · plans page · ' + (e && e.message || e)); }catch(_){} }
-    pdf.save(`Sea_Breeze_Offer_${String(dispNo(u)).replace(/\s+/g,'_')}.pdf`);
+    pdf.save(`${offerBrand(u).file}_Offer_${String(dispNo(u)).replace(/\s+/g,'_')}.pdf`);
   }catch(e){
     console.error(e);
     const why = (e && (e.message || e.name)) || String(e);
