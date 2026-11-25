@@ -3501,6 +3501,8 @@ function defaultsForUnit(u){
 // floor. Atlantis Building C (Atlantis PH2): one drawing per unit, cut from the CAD floor plans.
 const PLAN_SETS = {
   'Sea Breeze':   { name:'Sea Breeze', layouts:'layouts/', floors:'floors/', blocks:['A','B','C','D','P'], keyFor: sbLayoutKey },
+  'Atlantis PH1': { name:'Atlantis · Building B', layouts:'atlantis_b/layouts/', floors:'atlantis_b/floors/', blocks:['B1','B2','B3'],
+                    thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } },
   'Atlantis PH2': { name:'Atlantis · Building C', layouts:'atlantis_c/layouts/', floors:'atlantis_c/floors/', blocks:['C1','C2','C3'],
                     thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } }
 };
@@ -4126,8 +4128,9 @@ function pmRender(){
   if(!projs.includes(PM_PROJECT) && projs.length) PM_PROJECT = projs[0];
   if(!planLay(PM_PROJECT) && !planFloors(PM_PROJECT)) return;
   { const pr = PROJECTS.find(p=>p.key===PM_PROJECT) || {};
-    document.getElementById('pmTitle').textContent = PM_PROJECT === 'Sea Breeze' ? 'Sea Breeze Resort' : `${pr.project || 'Atlantis Resort'} · Building C`;
+    document.getElementById('pmTitle').textContent = PM_PROJECT === 'Sea Breeze' ? 'Sea Breeze Resort' : `${pr.project || 'Atlantis Resort'} · ${PM_PROJECT === 'Atlantis PH1' ? 'Building B' : 'Building C'}`;
     document.getElementById('pmNote').textContent = PM_PROJECT === 'Sea Breeze' ? 'Floors and unit order follow the unit numbers (B106 = block B, floor 1, unit 06).'
+      : PM_PROJECT === 'Atlantis PH1' ? 'Floors and unit order follow the unit numbers (B2210 = section B2, floor 2, unit 10). Lofts sit on the ground floor, duplexes on their lower floor.'
       : 'Floors and unit order follow the unit numbers (C2211 = section C2, floor 2, unit 11). Lofts sit on the ground floor.'; }
   const sw = document.getElementById('pmProj');
   if(sw){ sw.innerHTML = projs.length > 1 ? projs.map(k=> `<button class="pm-proj ${k===PM_PROJECT?'on':''}" data-p="${k}">${planSet(k).name}</button>`).join('') : ''; sw.style.display = projs.length > 1 ? 'flex' : 'none'; }
