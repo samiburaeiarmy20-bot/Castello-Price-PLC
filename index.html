@@ -7325,7 +7325,9 @@ html[data-theme="gold-atelier"] .lay-stage .lay-modes,html[data-theme="gold-atel
 @media (max-width:560px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:minmax(0,1fr); } }
 /* Gold Atelier — compact development cards (one row on wide screens) */
 html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; }
-html[data-theme="gold-atelier"] .seal{ min-height:150px; padding:14px 14px 12px; border-radius:16px; }
+html[data-theme="gold-atelier"] .seal{ min-height:150px; padding:14px 14px 12px; border-radius:0; }
+html[data-theme="gold-atelier"] .seal .medallion{ border-radius:0 !important; }
+html[data-theme="gold-atelier"] .seal .ptag{ border-radius:0; }
 html[data-theme="gold-atelier"] .seal .medallion{ width:36px; height:36px; padding:5px; }
 html[data-theme="gold-atelier"] .seal:not(.has-photo) .medallion{ width:44px; height:44px; }
 html[data-theme="gold-atelier"] .seal .pname{ font-size:21px !important; margin-top:8px; }
