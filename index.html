@@ -7503,7 +7503,7 @@ setInterval(()=>{
 }
 
 /* The password prompt can be opened from inside another modal (Users), so it must sit above every other overlay. */
-#reauthOverlay{ z-index:400 !important; }
+#reauthOverlay{ z-index:520 !important; }
 
 .um-title,.um-team,.um-role{ background:var(--bg-alt); border:1px solid var(--line-soft); border-radius:6px; padding:4px 8px; color:var(--cream); font-size:12px; }
 .um-title,.um-team{ display:block; margin-bottom:6px; }
@@ -7643,6 +7643,7 @@ html[data-theme="gold-atelier"] .pm-cell{ border-radius:16px; }
 html[data-theme="gold-atelier"] .pm-no{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif; font-size:16px; font-weight:600; }
 /* ================= Top bar: centred pages, account menu (all themes) ================= */
 header.top{ position:relative; z-index:300; padding:6px 0 !important; }
+.modal-overlay{ z-index:400; }   /* windows (map, analytics, reserved…) open above the top bar */
 header.top .top-inner{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; padding-top:2px !important; padding-bottom:2px !important; min-height:0 !important; }
 header.top .top-nav .nav-btn{ padding:8px 13px; }
 header.top .acct-btn{ padding:3px 11px 3px 3px; }
