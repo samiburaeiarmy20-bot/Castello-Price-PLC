@@ -3086,9 +3086,9 @@ function render(){
     return `
     <tr class="${trClass}">
       <td class="star-cell"></td>
-      <td class="proj"><span class="proj-inner"><img src="${iconFor(u.sheet)}" alt="" data-sheet="${u.sheet}" data-icon="${u.sheet}"><span><span class="pj-name">${u.project}${isNew?'<span class="new-tag" title="Added in the last 48 hours">NEW</span>':''}${priceChangeTag(u)}${held?'<span class="hold-flash" title="On hold">⚡</span>':''}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
+      <td class="proj"><span class="proj-inner"><img src="${iconFor(u.sheet)}" alt="" data-sheet="${u.sheet}" data-icon="${u.sheet}"><span><span class="pj-name">${u.project}${isNew?'<span class="new-tag" title="Added in the last 48 hours">NEW</span>':''}${priceChangeTag(u)}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
       <td class="mono">${u.section||'—'}</td>
-      <td class="mono unit">${u.unit_no}${held && (holdsMap[key] && isMineHold(holdsMap[key])) ? `<span class="held-by-you">Held by you · ${fmtLeft(holdLeftMs(holdsMap[key]))}</span>` : ''}</td>
+      <td class="mono unit">${u.unit_no}${held && holdsMap[key] ? `<span class="held-by-you${isMineHold(holdsMap[key]) ? '' : ' other'}">${isMineHold(holdsMap[key]) ? 'Held by you' : (isAdminUser() ? 'Held by ' + String(holdsMap[key].heldBy || '').replace(/[<>&"]/g,'') : 'On hold')} · ${fmtLeft(holdLeftMs(holdsMap[key]))}</span>` : ''}</td>
       <td><span class="pill ${pillClass(u.unit_type)}">${u.unit_type||'—'}</span></td>
       <td class="mono">${u.floor||'—'}</td>
       <td class="mono">${u.view||'—'}</td>
@@ -7478,6 +7478,34 @@ tr.tr-held td:first-child,tr.tr-held td.proj{ box-shadow:inset 3px 0 0 var(--gol
 html[data-theme="gold-atelier"] .table-scroll tbody td{ padding-top:12px; padding-bottom:12px; }
 html[data-theme="gold-atelier"] .table-scroll tbody tr:hover td.actions-cell{ background:#1a1814 !important; border-color:#4a412f !important; }
 html[data-theme="gold-atelier"] .table-scroll tbody td.actions-cell{ background:#121115; }
+/* price list fit: no sideways scrolling, one even highlight per row */
+#tbody td.actions-cell{ width:1% !important; min-width:0 !important; display:table-cell; }
+@media (max-width:760px){ #tbody td.actions-cell{ width:auto !important; display:grid; } }
+.act-row .act-hold{ width:36px !important; min-width:36px !important; height:36px !important; padding:0 !important; border-radius:50% !important; font-size:0 !important; position:relative; overflow:hidden; display:inline-flex !important; align-items:center; justify-content:center; border:1px solid var(--line) !important; background:transparent !important; color:var(--stone) !important; }
+.act-row .act-hold > *{ display:none !important; }
+.act-row .act-hold::before{ content:""; width:16px; height:16px; background:currentColor; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E") center/contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E") center/contain no-repeat; }
+.act-row .act-hold:hover{ border-color:var(--gold) !important; color:var(--gold-bright) !important; }
+.act-row .act-hold.mine{ background:color-mix(in srgb, var(--gold) 18%, transparent) !important; border-color:var(--gold) !important; color:var(--gold-bright) !important; }
+.act-row .act-hold.mine::before{ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 7.5-2'/%3E%3C/svg%3E"); mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 7.5-2'/%3E%3C/svg%3E"); }
+.act-row .act-hold.others{ border-color:rgba(232,169,72,.6) !important; color:#e8a948 !important; }
+.act-row .act-hold.expiring{ border-color:rgba(240,120,100,.7) !important; color:#f0a58a !important; }
+.held-by-you.other{ color:#e8a948; }
+html[data-theme="gold-atelier"] .table-scroll{ overflow-x:auto; }
+html[data-theme="gold-atelier"] .table-scroll table{ border-spacing:0 6px; }
+html[data-theme="gold-atelier"] .table-scroll thead th{ padding:12px 8px; }
+html[data-theme="gold-atelier"] #tbody tr{ --rowbg:#121115; --rowline:#211f1b; }
+html[data-theme="gold-atelier"] #tbody tr:hover{ --rowbg:#1a1814; --rowline:#4a412f; }
+html[data-theme="gold-atelier"] #tbody tr.tr-held{ --rowbg:#1b1811; --rowline:#5a4c2e; }
+@media (min-width:761px){
+html[data-theme="gold-atelier"] .table-scroll #tbody td{ background:var(--rowbg) !important; border-top:1px solid var(--rowline) !important; border-bottom:1px solid var(--rowline) !important; border-left:0 !important; border-right:0 !important; border-radius:0 !important; box-shadow:none !important; padding:11px 8px !important; }
+html[data-theme="gold-atelier"] .table-scroll #tbody td.proj{ border-left:1px solid var(--rowline) !important; border-radius:14px 0 0 14px !important; padding-left:14px !important; }
+html[data-theme="gold-atelier"] .table-scroll #tbody tr.tr-held td.proj{ box-shadow:inset 3px 0 0 var(--gold) !important; }
+html[data-theme="gold-atelier"] .table-scroll #tbody td.actions-cell{ border-right:1px solid var(--rowline) !important; border-radius:0 14px 14px 0 !important; padding-right:12px !important; }
+}
+html[data-theme="gold-atelier"] td.proj .pj-sub{ display:block; }
+html[data-theme="gold-atelier"] td.proj .pj-sub::before{ content:none; }
+html[data-theme="gold-atelier"] td.proj .proj-inner > span{ line-height:1.25; }
+html[data-theme="gold-atelier"] td.mono.unit{ font-size:20px !important; }
 /* ---- Header: small visual analysis of prices and available units ---- */
 .ledger.ledger-vis{ display:grid; grid-template-columns:1.25fr 1fr 1.2fr 1fr; gap:12px; border:none; background:transparent; }
 .ledger-vis .cell.lv{ border:1px solid var(--line-soft) !important; border-radius:16px; background:var(--surface); padding:16px 18px; display:flex; flex-direction:column; gap:7px; min-width:0; }
