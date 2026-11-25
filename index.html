@@ -3664,7 +3664,7 @@ async function openLayout(u, navList, mode){
   try{
     const ck = u.sheet + '|' + key;
     if(!layoutCache[ck]){
-      const res = await fetch(layUrl(u, key));
+      const res = await fetch(layUrl(u, key), { cache:'no-cache' });
       if(!res.ok) throw new Error('missing');
       layoutCache[ck] = await res.text();
     }
@@ -3680,7 +3680,7 @@ async function showUnitLocation(u){
   const no = normNo(u.unit_no), noLabel = dispNo(u);
   try{
     const fk = u.sheet + '|' + f, FL = planFloors(u.sheet)[f];
-    if(!floorCache[fk]){ const r = await fetch(floorUrl(u, f)); if(!r.ok) throw new Error('missing'); floorCache[fk] = await r.text(); }
+    if(!floorCache[fk]){ const r = await fetch(floorUrl(u, f), { cache:'no-cache' }); if(!r.ok) throw new Error('missing'); floorCache[fk] = await r.text(); }
     if(layCur !== u || layMode !== 'location') return;
     layPan.innerHTML = floorCache[fk];
     const svg = layPan.querySelector('svg'); if(!svg) return;
@@ -3837,7 +3837,7 @@ async function downloadMasterPlan(u, btn, mode, action){
 async function layoutCanvas(u, mode, H){
   const key = layoutKeyFor(u); if(!key) return null;
   const ck = u.sheet + '|' + key;
-  if(!layoutCache[ck]){ const r = await fetch(layUrl(u, key)); if(!r.ok) throw new Error('missing'); layoutCache[ck] = await r.text(); }
+  if(!layoutCache[ck]){ const r = await fetch(layUrl(u, key), { cache:'no-cache' }); if(!r.ok) throw new Error('missing'); layoutCache[ck] = await r.text(); }
   const vb = (layoutCache[ck].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
   H = H || 3300; const W = Math.round(H * vb[2] / vb[3]), st = DL_STYLE[mode];
   const style = `<style>.co{stroke-width:.02}.ch{stroke-width:.012}.cc{stroke-width:.03}.cw{stroke-width:.035}text{font-family:Arial,Helvetica,sans-serif}${st.style}</style>`;
@@ -3848,7 +3848,7 @@ async function masterCanvas(u, mode){
     const f = floorOf(u); if(f == null) return null;
     const no = normNo(u.unit_no), label = dispNo(u), st = DL_STYLE[mode];
     const fk = u.sheet + '|' + f;
-    if(!floorCache[fk]){ const r = await fetch(floorUrl(u, f)); if(!r.ok) throw new Error('missing'); floorCache[fk] = await r.text(); }
+    if(!floorCache[fk]){ const r = await fetch(floorUrl(u, f), { cache:'no-cache' }); if(!r.ok) throw new Error('missing'); floorCache[fk] = await r.text(); }
     const fl = planFloors(u.sheet)[f], vb = (floorCache[fk].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
     const W = 3508, H = Math.round(W * vb[3] / vb[2]);
     const hl = '#ff5a1f', shape = (fl.shapes || {})[no], arw = (fl.arrows || {})[no];
