@@ -2944,6 +2944,8 @@ document.getElementById('afTags').addEventListener('click', e=>{
 })();
 // "more" menu on each row: a copy of the row's hidden menu is shown on top of the page (so the table's
 // scroll box and row effects never clip it); each item clicks the real button in the row.
+/* page zoom on wide screens (body{zoom:.9}): screen coordinates must be divided by it before use in styles */
+function pz(){ try{ return parseFloat(getComputedStyle(document.body).zoom) || 1; }catch(e){ return 1; } }
 let morePop = null, moreBtn = null;
 function closeMore(){ if(morePop){ morePop.remove(); morePop = null; } if(moreBtn){ moreBtn.setAttribute('aria-expanded','false'); moreBtn = null; } }
 document.getElementById('tbody').addEventListener('click', e=>{
@@ -2956,9 +2958,10 @@ document.getElementById('tbody').addEventListener('click', e=>{
   const real = [...src.querySelectorAll('.mi')];
   [...pop.querySelectorAll('.mi')].forEach((b, i)=>{ b.removeAttribute('id'); b.addEventListener('click', ev=>{ ev.stopPropagation(); closeMore(); if(real[i]) real[i].click(); }); });
   document.body.appendChild(pop);
-  const r = mb.getBoundingClientRect(), w = pop.offsetWidth || 230, h = pop.offsetHeight;
-  pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
-  pop.style.top = (r.bottom + 6 + h > window.innerHeight ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+  const Z = pz(), r0 = mb.getBoundingClientRect(), r = { right:r0.right/Z, top:r0.top/Z, bottom:r0.bottom/Z }, w = pop.offsetWidth || 230, h = pop.offsetHeight;
+  const IW = window.innerWidth/Z, IH = window.innerHeight/Z;
+  pop.style.left = Math.max(8, Math.min(IW - w - 8, r.right - w)) + 'px';
+  pop.style.top = (r.bottom + 6 + h > IH ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
   morePop = pop; moreBtn = mb; mb.setAttribute('aria-expanded','true');
   moreY = window.scrollY;
 });
@@ -3705,7 +3708,7 @@ function layZoom(f, cx, cy){
 document.getElementById('layZoomIn').addEventListener('click', ()=> layZoom(1.4));
 document.getElementById('layZoomOut').addEventListener('click', ()=> layZoom(1/1.4));
 document.getElementById('layZoomReset').addEventListener('click', ()=>{ layT = {s:1,x:0,y:0}; layApply(); });
-layStage.addEventListener('wheel', e=>{ e.preventDefault(); const r = layStage.getBoundingClientRect(); layZoom(e.deltaY < 0 ? 1.15 : 1/1.15, e.clientX - r.left, e.clientY - r.top); }, { passive:false });
+layStage.addEventListener('wheel', e=>{ e.preventDefault(); const r = layStage.getBoundingClientRect(); const Z = pz(); layZoom(e.deltaY < 0 ? 1.15 : 1/1.15, (e.clientX - r.left)/Z, (e.clientY - r.top)/Z); }, { passive:false });
 (function(){ // drag to pan + pinch to zoom
   const pts = new Map(); let lastD = 0;
   layStage.addEventListener('pointerdown', e=>{ if(e.target.closest('.lay-tools, .lay-nav, .lay-modes')) return; layStage.setPointerCapture(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); layStage.classList.add('drag'); });
@@ -3714,9 +3717,9 @@ layStage.addEventListener('wheel', e=>{ e.preventDefault(); const r = layStage.g
     const prev = pts.get(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
     if(pts.size === 2){
       const [a,b] = [...pts.values()]; const d = Math.hypot(a.x-b.x, a.y-b.y);
-      if(lastD){ const r = layStage.getBoundingClientRect(); layZoom(d/lastD, (a.x+b.x)/2 - r.left, (a.y+b.y)/2 - r.top); }
+      if(lastD){ const r = layStage.getBoundingClientRect(), Z = pz(); layZoom(d/lastD, ((a.x+b.x)/2 - r.left)/Z, ((a.y+b.y)/2 - r.top)/Z); }
       lastD = d;
-    } else if(layT.s > 1){ layT.x += e.clientX - prev.x; layT.y += e.clientY - prev.y; layApply(); }
+    } else if(layT.s > 1){ const Z = pz(); layT.x += (e.clientX - prev.x)/Z; layT.y += (e.clientY - prev.y)/Z; layApply(); }
   });
   const end = e=>{ pts.delete(e.pointerId); lastD = 0; if(!pts.size) layStage.classList.remove('drag'); };
   layStage.addEventListener('pointerup', end); layStage.addEventListener('pointercancel', end);
@@ -4315,8 +4318,8 @@ function openOfferMenu(u, b){
     ch.map(([k,t,n], i)=> `<label class="of-opt"><input type="radio" name="ofPlan" value="${k}" ${i===0?'checked':''}><span>${t}</span>${n ? `<small>${n}</small>` : ''}</label>`).join('') +
     `<div class="of-go"><button data-m="pdf">${DL_ICON}Download</button>${canPrint ? `<button data-m="print">${PR_ICON}Print</button>` : ''}</div>`;
   b.parentNode.style.position = 'relative'; b.parentNode.appendChild(pop);
-  const r = b.getBoundingClientRect(), pr = b.parentNode.getBoundingClientRect(), w = Math.min(300, pr.width);
-  pop.style.width = w + 'px'; pop.style.left = Math.max(0, Math.min(r.left - pr.left, pr.width - w)) + 'px';
+  const Z = pz(), r = b.getBoundingClientRect(), pr = b.parentNode.getBoundingClientRect(), w = Math.min(300, pr.width/Z);
+  pop.style.width = w + 'px'; pop.style.left = Math.max(0, Math.min((r.left - pr.left)/Z, pr.width/Z - w)) + 'px';
   pop.addEventListener('click', ev=>{
     ev.stopPropagation();
     const m = ev.target.closest('button[data-m]'); if(!m) return;
@@ -4347,7 +4350,7 @@ document.getElementById('layActions').addEventListener('click', e=>{
     pop.innerHTML = `<button data-m="colour"><i class="sw c"></i>Colour <small>as the CAD file</small></button><button data-m="black"><i class="sw b"></i>Black <small>for printing</small></button>`;
     b.parentNode.style.position = 'relative'; b.parentNode.appendChild(pop);
     const r = b.getBoundingClientRect(), pr = b.parentNode.getBoundingClientRect();
-    pop.style.left = (r.left - pr.left) + 'px'; pop.style.width = r.width + 'px';
+    pop.style.left = ((r.left - pr.left)/pz()) + 'px'; pop.style.width = (r.width/pz()) + 'px';
     pop.addEventListener('click', ev=>{ const m = ev.target.closest('button'); if(!m) return; ev.stopPropagation(); pop.remove();
       if(layMode === 'location') downloadMasterPlan(u, b, m.dataset.m, action); else downloadLayout(u, b, m.dataset.m, action); });
     return;
@@ -4474,12 +4477,12 @@ function pmShowTip(cell){
   }
   const r = cell.getBoundingClientRect();
   pmTip.classList.add('show');
-  const tw = pmTip.offsetWidth, th = pmTip.offsetHeight;
+  const Z = pz(), tw = pmTip.offsetWidth*Z, th = pmTip.offsetHeight*Z;
   let x = r.right + 12, y = r.top + r.height/2 - th/2;
   if(x + tw > innerWidth - 8) x = r.left - tw - 12;
   if(x < 8) x = Math.max(8, Math.min(innerWidth - tw - 8, r.left + r.width/2 - tw/2));
   y = Math.max(8, Math.min(innerHeight - th - 8, y));
-  pmTip.style.left = x + 'px'; pmTip.style.top = y + 'px';
+  pmTip.style.left = (x/Z) + 'px'; pmTip.style.top = (y/Z) + 'px';
 }
 function pmHideTip(){ pmTip.classList.remove('show'); }
 function openProjectMap(){
@@ -7237,8 +7240,8 @@ setInterval(()=>{
         sp = false; var e = lastE;
         var el = e.target.closest && e.target.closest('.seal, .ledger .cell, .inv-card, .analytics-summary .a-cell');
         if(!el) return;
-        var r = el.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
-        el.style.setProperty('--mx', px + 'px'); el.style.setProperty('--my', py + 'px');
+        var r = el.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, zz = pz();
+        el.style.setProperty('--mx', (px/zz) + 'px'); el.style.setProperty('--my', (py/zz) + 'px');
         if(el.classList.contains('seal')){
           el.style.setProperty('--ry', (((px / r.width) - 0.5) * 10).toFixed(2) + 'deg');
           el.style.setProperty('--rx', (((py / r.height) - 0.5) * -10).toFixed(2) + 'deg');
@@ -8146,6 +8149,11 @@ html[data-theme]:not([data-theme="gold-atelier"]) .ls-fact b,html[data-theme]:no
   html[data-theme][data-theme] .lay-area{ font-size:30px !important; }
   html[data-theme][data-theme] .lay-price{ margin-top:0 !important; }
   html[data-theme][data-theme] .lay-main .lay-stage{ height:58vh !important; }
+}
+/* ===== Wide screens: everything at 90% size, spread across the full width ===== */
+@media (min-width:1280px){
+  body{ zoom:.9; }
+  .wrap{ max-width:2400px !important; }
 }
 /* ================= Gold Atelier — type and the phone layout ================= */
 html[data-theme][data-theme] body{ font-family:var(--font-body); font-variant-numeric:lining-nums; }
