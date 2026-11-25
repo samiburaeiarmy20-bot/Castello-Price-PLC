@@ -7425,6 +7425,13 @@ header.top .brand img{ height:54px !important; width:auto !important; max-width:
 .acct-item.out{ color:#f0a58a; border-top:1px solid var(--line-soft); border-radius:0 0 10px 10px; margin-top:6px; }
 @media (max-width:1100px){ .top-nav{ order:3; flex-basis:100%; justify-content:flex-start; overflow-x:auto; flex-wrap:nowrap; } }
 @media (max-width:640px){ .brand-sep,.brand-tool,.acct-name,.top-right .promo-pill.show{ display:none; } .top-right .admin-btn.export-btn span{ display:none; } .top-nav .nav-btn span{ display:none; } .top-nav .nav-btn{ padding:10px 12px; } }
+/* ===== Shared style for every theme: row and phone-card colours come from each theme ===== */
+html[data-theme]{ --rowbg0:var(--surface); --rowline0:var(--line-soft); --rowbgH:color-mix(in srgb, var(--gold) 7%, var(--surface)); --rowlineH:color-mix(in srgb, var(--gold) 45%, var(--line)); --rowbgK:color-mix(in srgb, var(--gold) 12%, var(--surface)); --rowlineK:color-mix(in srgb, var(--gold) 60%, var(--line)); --tdtext:var(--cream);
+  --mcard:var(--surface); --mcard2:var(--surface); --mline:var(--line); --mdiv:var(--line-soft); --mlabel:var(--stone); --mtext:var(--cream); --mheldline:color-mix(in srgb, var(--gold) 60%, var(--line)); --mheld1:color-mix(in srgb, var(--gold) 10%, var(--surface)); --mheld2:var(--surface); --mshadow:0 8px 22px rgba(0,0,0,.10); }
+html[data-theme="gold-atelier"]{ --rowbg0:#121115; --rowline0:#211f1b; --rowbgH:#1a1814; --rowlineH:#4a412f; --rowbgK:#1b1811; --rowlineK:#5a4c2e; --tdtext:#ddd6c8;
+  --mcard:#16151a; --mcard2:#121115; --mline:#2b2822; --mdiv:#24221d; --mlabel:#8d877b; --mtext:#e6dfd0; --mheldline:#6b5a35; --mheld1:#1d1a12; --mheld2:#141217; --mshadow:0 10px 24px rgba(0,0,0,.35); }
+html[data-theme][data-theme]{ --font-display:'Playfair Display'; --font-head:'Playfair Display', Georgia, serif; --font-body:'Plus Jakarta Sans', 'Inter', system-ui, sans-serif; --font-mono:'Plus Jakarta Sans', 'Inter', system-ui, sans-serif; }
+html[data-theme] body{ font-family:var(--font-body); }
 /* ================= Refined price list: dropdown filters, active-filter tags, hold banner, slim rows ================= */
 .fdd{ position:relative; }
 .fdd-btn{ display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 14px; border-radius:12px; border:1px solid var(--line-soft); background:var(--surface); color:var(--cream); font:500 13.5px var(--font-body,'Inter'),sans-serif; cursor:pointer; white-space:nowrap; }
@@ -7476,9 +7483,9 @@ tr.tr-held td:first-child,tr.tr-held td.proj{ box-shadow:inset 3px 0 0 var(--gol
 .more-pop .mi.active{ color:var(--gold-bright) !important; }
 .more-pop .act-archive-unit,.more-pop .act-unarchive-unit{ border-top:1px solid var(--line-soft) !important; border-radius:0 0 9px 9px !important; margin-top:4px !important; color:var(--stone) !important; }
 .roi-badge:empty{ display:none; }
-html[data-theme="gold-atelier"] .table-scroll tbody td{ padding-top:12px; padding-bottom:12px; }
-html[data-theme="gold-atelier"] .table-scroll tbody tr:hover td.actions-cell{ background:#1a1814 !important; border-color:#4a412f !important; }
-html[data-theme="gold-atelier"] .table-scroll tbody td.actions-cell{ background:#121115; }
+html[data-theme] .table-scroll tbody td{ padding-top:12px; padding-bottom:12px; }
+html[data-theme] .table-scroll tbody tr:hover td.actions-cell{ background:var(--rowbgH) !important; border-color:var(--rowlineH) !important; }
+html[data-theme] .table-scroll tbody td.actions-cell{ background:var(--rowbg0); }
 /* price list fit: no sideways scrolling, one even highlight per row */
 #tbody td.actions-cell{ width:1% !important; min-width:0 !important; display:table-cell; }
 @media (max-width:760px){ #tbody td.actions-cell{ width:auto !important; display:grid; } }
@@ -7491,49 +7498,49 @@ html[data-theme="gold-atelier"] .table-scroll tbody td.actions-cell{ background:
 .act-row .act-hold.others{ border-color:rgba(232,169,72,.6) !important; color:#e8a948 !important; }
 .act-row .act-hold.expiring{ border-color:rgba(240,120,100,.7) !important; color:#f0a58a !important; }
 .held-by-you.other{ color:#e8a948; }
-html[data-theme="gold-atelier"] .table-scroll{ overflow-x:auto; }
-html[data-theme="gold-atelier"] .table-scroll table{ border-spacing:0 6px; }
-html[data-theme="gold-atelier"] .table-scroll thead th{ padding:12px 8px; }
-html[data-theme="gold-atelier"] #tbody tr{ --rowbg:#121115; --rowline:#211f1b; }
-html[data-theme="gold-atelier"] #tbody tr:hover{ --rowbg:#1a1814; --rowline:#4a412f; }
-html[data-theme="gold-atelier"] #tbody tr.tr-held{ --rowbg:#1b1811; --rowline:#5a4c2e; }
+html[data-theme] .table-scroll{ overflow-x:auto; }
+html[data-theme] .table-scroll table{ border-spacing:0 6px; }
+html[data-theme] .table-scroll thead th{ padding:12px 8px; }
+html[data-theme] #tbody tr{ --rowbg:var(--rowbg0); --rowline:var(--rowline0); }
+html[data-theme] #tbody tr:hover{ --rowbg:var(--rowbgH); --rowline:var(--rowlineH); }
+html[data-theme] #tbody tr.tr-held{ --rowbg:var(--rowbgK); --rowline:var(--rowlineK); }
 @media (min-width:761px){
-html[data-theme="gold-atelier"] .table-scroll #tbody td{ background:var(--rowbg) !important; border-top:1px solid var(--rowline) !important; border-bottom:1px solid var(--rowline) !important; border-left:0 !important; border-right:0 !important; border-radius:0 !important; box-shadow:none !important; padding:11px 8px !important; }
-html[data-theme="gold-atelier"] .table-scroll #tbody td.proj{ border-left:1px solid var(--rowline) !important; border-radius:14px 0 0 14px !important; padding-left:14px !important; }
-html[data-theme="gold-atelier"] .table-scroll #tbody tr.tr-held td.proj{ box-shadow:inset 3px 0 0 var(--gold) !important; }
-html[data-theme="gold-atelier"] .table-scroll #tbody td.actions-cell{ border-right:1px solid var(--rowline) !important; border-radius:0 14px 14px 0 !important; padding-right:12px !important; }
+html[data-theme] .table-scroll #tbody td{ background:var(--rowbg) !important; border-top:1px solid var(--rowline) !important; border-bottom:1px solid var(--rowline) !important; border-left:0 !important; border-right:0 !important; border-radius:0 !important; box-shadow:none !important; padding:11px 8px !important; }
+html[data-theme] .table-scroll #tbody td.proj{ border-left:1px solid var(--rowline) !important; border-radius:14px 0 0 14px !important; padding-left:14px !important; }
+html[data-theme] .table-scroll #tbody tr.tr-held td.proj{ box-shadow:inset 3px 0 0 var(--gold) !important; }
+html[data-theme] .table-scroll #tbody td.actions-cell{ border-right:1px solid var(--rowline) !important; border-radius:0 14px 14px 0 !important; padding-right:12px !important; }
 }
-html[data-theme="gold-atelier"] td.proj .pj-sub{ display:block; }
-html[data-theme="gold-atelier"] td.proj .pj-sub::before{ content:none; }
-html[data-theme="gold-atelier"] td.proj .proj-inner > span{ line-height:1.25; }
-html[data-theme="gold-atelier"] td.mono.unit{ font-size:20px !important; }
+html[data-theme] td.proj .pj-sub{ display:block; }
+html[data-theme] td.proj .pj-sub::before{ content:none; }
+html[data-theme] td.proj .proj-inner > span{ line-height:1.25; }
+html[data-theme] td.mono.unit{ font-size:20px !important; }
 /* ---- Comfortable sizes and regular type (desktop) ---- */
-html[data-theme="gold-atelier"] body{ -webkit-font-smoothing:antialiased; }
-html[data-theme="gold-atelier"] .hb-unit,html[data-theme="gold-atelier"] #holdBanner b{ font-family:var(--font-body) !important; font-weight:600 !important; font-size:inherit !important; letter-spacing:0 !important; }
+html[data-theme] body{ -webkit-font-smoothing:antialiased; }
+html[data-theme] .hb-unit,html[data-theme] #holdBanner b{ font-family:var(--font-body) !important; font-weight:600 !important; font-size:inherit !important; letter-spacing:0 !important; }
 @media (min-width:761px){
-  html[data-theme="gold-atelier"] .table-scroll thead th{ font-size:11.5px !important; font-weight:600 !important; letter-spacing:.06em !important; }
-  html[data-theme="gold-atelier"] #tbody td{ font-size:14.5px !important; font-weight:400 !important; color:#ddd6c8; }
-  html[data-theme="gold-atelier"] #tbody td.proj img{ width:36px !important; height:36px !important; }
-  html[data-theme="gold-atelier"] td.proj .pj-name{ font-size:15px !important; font-weight:600 !important; }
-  html[data-theme="gold-atelier"] td.proj .pj-sub{ font-size:12.5px !important; }
-  html[data-theme="gold-atelier"] .table-scroll #tbody td.mono.unit{ font-family:var(--font-body) !important; font-size:17px !important; font-weight:600 !important; letter-spacing:0 !important; color:var(--cream) !important; }
-  html[data-theme="gold-atelier"] td.mono.unit .held-by-you{ font-size:12.5px !important; font-weight:500 !important; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(5) *{ font-size:13px !important; font-weight:500 !important; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(10){ font-size:16.5px !important; font-weight:700 !important; color:var(--gold-bright) !important; }
-  html[data-theme="gold-atelier"] .act-row{ gap:8px !important; }
-  html[data-theme="gold-atelier"] #tbody .act-row .act-plan,html[data-theme="gold-atelier"] #tbody .act-row .act-cash{ height:40px !important; font-size:14px !important; padding:0 18px !important; }
-  html[data-theme="gold-atelier"] .act-row .act-ic,html[data-theme="gold-atelier"] .act-row .act-hold{ width:40px !important; min-width:40px !important; height:40px !important; }
-  html[data-theme="gold-atelier"] .act-row .act-ic svg{ width:20px !important; height:20px !important; }
-  html[data-theme="gold-atelier"] .act-row .act-hold::before{ width:19px !important; height:19px !important; }
-  html[data-theme="gold-atelier"] .searchbox input,html[data-theme="gold-atelier"] .fdd-btn,html[data-theme="gold-atelier"] .selectbox select{ font-size:14.5px !important; }
-  html[data-theme="gold-atelier"] .results-meta{ font-size:14.5px !important; }
-  html[data-theme="gold-atelier"] #holdBanner{ font-size:15px !important; }
+  html[data-theme] .table-scroll thead th{ font-size:11.5px !important; font-weight:600 !important; letter-spacing:.06em !important; }
+  html[data-theme] #tbody td{ font-size:14.5px !important; font-weight:400 !important; color:var(--tdtext); }
+  html[data-theme] #tbody td.proj img{ width:36px !important; height:36px !important; }
+  html[data-theme] td.proj .pj-name{ font-size:15px !important; font-weight:600 !important; }
+  html[data-theme] td.proj .pj-sub{ font-size:12.5px !important; }
+  html[data-theme] .table-scroll #tbody td.mono.unit{ font-family:var(--font-body) !important; font-size:17px !important; font-weight:600 !important; letter-spacing:0 !important; color:var(--cream) !important; }
+  html[data-theme] td.mono.unit .held-by-you{ font-size:12.5px !important; font-weight:500 !important; }
+  html[data-theme] #tbody td:nth-child(5) *{ font-size:13px !important; font-weight:500 !important; }
+  html[data-theme] #tbody td:nth-child(10){ font-size:16.5px !important; font-weight:700 !important; color:var(--gold-bright) !important; }
+  html[data-theme] .act-row{ gap:8px !important; }
+  html[data-theme] #tbody .act-row .act-plan,html[data-theme] #tbody .act-row .act-cash{ height:40px !important; font-size:14px !important; padding:0 18px !important; }
+  html[data-theme] .act-row .act-ic,html[data-theme] .act-row .act-hold{ width:40px !important; min-width:40px !important; height:40px !important; }
+  html[data-theme] .act-row .act-ic svg{ width:20px !important; height:20px !important; }
+  html[data-theme] .act-row .act-hold::before{ width:19px !important; height:19px !important; }
+  html[data-theme] .searchbox input,html[data-theme] .fdd-btn,html[data-theme] .selectbox select{ font-size:14.5px !important; }
+  html[data-theme] .results-meta{ font-size:14.5px !important; }
+  html[data-theme] #holdBanner{ font-size:15px !important; }
 }
-html[data-theme="gold-atelier"] .seal .pname{ font-family:var(--font-body) !important; font-weight:600 !important; letter-spacing:-0.01em !important; }
+html[data-theme] .seal .pname{ font-family:var(--font-body) !important; font-weight:600 !important; letter-spacing:-0.01em !important; }
 @media (min-width:761px){
-  html[data-theme="gold-atelier"] .seal .pname{ font-size:19px !important; }
-  html[data-theme="gold-atelier"] .seal .pmeta{ font-size:12.5px !important; }
-  html[data-theme="gold-atelier"] .seal .ptag{ font-size:11.5px !important; }
+  html[data-theme] .seal .pname{ font-size:19px !important; }
+  html[data-theme] .seal .pmeta{ font-size:12.5px !important; }
+  html[data-theme] .seal .ptag{ font-size:11.5px !important; }
 }
 /* ---- Header: small visual analysis of prices and available units ---- */
 .ledger.ledger-vis{ display:grid; grid-template-columns:1.25fr 1fr 1.2fr 1fr; gap:12px; border:none; background:transparent; }
@@ -7637,67 +7644,68 @@ html[data-theme="gold-atelier"] .lay-stage .lay-modes,html[data-theme="gold-atel
 @media (max-width:560px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:minmax(0,1fr); } }
 
 /* ================= Gold Atelier — type and the phone layout ================= */
-html[data-theme="gold-atelier"] body{ font-family:var(--font-body); font-variant-numeric:lining-nums; }
-html[data-theme="gold-atelier"] .hero h1,html[data-theme="gold-atelier"] .lay-hero h3,html[data-theme="gold-atelier"] .pm-hero h3{ font-weight:500 !important; letter-spacing:-0.01em !important; }
-html[data-theme="gold-atelier"] .price,html[data-theme="gold-atelier"] .mono,html[data-theme="gold-atelier"] .ls-cell b,html[data-theme="gold-atelier"] .lv-top .num,html[data-theme="gold-atelier"] .ledger .cell .num{ font-variant-numeric:lining-nums tabular-nums; }
-html[data-theme="gold-atelier"] td.mono.unit{ font-family:var(--font-body) !important; font-weight:700 !important; font-size:17px !important; letter-spacing:.01em !important; }
-html[data-theme="gold-atelier"] .seal .pname{ font-weight:500 !important; }
+html[data-theme] body{ font-family:var(--font-body); font-variant-numeric:lining-nums; }
+html[data-theme] .hero h1,html[data-theme] .lay-hero h3,html[data-theme] .pm-hero h3{ font-weight:500 !important; letter-spacing:-0.01em !important; }
+html[data-theme] .price,html[data-theme] .mono,html[data-theme] .ls-cell b,html[data-theme] .lv-top .num,html[data-theme] .ledger .cell .num{ font-variant-numeric:lining-nums tabular-nums; }
+html[data-theme] td.mono.unit{ font-family:var(--font-body) !important; font-weight:700 !important; font-size:17px !important; letter-spacing:.01em !important; }
+html[data-theme] .seal .pname{ font-weight:500 !important; }
 @media (max-width:760px){
-  html[data-theme="gold-atelier"] .hero{ padding:28px 0 18px; }
-  html[data-theme="gold-atelier"] .hero h1{ font-size:38px !important; line-height:1.05 !important; }
-  html[data-theme="gold-atelier"] .hero-tip{ font-size:13.5px; }
-  html[data-theme="gold-atelier"] .ledger.ledger-vis{ display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:6px; margin:0 -16px; padding-left:16px; padding-right:16px; scrollbar-width:none; }
-  html[data-theme="gold-atelier"] .ledger.ledger-vis::-webkit-scrollbar{ display:none; }
-  html[data-theme="gold-atelier"] .ledger-vis .cell.lv{ flex:0 0 84%; scroll-snap-align:start; }
-  html[data-theme="gold-atelier"] .projects .section-head{ margin-bottom:10px; }
-  html[data-theme="gold-atelier"] .projects .section-head .hint{ display:none; }
-  html[data-theme="gold-atelier"] .seal-row{ display:flex !important; gap:10px !important; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 -16px; padding:0 16px 6px; scrollbar-width:none; }
-  html[data-theme="gold-atelier"] .seal-row::-webkit-scrollbar{ display:none; }
-  html[data-theme="gold-atelier"] .seal{ flex:0 0 74%; scroll-snap-align:start; min-height:150px !important; }
-  html[data-theme="gold-atelier"] .seal .pname{ font-size:22px !important; }
-  html[data-theme="gold-atelier"] .seal .pmeta{ font-size:11.5px !important; }
-  html[data-theme="gold-atelier"] .table-scroll #tbody tr{ grid-template-columns:repeat(12,minmax(0,1fr)) !important;
+  html[data-theme] .hero{ padding:28px 0 18px; }
+  html[data-theme] .hero h1{ font-size:38px !important; line-height:1.05 !important; }
+  html[data-theme] .hero-tip{ font-size:13.5px; }
+  html[data-theme] .ledger.ledger-vis{ display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:6px; margin:0 -16px; padding-left:16px; padding-right:16px; scrollbar-width:none; }
+  html[data-theme] .ledger.ledger-vis::-webkit-scrollbar{ display:none; }
+  html[data-theme] .ledger-vis .cell.lv{ flex:0 0 84%; scroll-snap-align:start; }
+  html[data-theme] .projects .section-head{ margin-bottom:10px; }
+  html[data-theme] .projects .section-head .hint{ display:none; }
+  html[data-theme] .seal-row{ display:flex !important; gap:10px !important; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 -16px; padding:0 16px 6px; scrollbar-width:none; }
+  html[data-theme] .seal-row::-webkit-scrollbar{ display:none; }
+  html[data-theme] .seal{ flex:0 0 74%; scroll-snap-align:start; min-height:150px !important; }
+  html[data-theme] .seal .pname{ font-size:22px !important; }
+  html[data-theme] .seal .pmeta{ font-size:11.5px !important; }
+  html[data-theme] .table-scroll #tbody tr{ grid-template-columns:repeat(12,minmax(0,1fr)) !important;
     grid-template-areas:"proj proj proj proj proj proj proj price price price price price" "unit unit unit unit unit unit unit pm2 pm2 pm2 pm2 pm2" "type type type floor floor view view view view area area area" "actions actions actions actions actions actions actions actions actions actions actions actions" !important;
-    gap:10px 8px !important; padding:16px !important; border-radius:20px !important; border:1px solid #2b2822 !important; background:linear-gradient(180deg,#16151a,#121115) !important; box-shadow:0 10px 24px rgba(0,0,0,.35) !important; margin-bottom:12px !important; }
-  html[data-theme="gold-atelier"] .table-scroll #tbody tr.tr-held{ border-color:#6b5a35 !important; background:linear-gradient(180deg,#1d1a12,#141217) !important; }
-  html[data-theme="gold-atelier"] .table-scroll #tbody td{ background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; padding:0 !important; }
-  html[data-theme="gold-atelier"] .table-scroll #tbody td.proj{ border:0 !important; margin:0 !important; padding:0 !important; align-self:center; }
-  html[data-theme="gold-atelier"] #tbody td.proj img{ width:30px !important; height:30px !important; }
-  html[data-theme="gold-atelier"] #tbody td.proj .pj-name{ font-size:14px !important; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(3){ display:none !important; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(4)::before,html[data-theme="gold-atelier"] #tbody td:nth-child(5)::before,html[data-theme="gold-atelier"] #tbody td:nth-child(9)::before,html[data-theme="gold-atelier"] #tbody td:nth-child(10)::before{ content:none !important; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(10){ align-self:center; text-align:right; font-size:19px !important; font-weight:700; color:var(--gold-bright) !important; }
-  html[data-theme="gold-atelier"] .table-scroll #tbody td:nth-child(4){ font-size:22px !important; padding-top:10px !important; border-top:1px solid #24221d !important; }
-  html[data-theme="gold-atelier"] .table-scroll #tbody td:nth-child(9){ align-self:stretch; text-align:right; color:var(--stone) !important; font-size:12px !important; padding-top:14px !important; border-top:1px solid #24221d !important; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(9)::after{ content:" / m²"; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(5){ align-self:end; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(5) *{ white-space:nowrap !important; font-size:11.5px !important; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(6)::before,html[data-theme="gold-atelier"] #tbody td:nth-child(7)::before,html[data-theme="gold-atelier"] #tbody td:nth-child(8)::before{ font-size:10px !important; letter-spacing:.04em !important; color:#8d877b !important; margin-bottom:2px !important; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(8)::before{ content:"Area" !important; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(8)::after{ content:" m²"; }
-  html[data-theme="gold-atelier"] #tbody td:nth-child(6),html[data-theme="gold-atelier"] #tbody td:nth-child(7),html[data-theme="gold-atelier"] #tbody td:nth-child(8){ font-size:13px !important; color:#e6dfd0 !important; }
-  html[data-theme="gold-atelier"] .table-scroll #tbody td.actions-cell{ display:block !important; padding-top:12px !important; margin-top:2px !important; border-top:1px solid #24221d !important; }
-  html[data-theme="gold-atelier"] .act-row{ justify-content:flex-start; }
-  html[data-theme="gold-atelier"] .act-row .act-plan{ flex:1; height:42px !important; font-size:13.5px !important; }
-  html[data-theme="gold-atelier"] .act-row .act-ic,html[data-theme="gold-atelier"] .act-row .act-hold{ width:42px !important; min-width:42px !important; height:42px !important; }
-  html[data-theme="gold-atelier"] #holdBanner{ padding:10px 12px; gap:10px; font-size:13.5px; }
-  html[data-theme="gold-atelier"] #holdBanner .hb-text{ flex:1 1 200px; }
+    gap:10px 8px !important; padding:16px !important; border-radius:20px !important; border:1px solid var(--mline) !important; background:linear-gradient(180deg,var(--mcard),var(--mcard2)) !important; box-shadow:var(--mshadow) !important; margin-bottom:12px !important; }
+  html[data-theme] .table-scroll #tbody tr.tr-held{ border-color:var(--mheldline) !important; background:linear-gradient(180deg,var(--mheld1),var(--mheld2)) !important; }
+  html[data-theme] .table-scroll #tbody td{ background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; padding:0 !important; }
+  html[data-theme] .table-scroll #tbody td.proj{ border:0 !important; margin:0 !important; padding:0 !important; align-self:center; }
+  html[data-theme] #tbody td.proj img{ width:30px !important; height:30px !important; }
+  html[data-theme] #tbody td.proj .pj-name{ font-size:14px !important; }
+  html[data-theme] #tbody td:nth-child(3){ display:none !important; }
+  html[data-theme] #tbody td:nth-child(4)::before,html[data-theme] #tbody td:nth-child(5)::before,html[data-theme] #tbody td:nth-child(9)::before,html[data-theme] #tbody td:nth-child(10)::before{ content:none !important; }
+  html[data-theme] #tbody td:nth-child(10){ align-self:center; text-align:right; font-size:19px !important; font-weight:700; color:var(--gold-bright) !important; }
+  html[data-theme] .table-scroll #tbody td:nth-child(4){ font-size:22px !important; padding-top:10px !important; border-top:1px solid var(--mdiv) !important; }
+  html[data-theme] .table-scroll #tbody td:nth-child(9){ align-self:stretch; text-align:right; color:var(--stone) !important; font-size:12px !important; padding-top:14px !important; border-top:1px solid var(--mdiv) !important; }
+  html[data-theme] #tbody td:nth-child(9)::after{ content:" / m²"; }
+  html[data-theme] #tbody td:nth-child(5){ align-self:end; }
+  html[data-theme] #tbody td:nth-child(5) *{ white-space:nowrap !important; font-size:11.5px !important; }
+  html[data-theme] #tbody td:nth-child(6)::before,html[data-theme] #tbody td:nth-child(7)::before,html[data-theme] #tbody td:nth-child(8)::before{ font-size:10px !important; letter-spacing:.04em !important; color:var(--mlabel) !important; margin-bottom:2px !important; }
+  html[data-theme] #tbody td:nth-child(8)::before{ content:"Area" !important; }
+  html[data-theme] #tbody td:nth-child(8)::after{ content:" m²"; }
+  html[data-theme] #tbody td:nth-child(6),html[data-theme] #tbody td:nth-child(7),html[data-theme] #tbody td:nth-child(8){ font-size:13px !important; color:var(--mtext) !important; }
+  html[data-theme] .table-scroll #tbody td.actions-cell{ display:block !important; padding-top:12px !important; margin-top:2px !important; border-top:1px solid var(--mdiv) !important; }
+  html[data-theme] .act-row{ justify-content:flex-start; }
+  html[data-theme] .act-row .act-plan{ flex:1; height:42px !important; font-size:13.5px !important; }
+  html[data-theme] .act-row .act-ic,html[data-theme] .act-row .act-hold{ width:42px !important; min-width:42px !important; height:42px !important; }
+  html[data-theme] #holdBanner{ padding:10px 12px; gap:10px; font-size:13.5px; }
+  html[data-theme] #holdBanner .hb-text{ flex:1 1 200px; }
 }
 
 /* Gold Atelier — compact development cards (one row on wide screens) */
-html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; }
-html[data-theme="gold-atelier"] .seal{ min-height:112px; padding:10px 12px 10px; border-radius:10px; }
-html[data-theme="gold-atelier"] .seal-row{ gap:10px !important; }
-html[data-theme="gold-atelier"] .seal .medallion{ position:absolute !important; top:12px; left:12px; z-index:2; width:110px !important; height:30px !important; padding:0 !important; margin:0 !important; align-items:center !important; border:none !important; border-radius:0 !important; background:none !important; backdrop-filter:none !important; justify-content:flex-start !important; }
-html[data-theme="gold-atelier"] .seal .medallion img{ height:30px; width:auto; max-height:30px; max-width:110px; object-position:left center; opacity:1; filter:drop-shadow(0 1px 3px rgba(0,0,0,.75)); }
+html[data-theme] .seal-row{ grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; }
+html[data-theme] .seal{ min-height:112px; padding:10px 12px 10px; border-radius:10px; }
+html[data-theme] .seal-row{ gap:10px !important; }
+html[data-theme] .seal .medallion{ position:absolute !important; top:12px; left:12px; z-index:2; width:110px !important; height:30px !important; padding:0 !important; margin:0 !important; align-items:center !important; border:none !important; border-radius:0 !important; background:none !important; backdrop-filter:none !important; justify-content:flex-start !important; }
+html[data-theme] .seal .medallion img{ height:30px; width:auto; max-height:30px; max-width:110px; object-position:left center; opacity:1; filter:drop-shadow(0 1px 3px rgba(0,0,0,.75)); }
+html[data-theme="fintech-orange"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="graphite-champagne"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="midnight-navy"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="aurora"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="neon-nights"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="golden-glow"] .seal[data-key^="Atlantis"] .medallion img,html[data-theme="ocean-pulse"] .seal[data-key^="Atlantis"] .medallion img{ filter:brightness(0) invert(1) !important; }
 html[data-theme="gold-atelier"] .seal[data-key^="Atlantis"] .medallion img{ filter:brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,.8)) !important; }
-html[data-theme="gold-atelier"] .seal .pname{ font-size:18px !important; margin-top:6px !important; }
-html[data-theme="gold-atelier"] .seal .psub{ font-size:10.5px; min-height:14px; }
-html[data-theme="gold-atelier"] .seal{ padding-top:50px !important; }
-html[data-theme="gold-atelier"] .seal .pmeta{ font-size:10.5px !important; margin-top:2px !important; }
-html[data-theme="gold-atelier"] .seal .ptag{ border-radius:999px; font-size:9px !important; margin-top:5px !important; padding:1px 7px !important; }
-@media (max-width:1400px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
-@media (max-width:760px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+html[data-theme] .seal .pname{ font-size:18px !important; margin-top:6px !important; }
+html[data-theme] .seal .psub{ font-size:10.5px; min-height:14px; }
+html[data-theme] .seal{ padding-top:50px !important; }
+html[data-theme] .seal .pmeta{ font-size:10.5px !important; margin-top:2px !important; }
+html[data-theme] .seal .ptag{ border-radius:999px; font-size:9px !important; margin-top:5px !important; padding:1px 7px !important; }
+@media (max-width:1400px){ html[data-theme] .seal-row{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:760px){ html[data-theme] .seal-row{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
 html[data-theme="ocean-pulse"]{
   --bg:#030a14; --bg-rgb:3,10,20; --bg-alt:#06101c; --surface:#08162a; --surface-rgb:8,22,42; --surface-2:#0e2038;
   --line:rgba(70,200,255,0.24); --line-soft:rgba(255,255,255,0.08);
