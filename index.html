@@ -7323,6 +7323,17 @@ html[data-theme="gold-atelier"] .lay-stage{ --gold:#f5c542; --gold-bright:#ffe08
 html[data-theme="gold-atelier"] .lay-stage .lay-modes,html[data-theme="gold-atelier"] .lay-stage .lay-count{ --gold:#d4b87a; --gold-bright:#ecd9a8; }
 @media (max-width:900px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(2,minmax(0,1fr)); } html[data-theme="gold-atelier"] .lay-hero h3{ font-size:40px; } }
 @media (max-width:560px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:minmax(0,1fr); } }
+/* Gold Atelier — compact development cards (one row on wide screens) */
+html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; }
+html[data-theme="gold-atelier"] .seal{ min-height:150px; padding:14px 14px 12px; border-radius:16px; }
+html[data-theme="gold-atelier"] .seal .medallion{ width:36px; height:36px; padding:5px; }
+html[data-theme="gold-atelier"] .seal:not(.has-photo) .medallion{ width:44px; height:44px; }
+html[data-theme="gold-atelier"] .seal .pname{ font-size:21px !important; margin-top:8px; }
+html[data-theme="gold-atelier"] .seal .psub{ font-size:11px; }
+html[data-theme="gold-atelier"] .seal .pmeta{ font-size:11px; margin-top:4px; gap:6px; flex-wrap:wrap; }
+html[data-theme="gold-atelier"] .seal .ptag{ font-size:9.5px; margin-top:6px; padding:2px 7px; }
+@media (max-width:1400px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:760px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(2,minmax(0,1fr)); } html[data-theme="gold-atelier"] .seal{ min-height:130px; } }
 html[data-theme="ocean-pulse"]{
   --bg:#030a14; --bg-rgb:3,10,20; --bg-alt:#06101c; --surface:#08162a; --surface-rgb:8,22,42; --surface-2:#0e2038;
   --line:rgba(70,200,255,0.24); --line-soft:rgba(255,255,255,0.08);
