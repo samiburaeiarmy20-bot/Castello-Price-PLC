@@ -3506,6 +3506,9 @@ const PLAN_SETS = {
   'Atlantis B':  { sheet:'Atlantis PH1', name:'Atlantis · Building B', layouts:'atlantis_b/layouts/', floors:'atlantis_b/floors/', blocks:['B1','B2','B3'],
                    thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } },
   'Atlantis PH2':{ sheet:'Atlantis PH2', name:'Atlantis · Building C', layouts:'atlantis_c/layouts/', floors:'atlantis_c/floors/', blocks:['C1','C2','C3'],
+                   thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } },
+  'Oro Beach':   { sheet:'Oro Beach', name:'Oro Beach', layouts:'oro_beach/layouts/', floors:'oro_beach/floors/', blocks:['E','C','W','S'],
+                   blockNames:{ E:'East wing', C:'Courtyard', W:'West wing', S:'South wing' },
                    thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } }
 };
 // which drawing set a unit belongs to (Atlantis Phase One has two buildings: A and B, told apart by the unit number)
@@ -4177,8 +4180,9 @@ function pmRender(){
   if(!projs.includes(PM_PROJECT) && projs.length) PM_PROJECT = projs[0];
   if(!planLay(PM_PROJECT) && !planFloors(PM_PROJECT)) return;
   { const pr = PROJECTS.find(p=>p.key===PS().sheet) || {};
-    document.getElementById('pmTitle').textContent = PM_PROJECT === 'Sea Breeze' ? 'Sea Breeze Resort' : `${pr.project || 'Atlantis Resort'} · ${PS().name.split('· ')[1] || ''}`;
+    document.getElementById('pmTitle').textContent = PM_PROJECT === 'Sea Breeze' ? 'Sea Breeze Resort' : PM_PROJECT === 'Oro Beach' ? 'Oro Beach' : `${pr.project || 'Atlantis Resort'} · ${PS().name.split('· ')[1] || ''}`;
     document.getElementById('pmNote').textContent = PM_PROJECT === 'Sea Breeze' ? 'Floors and unit order follow the unit numbers (B106 = block B, floor 1, unit 06).'
+      : PM_PROJECT === 'Oro Beach' ? 'Floors and unit order follow the unit numbers (467A = floor 4, unit 67A).'
       : PM_PROJECT === 'Atlantis A' ? 'Floors and unit order follow the unit numbers (A1205 = section A1, floor 2, unit 05).'
       : PM_PROJECT === 'Atlantis B' ? 'Floors and unit order follow the unit numbers (B2210 = section B2, floor 2, unit 10). Lofts sit on the ground floor, duplexes on their lower floor.'
       : 'Floors and unit order follow the unit numbers (C2211 = section C2, floor 2, unit 11). Lofts sit on the ground floor.'; }
@@ -4195,7 +4199,7 @@ function pmRender(){
     (prices.length ? `<div class="pm-stat"><b style="font-size:16px">${fmtCur(Math.min(...prices))}</b><span>Starting from</span></div>` : '');
   document.getElementById('pmTabs').innerHTML = blocks.map(b=>{
     const n = all.filter(u=> pmI(normNo(u.unit_no)).block===b).length;
-    return `<button class="pm-tab ${b===pmState.block?'on':''}" data-b="${b}">${b==='P' ? 'Top units (P)' : (PM_PROJECT==='Sea Breeze' ? 'Block ' : 'Section ') + b}<small>${n} available</small></button>`;
+    return `<button class="pm-tab ${b===pmState.block?'on':''}" data-b="${b}">${((planSet(PM_PROJECT)||{}).blockNames||{})[b] || (b==='P' ? 'Top units (P)' : (PM_PROJECT==='Sea Breeze' ? 'Block ' : 'Section ') + b)}<small>${n} available</small></button>`;
   }).join('');
   document.getElementById('pmTypes').innerHTML = typesPresent.map(t=>`<button class="pm-type ${pmState.types.has(t)?'on':''}" data-t="${t}" style="--tc:${PM_TYPECOL[t]}"><i></i>${t}</button>`).join('');
   document.getElementById('pmOnly').checked = pmState.only;
