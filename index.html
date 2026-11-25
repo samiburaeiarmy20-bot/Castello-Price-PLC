@@ -1923,22 +1923,26 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
 </div>
 
 <div class="modal-overlay" id="analyticsOverlay">
-  <div class="modal-card">
-    <div class="modal-head">
+  <div class="modal-card an-card">
+    <div class="modal-head an-head">
       <div>
-        <h3>Sales Team Analytics</h3>
-        <div class="msub">Based on dashboard logins recorded in your Google Sheet</div>
+        <h3>Analytics</h3>
+        <div class="msub" id="anSub">Last 30 days · every action on the dashboard</div>
       </div>
-      <button class="modal-close" id="analyticsClose">×</button>
+      <div class="an-head-r">
+        <div class="an-seg" id="anDays"><button data-d="1">Today</button><button data-d="7">7 days</button><button data-d="30" class="on">30 days</button><button data-d="90">90 days</button></div>
+        <button class="modal-close" id="analyticsClose">×</button>
+      </div>
     </div>
-    <div class="modal-body">
-      <h4 class="analytics-section-head">📦 Inventory Breakdown</h4>
-      <div id="inventoryBody"></div>
-      <h4 class="analytics-section-head">🖱️ What people do <select id="actDays" class="um-role" style="margin-left:10px"><option value="1">Today</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option></select></h4>
-      <div id="activityBody"></div>
-      <h4 class="analytics-section-head">👥 Team Activity</h4>
-      <div id="analyticsBody">
-        <div class="analytics-loading">Loading…</div>
+    <nav class="an-tabs" id="anTabs"><button data-t="overview" class="on">Overview</button><button data-t="people" id="anTabPeople">People</button><button data-t="inventory">Inventory</button></nav>
+    <div class="modal-body an-body">
+      <div id="anOverview"></div>
+      <div id="anPeople" hidden></div>
+      <div id="anInventory" hidden>
+        <h4 class="analytics-section-head">Inventory breakdown</h4>
+        <div id="inventoryBody"></div>
+        <h4 class="analytics-section-head">Sign-ins from the Google Sheet</h4>
+        <div id="analyticsBody"><div class="analytics-loading">Loading…</div></div>
       </div>
     </div>
   </div>
@@ -3247,7 +3251,7 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Open unavailable units'],['can_dl_layout','Download layout (PDF)'],['can_dl_masterplan','Download master plan (PDF)'],['can_dl_colour','Colour, as the CAD file'],['can_dl_black','Black & white'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan'],['can_offer','Client offer (PDF)'],['can_offer_currency','Offer in selected currency'],['can_offer_print','Print client offer']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Open unavailable units'],['can_dl_layout','Download layout (PDF)'],['can_dl_masterplan','Download master plan (PDF)'],['can_dl_colour','Colour, as the CAD file'],['can_dl_black','Black & white'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan'],['can_offer','Client offer (PDF)'],['can_offer_currency','Offer in selected currency'],['can_offer_print','Print client offer'],['can_analytics_people','Analytics per person']];
 // Features listed here stay OFF for a user until an admin ticks them on the Users screen.
 // How the permission switches are grouped on the Users screen
 const FEATURE_GROUPS = [
@@ -3256,7 +3260,7 @@ const FEATURE_GROUPS = [
   ['Unit plans', '🏢', ['can_project_map','can_view_unavailable']],
   ['Download & print', '🖨', ['can_offer','can_offer_print','can_offer_currency','can_dl_layout','can_dl_masterplan','can_print_layout','can_print_masterplan','can_dl_colour','can_dl_black']]
 ];
-const FEATURE_DEFAULT_OFF = ['can_offer_currency','can_offer_print','can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_dl_black','can_print_layout','can_print_masterplan','can_offer'];
+const FEATURE_DEFAULT_OFF = ['can_analytics_people','can_offer_currency','can_offer_print','can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_dl_black','can_print_layout','can_print_masterplan','can_offer'];
 function featureDefault(k){ return !FEATURE_DEFAULT_OFF.includes(k); }
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return k in f ? f[k] !== false : featureDefault(k); }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
@@ -5445,9 +5449,9 @@ document.getElementById('exportPriceListGenBtn').addEventListener('click', async
 
 document.getElementById('adminAnalyticsBtn').addEventListener('click', ()=>{
   analyticsOverlay.classList.add('open');
-  loadActivity(Number(document.getElementById('actDays').value));
-  renderInventoryBreakdown();
-  loadAnalytics();
+  document.getElementById('anTabPeople').hidden = !anCanPeople();
+  AN.who = null; anSetTab(AN.tab === 'people' && !anCanPeople() ? 'overview' : AN.tab);
+  anLoad();
 });
 
 /* ---- Activity tracking: what people do (admins see it in Analytics) ---- */
@@ -5508,7 +5512,254 @@ async function loadActivity(days){
       ${tbl(['Who','What','Detail','When'], (d.recent||[]).map(u=>`<tr><td class="mono">${actEsc(u.username)}</td><td>${actEsc(ACT_LABELS[u.event]||u.event)}</td><td>${actEsc(u.detail)}</td><td>${ago(u.at)}</td></tr>`))}`;
   }catch(e){ box.innerHTML = '<div class="analytics-error">Could not load activity.</div>'; }
 }
-document.getElementById('actDays').addEventListener('change', e=> loadActivity(Number(e.target.value)));
+/* ================= Analytics: team overview + each person on their own ================= */
+const AN = { days:30, tab:'overview', team:null, quiet:[], person:null, who:null, q:'', teamF:'all', sort:'events', seq:0 };
+const AN_CAT = {
+  login:'#8aa0b8', payment_plan:'var(--gold)', pp_download:'#d9a757', offer_download:'#e3c27a', offer_error:'#d97757',
+  unit_layout:'#5fb3a1', unit_location:'#4f9e8f', project_map_open:'#6c8fc7', project_map_unit:'#7d9ed6',
+  shortlist:'#b08bd1', share_unit:'#e08ab0', search:'#9aa3ad', roi_calc:'#c9b26b', hold_click:'#e8a948',
+  export_pricelist:'#7fb7d9', layout_download:'#86c5a8', masterplan_download:'#93a9c9', compare_units:'#b6a07a'
+};
+const anEsc = t => String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const anNum = n => Number(n||0).toLocaleString('en-US');
+const anAgo = t => { if(!t) return 'never'; const m = Math.round((Date.now()-new Date(t))/60000); return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'; };
+const anDay = d => new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const anHue = n => { let h=0; for(const ch of String(n).toLowerCase()) h=(h*31+ch.charCodeAt(0))%360; return h; };
+const anInit = (name) => { const p=String(name||'?').trim().split(/\s+/); return ((p[0]||'?')[0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase(); };
+const anLbl = e => ACT_LABELS[e] || String(e).replace(/_/g,' ');
+const anName = u => { const p = ((AN.team&&AN.team.people)||[]).find(x=>x.username===u); return (p&&p.full_name) || u; };
+const anTeam = t => t==='Alaraby' ? 'Mohamed Alaraby team' : t ? t+' team' : 'No team';
+function anRpc(fn, extra){
+  return fetch(ACT_RPC + fn, { method:'POST', headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY },
+    body: JSON.stringify({ p_user_id: sessionStorage.getItem('castelloUserId') || '', p_days: AN.days, ...(extra||{}) }) }).then(r=>r.json());
+}
+function anCanPeople(){ return isAdminUser() || featureOn('can_analytics_people'); }
+
+/* --- small charts (SVG, theme colours) --- */
+function anFillDays(rows, key){
+  const map = {}; (rows||[]).forEach(r=> map[r.d] = r);
+  const out = []; const end = new Date(); end.setHours(12,0,0,0);
+  const n = Math.max(1, AN.days);
+  for(let i=n-1;i>=0;i--){ const d = new Date(end - i*864e5); const k = d.toISOString().slice(0,10); out.push({ d:k, n:(map[k]||{}).n||0, people:(map[k]||{}).people||0 }); }
+  return out;
+}
+function anArea(rows, withPeople){
+  const W=760, H=190, P=30, data = anFillDays(rows);
+  const max = Math.max(1, ...data.map(r=>r.n)), maxP = Math.max(1, ...data.map(r=>r.people));
+  const step = data.length>1 ? (W-P*2)/(data.length-1) : 0;
+  const x = i => data.length>1 ? P + i*step : W/2, y = v => H-24 - (v/max)*(H-48), yp = v => H-24 - (v/maxP)*(H-48);
+  const pts = data.map((r,i)=>`${x(i).toFixed(1)},${y(r.n).toFixed(1)}`);
+  const area = `M${x(0)},${H-24} L${pts.join(' L')} L${x(data.length-1)},${H-24} Z`;
+  const ticks = [0, .5, 1].map(f=>Math.round(max*f));
+  const every = Math.max(1, Math.ceil(data.length/8));
+  const id = 'ag'+(++AN.seq);
+  const pctX = i => (x(i)/W*100).toFixed(2), pctY = v => (y(v)/H*100).toFixed(2);
+  let li = 0;
+  const lab = data.map((r,i)=> ((i%every===0 && data.length-1-i >= every*0.6) || i===data.length-1) ? `<span class="${(li++%2 && i!==data.length-1)?'o':''}" style="left:${pctX(i)}%">${anDay(r.d)}</span>` : '').join('');
+  return `<div class="an-chart"><div class="an-plot"><svg class="an-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Activity per day">
+    <defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--gold)" stop-opacity=".45"/><stop offset="1" stop-color="var(--gold)" stop-opacity="0"/></linearGradient></defs>
+    ${ticks.map(t=>`<line x1="${P}" x2="${W-P}" y1="${y(t)}" y2="${y(t)}" class="an-grid" vector-effect="non-scaling-stroke"/>`).join('')}
+    <path d="${area}" fill="url(#${id})"/>
+    <polyline points="${pts.join(' ')}" fill="none" stroke="var(--gold)" stroke-width="2.2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    ${withPeople ? `<polyline points="${data.map((r,i)=>`${x(i).toFixed(1)},${yp(r.people).toFixed(1)}`).join(' ')}" fill="none" stroke="var(--stone)" stroke-width="1.4" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>` : ''}
+  </svg>
+  ${data.length<=40 ? data.map((r,i)=>`<i class="an-dot" style="left:${pctX(i)}%;top:${pctY(r.n)}%" title="${anDay(r.d)}: ${r.n} actions${withPeople?', '+r.people+' people':''}"></i>`).join('') : ''}
+  <div class="an-yax">${ticks.map(t=>`<span style="top:${pctY(t)}%">${t}</span>`).join('')}</div><div class="an-xax">${lab}</div></div></div>`;
+}
+function anHours(rows){
+  const m = {}; (rows||[]).forEach(r=> m[r.h]=r.n); const vals = [...Array(24)].map((_,h)=>m[h]||0); const max = Math.max(1,...vals);
+  const peak = vals.indexOf(Math.max(...vals));
+  return `<div class="an-hours">${vals.map((v,h)=>`<div class="an-hr${h===peak&&v?' peak':''}" title="${String(h).padStart(2,'0')}:00 — ${v} actions"><i style="height:${Math.max(3,v/max*100)}%"></i><span>${h%3===0?h:''}</span></div>`).join('')}</div>
+  <div class="an-note">Busiest hour: <b>${vals[peak]?String(peak).padStart(2,'0')+':00–'+String((peak+1)%24).padStart(2,'0')+':00':'—'}</b></div>`;
+}
+function anWeek(rows){
+  const names = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; const m = {}; (rows||[]).forEach(r=> m[r.w]=r.n);
+  const vals = names.map((_,i)=> m[i+1]||0); const max = Math.max(1,...vals);
+  return `<div class="an-week">${vals.map((v,i)=>`<div title="${names[i]}: ${v}"><i style="height:${Math.max(3,v/max*100)}%"></i><b>${v||''}</b><span>${names[i]}</span></div>`).join('')}</div>`;
+}
+function anBars(list, opts){
+  const max = Math.max(1, ...list.map(x=>x.n)); const total = list.reduce((a,b)=>a+b.n,0) || 1;
+  return `<div class="an-bars">${list.map(x=>`<div class="an-bar${x.click?' click':''}" ${x.click?`data-person="${anEsc(x.click)}"`:''}>
+    <span class="an-bl">${x.dot?`<em style="background:${x.dot}"></em>`:''}${anEsc(x.label)}</span>
+    <span class="an-bt"><i style="width:${(x.n/max*100).toFixed(1)}%;${x.dot?`background:${x.dot}`:''}"></i></span>
+    <b>${anNum(x.n)}</b>${opts&&opts.pct?`<small>${Math.round(x.n/total*100)}%</small>`:''}</div>`).join('') || '<div class="an-empty">Nothing yet</div>'}</div>`;
+}
+function anSpark(arr){
+  const map = {}; (arr||[]).forEach(r=> map[r.d]=r.c);
+  const vals = []; const end = new Date(); end.setHours(12,0,0,0);
+  for(let i=13;i>=0;i--){ vals.push(map[new Date(end - i*864e5).toISOString().slice(0,10)]||0); }
+  const max = Math.max(1,...vals), W=120, H=30;
+  const pts = vals.map((v,i)=>`${(i*W/13).toFixed(1)},${(H-2-(v/max)*(H-4)).toFixed(1)}`).join(' ');
+  return `<svg class="an-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="0,${H} ${pts} ${W},${H}" fill="color-mix(in srgb, var(--gold) 16%, transparent)" stroke="none"/><polyline points="${pts}" fill="none" stroke="var(--gold)" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function anKpis(items){ return `<div class="an-kpis">${items.map(k=>`<div class="an-kpi"><span>${k[0]}</span><b>${k[1]}</b>${k[2]?`<small>${k[2]}</small>`:''}</div>`).join('')}</div>`; }
+const anCard = (title, body, cls, extra) => `<section class="an-box ${cls||''}"><header><h5>${title}</h5>${extra||''}</header>${body}</section>`;
+function anUnitSplit(detail){ const i = String(detail).lastIndexOf(' — '); return i<0 ? [detail,''] : [detail.slice(0,i), detail.slice(i+3)]; }
+function anAvatar(name, user, big){ return `<span class="an-av${big?' big':''}" style="--h:${anHue(user||name)}">${anEsc(anInit(name||user))}</span>`; }
+
+/* --- Overview --- */
+function anRenderOverview(){
+  const el = document.getElementById('anOverview'); const d = AN.team;
+  if(!d){ el.innerHTML = '<div class="analytics-loading">Loading…</div>'; return; }
+  if(d.error){ el.innerHTML = `<div class="analytics-error">${d.error==='forbidden' ? 'Analytics per person is not turned on for your account. Ask an admin to tick “Analytics per person” in Users.' : 'Analytics are not available yet. Run castello_analytics_v2.sql in Supabase.'}</div>`; return; }
+  const t = d.totals || {}; const people = d.people || [];
+  const activeDays = (d.daily||[]).length || 1;
+    el.innerHTML = anKpis([
+    ['Active people', anNum(t.people), `${AN.quiet.length} quiet`],
+    ['Sign-ins', anNum(t.logins), `${(t.logins/activeDays).toFixed(1)} a day`],
+    ['Payment plans', anNum(t.plans), 'opened'],
+    ['Offers & plan PDFs', anNum(t.offers), t.plans ? `${(t.offers/t.plans).toFixed(1)} per payment plan` : ''],
+    ['Unit views', anNum(t.views), 'layouts, locations, map'],
+    ['Units shared', anNum(t.shares), `${anNum(t.holds)} hold clicks`],
+  ]) + `<div class="an-grid g-21">
+    ${anCard('Activity over time', anArea(d.daily, true) + '<div class="an-legend"><span><em class="ln"></em>Actions</span><span><em class="ln dash"></em>People active</span></div>')}
+    ${anCard('When the team works', anHours(d.hours))}
+  </div>
+  <div class="an-grid g-11">
+    ${anCard('What the team does', anBars((d.events||[]).filter(e=>e.event!=='offer_error').slice(0,10).map(e=>({label:anLbl(e.event), n:e.n, dot:AN_CAT[e.event]||'var(--stone)'})), {pct:true}))}
+    ${anCard('Interest by project', anBars((d.projects||[]).map(p=>({label:p.p, n:p.n})), {pct:true}))}
+  </div>
+  <div class="an-grid g-21">
+    ${anCard('Most-worked units', `<div class="an-tbl"><table><thead><tr><th>Unit</th><th>Project</th><th>Actions</th><th>People</th></tr></thead><tbody>${(d.units||[]).map(u=>{ const [p,n] = anUnitSplit(u.detail); return `<tr><td class="an-strong">${anEsc(n)}</td><td>${anEsc(p)}</td><td>${anNum(u.n)}</td><td>${u.people}</td></tr>`; }).join('') || '<tr><td colspan="4" class="an-empty">Nothing yet</td></tr>'}</tbody></table></div>`)}
+    ${anCard('Top performers', `<div class="an-lead">${people.slice(0,6).map((p,i)=>`<button class="an-lead-row" data-person="${anEsc(p.username)}"><span class="an-rank">${i+1}</span>${anAvatar(p.full_name,p.username)}<span class="an-ln"><b>${anEsc(p.full_name||p.username)}</b><small>${p.plans} plans · ${p.offers} offers · ${p.active_days} days</small></span><span class="an-lv">${anNum(p.events)}</span></button>`).join('') || '<div class="an-empty">Nothing yet</div>'}</div>` + (anCanPeople() ? '<button class="an-link" data-tab="people">See everyone →</button>' : ''))}
+  </div>
+  <div class="an-grid g-12">
+    ${anCard('Top searches', `<div class="an-chips">${(d.searches||[]).map(s=>`<span>${anEsc(s.detail)} <b>${s.n}</b></span>`).join('') || '<div class="an-empty">No searches yet</div>'}</div>`)}
+    ${anCard('Latest activity', anFeed(d.recent||[], true), 'an-feed-box')}
+  </div>`;
+}
+function anFeed(rows, withWho){
+  let last = '';
+  return `<div class="an-feed">${rows.map(r=>{
+    const day = new Date(r.at).toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'short'});
+    const head = day!==last ? `<div class="an-fday">${day}</div>` : ''; last = day;
+    return head + `<div class="an-fi"><em style="background:${AN_CAT[r.event]||'var(--stone)'}"></em><span class="an-ft">${new Date(r.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span><span class="an-fx">${withWho?`<b class="an-who" data-person="${anEsc(r.username)}">${anEsc(anName(r.username))}</b> `:''}${anEsc(anLbl(r.event))}${r.detail?` <small>${anEsc(r.detail)}</small>`:''}</span></div>`;
+  }).join('') || '<div class="an-empty">Nothing yet</div>'}</div>`;
+}
+
+/* --- People --- */
+function anRenderPeople(){
+  const el = document.getElementById('anPeople');
+  if(AN.who){ return anRenderPerson(); }
+  const d = AN.team; if(!d || d.error){ el.innerHTML = '<div class="analytics-loading">Loading…</div>'; if(d&&d.error) anRenderOverview(); return; }
+  let list = (d.people||[]).slice();
+  const q = AN.q.toLowerCase();
+  if(q) list = list.filter(p=> (p.username+' '+(p.full_name||'')).toLowerCase().includes(q));
+  if(AN.teamF!=='all') list = list.filter(p=> (p.team||'none')===AN.teamF);
+  const s = AN.sort;
+  list.sort((a,b)=> s==='name' ? String(a.full_name||a.username).localeCompare(b.full_name||b.username) : s==='last' ? new Date(b.last_active)-new Date(a.last_active) : (b[s]||0)-(a[s]||0));
+  const teams = [...new Set((d.people||[]).map(p=>p.team||'none'))];
+  const maxE = Math.max(1, ...(d.people||[]).map(p=>p.events));
+  el.innerHTML = `<div class="an-ptools">
+      <label class="an-search"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="anQ" placeholder="Find a person…" value="${anEsc(AN.q)}"></label>
+      <select id="anTeamF"><option value="all">All teams</option>${teams.map(t=>`<option value="${anEsc(t)}" ${AN.teamF===t?'selected':''}>${anEsc(t==='none'?'No team':anTeam(t))}</option>`).join('')}</select>
+      <select id="anSort">${[['events','Most active'],['plans','Payment plans'],['offers','Offers'],['views','Unit views'],['shares','Shares'],['active_days','Active days'],['last','Last active'],['name','Name']].map(([k,l])=>`<option value="${k}" ${AN.sort===k?'selected':''}>${l}</option>`).join('')}</select>
+      <span class="an-count">${list.length} active · ${AN.quiet.length} quiet</span>
+    </div>
+    <div class="an-people">${list.map(p=>`<button class="an-pc" data-person="${anEsc(p.username)}">
+        <div class="an-pc-top">${anAvatar(p.full_name,p.username)}<span class="an-pn"><b>${anEsc(p.full_name||p.username)}</b><small>@${anEsc(p.username)} · ${anEsc(anTeam(p.team))}</small></span><span class="an-pl">${anAgo(p.last_active)}</span></div>
+        <div class="an-pc-spark">${anSpark(p.spark14)}<span>last 14 days</span></div>
+        <div class="an-pc-meter"><i style="width:${(p.events/maxE*100).toFixed(1)}%"></i></div>
+        <div class="an-pc-stats"><span><b>${anNum(p.events)}</b>actions</span><span><b>${p.active_days}</b>days</span><span><b>${p.plans}</b>plans</span><span><b>${p.offers}</b>offers</span><span><b>${p.views}</b>views</span><span><b>${p.shares}</b>shares</span></div>
+      </button>`).join('') || '<div class="an-empty">Nobody matches.</div>'}</div>
+    ${AN.quiet.length ? `<h5 class="an-sub">No activity in this period</h5><div class="an-quiet">${AN.quiet.map(u=>`<button class="an-qc" data-person="${anEsc(u.username)}">${anAvatar(u.full_name,u.username)}<span><b>${anEsc(u.full_name||u.username)}</b><small>${u.last_active?'last seen '+anAgo(u.last_active):'never signed in'}</small></span></button>`).join('')}</div>` : ''}`;
+  const qi = document.getElementById('anQ');
+  qi.addEventListener('input', e=>{ AN.q = e.target.value; const pos = e.target.selectionStart; anRenderPeople(); const n = document.getElementById('anQ'); n.focus(); n.setSelectionRange(pos,pos); });
+  document.getElementById('anTeamF').addEventListener('change', e=>{ AN.teamF = e.target.value; anRenderPeople(); });
+  document.getElementById('anSort').addEventListener('change', e=>{ AN.sort = e.target.value; anRenderPeople(); });
+}
+async function anOpenPerson(username){
+  if(!anCanPeople()) return;
+  AN.who = username; AN.person = null; anSetTab('people');
+  try{ AN.person = await anRpc('analytics_person', { p_username: username }); }catch(e){ AN.person = { error:'load' }; }
+  if(AN.who === username) anRenderPerson();
+}
+function anRenderPerson(){
+  const el = document.getElementById('anPeople'); const d = AN.person;
+  const back = `<button class="an-back" id="anBack">← All people</button>`;
+  if(!d){ el.innerHTML = back + '<div class="analytics-loading">Loading…</div>'; anBindBack(); return; }
+  if(d.error){ el.innerHTML = back + '<div class="analytics-error">Could not load this person.</div>'; anBindBack(); return; }
+  const u = d.user || { username: AN.who };
+  const ev = {}; (d.events||[]).forEach(e=> ev[e.event] = e.n);
+  const total = (d.events||[]).reduce((a,b)=>a+b.n,0);
+  const days = (d.daily||[]).length;
+  const people = (AN.team && AN.team.people) || [];
+  const rank = people.findIndex(p=>p.username===u.username) + 1;
+  const offers = (ev.offer_download||0) + (ev.pp_download||0), plans = ev.payment_plan||0;
+  const views = (ev.unit_layout||0)+(ev.unit_location||0)+(ev.project_map_unit||0);
+  const res = d.reservations || [];
+  const topProj = (d.projects||[])[0];
+  el.innerHTML = back + `<div class="an-phead">
+      ${anAvatar(u.full_name,u.username,true)}
+      <div class="an-pid"><h4>${anEsc(u.full_name||u.username)}</h4>
+        <div>@${anEsc(u.username)} · ${anEsc(anTeam(u.team))}${u.title?' · '+anEsc(u.title):''} · ${anEsc(u.role||'')}${u.is_active===false?' · <span class="an-bad">suspended</span>':''}</div>
+        <div class="an-pmeta"><span>Last seen <b>${anAgo(d.last_seen)}</b></span><span>First seen <b>${d.first_seen?new Date(d.first_seen).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</b></span>${rank?`<span>Rank <b>#${rank} of ${people.length}</b> most active</span>`:''}${topProj?`<span>Focus <b>${anEsc(topProj.p)}</b></span>`:''}</div>
+      </div>
+    </div>` + anKpis([
+      ['Actions', anNum(total), days ? (total/days).toFixed(1)+' per active day' : ''],
+      ['Active days', days, `of ${AN.days}`],
+      ['Sign-ins', anNum(ev.login||0), ''],
+      ['Payment plans', anNum(plans), ''],
+      ['Offers & PDFs', anNum(offers), plans?(offers/plans).toFixed(1)+' per payment plan':''],
+      ['Unit views', anNum(views), ''],
+      ['Shares', anNum(ev.share_unit||0), `${anNum(ev.shortlist||0)} shortlisted`],
+      ['Holds', anNum((d.holds||{}).total||0), `${(d.holds||{}).active||0} active now`],
+      ['Reservations', anNum(res.length), 'on the sheet'],
+    ]) + `<div class="an-grid g-21">
+      ${anCard('Activity per day', anArea(d.daily, false))}
+      ${anCard('Hours of the day', anHours(d.hours))}
+    </div>
+    <div class="an-grid g-111">
+      ${anCard('What they do', anBars((d.events||[]).filter(e=>e.event!=='offer_error').slice(0,9).map(e=>({label:anLbl(e.event), n:e.n, dot:AN_CAT[e.event]||'var(--stone)'})), {pct:true}))}
+      ${anCard('Projects they focus on', anBars((d.projects||[]).map(p=>({label:p.p, n:p.n})), {pct:true}))}
+      ${anCard('Days of the week', anWeek(d.weekdays))}
+    </div>
+    <div class="an-grid g-21">
+      ${anCard('Units they worked on', `<div class="an-tbl"><table><thead><tr><th>Unit</th><th>Project</th><th>Plans</th><th>Offers</th><th>Views</th><th>Shares</th><th>Last</th></tr></thead><tbody>${(d.units||[]).map(x=>{ const [p,n] = anUnitSplit(x.detail); return `<tr><td class="an-strong">${anEsc(n)}</td><td>${anEsc(p)}</td><td>${x.plans||''}</td><td>${x.offers||''}</td><td>${x.views||''}</td><td>${x.shares||''}</td><td>${anAgo(x.last)}</td></tr>`; }).join('') || '<tr><td colspan="7" class="an-empty">Nothing yet</td></tr>'}</tbody></table></div>`)}
+      ${anCard('Searches', `<div class="an-chips">${(d.searches||[]).map(s=>`<span>${anEsc(s.detail)} <b>${s.n}</b></span>`).join('') || '<div class="an-empty">No searches</div>'}</div>`)}
+    </div>
+    <div class="an-grid g-12">
+      ${anCard('Reservations', `<div class="an-tbl"><table><thead><tr><th>Project</th><th>Unit</th><th>Date</th><th>Channel</th></tr></thead><tbody>${res.map(r=>`<tr><td>${anEsc(r.project_key)}</td><td class="an-strong">${anEsc(r.unit_no)}</td><td>${anEsc(r.reservation_date||'')}</td><td>${anEsc(r.channel||'')}</td></tr>`).join('') || '<tr><td colspan="4" class="an-empty">No reservations under this name</td></tr>'}</tbody></table></div>`)}
+      ${anCard('Timeline', anFeed(d.recent||[], false), 'an-feed-box')}
+    </div>`;
+  anBindBack();
+}
+function anBindBack(){ const b = document.getElementById('anBack'); if(b) b.addEventListener('click', ()=>{ AN.who = null; AN.person = null; anRenderPeople(); document.querySelector('#analyticsOverlay .an-body').scrollTop = 0; }); }
+
+/* --- shell --- */
+function anSetTab(t){
+  AN.tab = t;
+  document.querySelectorAll('#anTabs button').forEach(b=> b.classList.toggle('on', b.dataset.t===t));
+  ['overview','people','inventory'].forEach(k=> document.getElementById('an'+k[0].toUpperCase()+k.slice(1)).hidden = (k!==t));
+  if(t==='people') anRenderPeople();
+  if(t==='inventory'){ renderInventoryBreakdown(); loadAnalytics(); }
+  const body = document.querySelector('#analyticsOverlay .an-body'); if(body) body.scrollTop = 0;
+}
+async function anLoad(){
+  AN.team = null; anRenderOverview();
+  const sub = document.getElementById('anSub');
+  if(sub) sub.textContent = AN.days===1 ? 'Today' : `Last ${AN.days} days · every action on the dashboard`;
+  try{
+    const [team, quiet] = await Promise.all([anRpc('analytics_team'), anRpc('analytics_quiet').catch(()=>[])]);
+    AN.team = team; AN.quiet = Array.isArray(quiet) ? quiet : [];
+  }catch(e){ AN.team = { error:'load' }; }
+  anRenderOverview();
+  if(AN.tab==='people'){ if(AN.who) anOpenPerson(AN.who); else anRenderPeople(); }
+}
+document.getElementById('anTabs').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-t]'); if(!b) return;
+  if(b.dataset.t==='people'){ AN.who = null; }
+  anSetTab(b.dataset.t);
+});
+document.getElementById('anDays').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-d]'); if(!b) return;
+  document.querySelectorAll('#anDays button').forEach(x=> x.classList.toggle('on', x===b));
+  AN.days = Number(b.dataset.d); anLoad();
+});
+document.getElementById('analyticsOverlay').addEventListener('click', e=>{
+  const p = e.target.closest('[data-person]'); if(p && anCanPeople()){ anOpenPerson(p.dataset.person); return; }
+  const l = e.target.closest('[data-tab]'); if(l) anSetTab(l.dataset.tab);
+});
 
 const MANAGE_USERS_FUNCTION_URL = 'https://nzojoticksiiidvzmlvx.supabase.co/functions/v1/manage-users';
 const usersOverlay = document.getElementById('usersOverlay');
@@ -7430,6 +7681,145 @@ html[data-theme]{ --rowbg0:var(--surface); --rowline0:var(--line-soft); --rowbgH
   --mcard:var(--surface); --mcard2:var(--surface); --mline:var(--line); --mdiv:var(--line-soft); --mlabel:var(--stone); --mtext:var(--cream); --mheldline:color-mix(in srgb, var(--gold) 60%, var(--line)); --mheld1:color-mix(in srgb, var(--gold) 10%, var(--surface)); --mheld2:var(--surface); --mshadow:0 8px 22px rgba(0,0,0,.10); }
 html[data-theme="gold-atelier"]{ --rowbg0:#121115; --rowline0:#211f1b; --rowbgH:#1a1814; --rowlineH:#4a412f; --rowbgK:#1b1811; --rowlineK:#5a4c2e; --tdtext:#ddd6c8;
   --mcard:#16151a; --mcard2:#121115; --mline:#2b2822; --mdiv:#24221d; --mlabel:#8d877b; --mtext:#e6dfd0; --mheldline:#6b5a35; --mheld1:#1d1a12; --mheld2:#141217; --mshadow:0 10px 24px rgba(0,0,0,.35); }
+/* ================= Analytics window ================= */
+.modal-card.an-card{ max-width:1240px; }
+.an-head{ align-items:center !important; gap:16px; flex-wrap:wrap; }
+.an-head-r{ display:flex; align-items:center; gap:12px; margin-left:auto; }
+.an-seg{ display:inline-flex; padding:3px; border:1px solid var(--line); border-radius:999px; background:var(--bg); }
+.an-seg button{ border:0; background:transparent; color:var(--stone); font:inherit; font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:999px; cursor:pointer; }
+.an-seg button.on{ background:var(--gold); color:var(--bg); }
+.an-tabs{ display:flex; gap:4px; padding:0 30px; border-bottom:1px solid var(--line-soft); }
+.an-tabs button{ border:0; background:transparent; color:var(--stone); font:inherit; font-size:14px; font-weight:600; padding:13px 14px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.an-tabs button.on{ color:var(--cream); border-bottom-color:var(--gold); }
+.an-tabs button:hover{ color:var(--cream); }
+.an-body{ padding:22px 30px 34px !important; }
+.an-kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:10px; margin-bottom:14px; }
+.an-kpi{ border:1px solid var(--line-soft); background:var(--bg); border-radius:16px; padding:14px 16px; display:flex; flex-direction:column; gap:3px; min-width:0; }
+.an-kpi span{ font-size:12px; color:var(--stone); }
+.an-kpi b{ font-size:27px; font-weight:600; color:var(--cream); line-height:1.1; font-variant-numeric:lining-nums tabular-nums; }
+.an-kpi small{ font-size:11.5px; color:var(--gold); }
+.an-grid{ display:grid; gap:12px; margin-bottom:12px; }
+.an-grid.g-21{ grid-template-columns:minmax(0,2fr) minmax(0,1fr); }
+.an-grid.g-12{ grid-template-columns:minmax(0,1fr) minmax(0,2fr); }
+.an-grid.g-11{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.an-grid.g-111{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+.an-box{ border:1px solid var(--line-soft); background:var(--bg); border-radius:18px; padding:16px 18px; min-width:0; }
+.an-box header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.an-box h5{ margin:0; font-size:14px; font-weight:600; color:var(--cream); letter-spacing:0; font-family:inherit !important; }
+.an-chart{ padding:0 0 22px 8px; }
+.an-plot{ position:relative; }
+.an-svg{ width:100%; height:190px; display:block; overflow:visible; }
+.an-dot{ position:absolute; width:7px; height:7px; border-radius:50%; background:var(--gold-bright); transform:translate(-50%,-50%); margin-left:0; }
+.an-chart .an-dot{ margin-left:0; }
+.an-yax span{ position:absolute; left:-6px; width:24px; text-align:right; transform:translateY(-50%); font-size:10.5px; color:var(--stone); }
+.an-xax{ position:absolute; left:0; right:0; top:100%; height:16px; margin-top:4px; }
+.an-xax span{ position:absolute; transform:translateX(-50%); font-size:10.5px; color:var(--stone); white-space:nowrap; }
+.an-grid line.an-grid,.an-svg .an-grid{ stroke:var(--line-soft); stroke-width:1; }
+.an-ax{ fill:var(--stone); font-size:10.5px; }
+.an-legend{ display:flex; gap:16px; font-size:12px; color:var(--stone); margin-top:6px; }
+.an-legend em{ display:inline-block; width:18px; height:0; border-top:2px solid var(--gold); vertical-align:middle; margin-right:6px; }
+.an-legend em.dash{ border-top:1.5px dashed var(--stone); }
+.an-hours{ display:grid; grid-template-columns:repeat(24,1fr); gap:3px; height:150px; align-items:end; }
+.an-hr{ display:flex; flex-direction:column; justify-content:flex-end; height:100%; }
+.an-hr i{ display:block; border-radius:4px 4px 2px 2px; background:color-mix(in srgb, var(--gold) 45%, transparent); min-height:3px; }
+.an-hr.peak i{ background:var(--gold); }
+.an-hr span{ font-size:10px; color:var(--stone); text-align:center; height:14px; margin-top:4px; }
+.an-note{ font-size:12.5px; color:var(--stone); margin-top:10px; }
+.an-note b{ color:var(--cream); }
+.an-week{ display:grid; grid-template-columns:repeat(7,1fr); gap:8px; height:170px; align-items:end; }
+.an-week > div{ display:flex; flex-direction:column; justify-content:flex-end; height:100%; text-align:center; }
+.an-week i{ display:block; border-radius:8px 8px 3px 3px; background:color-mix(in srgb, var(--gold) 55%, transparent); }
+.an-week b{ font-size:11.5px; color:var(--cream); margin-top:4px; }
+.an-week span{ font-size:11px; color:var(--stone); }
+.an-bars{ display:flex; flex-direction:column; gap:9px; }
+.an-bar{ display:grid; grid-template-columns:minmax(0,172px) minmax(0,1fr) 46px 36px; align-items:center; gap:10px; font-size:13px; }
+.an-bl{ color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.an-bl em{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align:middle; }
+.an-bt{ height:8px; border-radius:99px; background:var(--line-soft); overflow:hidden; }
+.an-bt i{ display:block; height:100%; border-radius:99px; background:var(--gold); }
+.an-bar b{ text-align:right; color:var(--cream); font-weight:600; font-variant-numeric:tabular-nums; }
+.an-bar small{ text-align:right; color:var(--stone); font-size:11.5px; }
+.an-tbl{ overflow:auto; max-height:380px; }
+.an-tbl table{ width:100%; border-collapse:collapse; font-size:13px; }
+.an-tbl th{ text-align:left; font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--stone); padding:8px 10px; border-bottom:1px solid var(--line-soft); position:sticky; top:0; background:var(--bg); }
+.an-tbl td{ padding:9px 10px; border-bottom:1px solid var(--line-soft); color:var(--cream); white-space:nowrap; }
+.an-tbl td.an-strong{ font-weight:600; color:var(--gold-bright); }
+.an-tbl tr:last-child td{ border-bottom:0; }
+.an-empty{ color:var(--stone); font-size:13px; padding:10px 0; text-align:center; }
+.an-lead{ display:flex; flex-direction:column; gap:4px; }
+.an-lead-row{ display:flex; align-items:center; gap:10px; border:0; background:transparent; padding:8px; border-radius:12px; cursor:pointer; text-align:left; color:inherit; font:inherit; }
+.an-lead-row:hover{ background:color-mix(in srgb, var(--gold) 8%, transparent); }
+.an-rank{ width:20px; font-size:13px; font-weight:700; color:var(--gold); text-align:center; }
+.an-ln{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.an-ln b{ font-size:14px; color:var(--cream); font-weight:600; }
+.an-ln small{ font-size:12px; color:var(--stone); }
+.an-lv{ font-size:15px; font-weight:700; color:var(--gold-bright); }
+.an-link{ margin-top:10px; border:0; background:transparent; color:var(--gold); font:inherit; font-size:13px; font-weight:600; cursor:pointer; padding:4px 8px; }
+.an-av{ --h:40; flex:none; width:36px; height:36px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; background:linear-gradient(135deg, hsl(var(--h) 45% 48%), hsl(calc(var(--h) + 40) 45% 34%)); }
+.an-av.big{ width:68px; height:68px; font-size:24px; }
+.an-chips{ display:flex; flex-wrap:wrap; gap:7px; }
+.an-chips span{ font-size:13px; color:var(--cream); border:1px solid var(--line); border-radius:999px; padding:6px 12px; }
+.an-chips b{ color:var(--gold); margin-left:4px; }
+.an-feed{ max-height:360px; overflow:auto; display:flex; flex-direction:column; }
+.an-fday{ font-size:11.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--gold); padding:10px 0 4px; position:sticky; top:0; background:var(--bg); }
+.an-fi{ display:grid; grid-template-columns:10px 44px 1fr; gap:10px; align-items:baseline; padding:6px 0; border-bottom:1px solid var(--line-soft); font-size:13px; }
+.an-fi em{ width:8px; height:8px; border-radius:50%; align-self:center; }
+.an-ft{ color:var(--stone); font-variant-numeric:tabular-nums; }
+.an-fx{ color:var(--cream); min-width:0; }
+.an-fx small{ color:var(--stone); font-size:12px; }
+.an-who{ color:var(--gold-bright); cursor:pointer; font-weight:600; }
+.an-ptools{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+.an-search{ flex:1 1 240px; display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:12px; padding:0 12px; height:40px; color:var(--stone); background:var(--bg); }
+.an-search input{ flex:1; border:0; outline:0; background:transparent; color:var(--cream); font:inherit; font-size:14px; }
+.an-ptools select{ height:40px; border:1px solid var(--line); border-radius:12px; background:var(--bg); color:var(--cream); font:inherit; font-size:13.5px; padding:0 12px; }
+.an-count{ font-size:13px; color:var(--stone); margin-left:auto; }
+.an-people{ display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:12px; }
+.an-pc{ text-align:left; border:1px solid var(--line-soft); background:var(--bg); border-radius:18px; padding:16px; cursor:pointer; color:inherit; font:inherit; display:flex; flex-direction:column; gap:12px; transition:border-color .2s, transform .2s; }
+.an-pc:hover{ border-color:var(--gold); transform:translateY(-2px); }
+.an-pc-top{ display:flex; align-items:center; gap:10px; }
+.an-pn{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.an-pn b{ font-size:15px; color:var(--cream); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.an-pn small{ font-size:12px; color:var(--stone); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.an-pl{ font-size:11.5px; color:var(--stone); white-space:nowrap; }
+.an-pc-spark{ display:flex; align-items:end; gap:8px; }
+.an-spark{ width:100%; height:34px; }
+.an-pc-spark span{ font-size:10.5px; color:var(--stone); white-space:nowrap; }
+.an-pc-meter{ height:4px; border-radius:99px; background:var(--line-soft); overflow:hidden; }
+.an-pc-meter i{ display:block; height:100%; background:var(--gold); border-radius:99px; }
+.an-pc-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px 6px; }
+.an-pc-stats span{ font-size:11.5px; color:var(--stone); display:flex; flex-direction:column; }
+.an-pc-stats b{ font-size:16px; color:var(--cream); font-weight:600; font-variant-numeric:tabular-nums; }
+.an-sub{ margin:24px 0 10px; font-size:13px; font-weight:600; color:var(--stone); font-family:inherit !important; }
+.an-quiet{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px; }
+.an-qc{ display:flex; align-items:center; gap:10px; border:1px dashed var(--line); border-radius:14px; padding:10px 12px; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; opacity:.85; }
+.an-qc span{ display:flex; flex-direction:column; min-width:0; }
+.an-qc b{ font-size:13.5px; color:var(--cream); font-weight:600; }
+.an-qc small{ font-size:11.5px; color:var(--stone); }
+.an-back{ border:1px solid var(--line); background:transparent; color:var(--cream); font:inherit; font-size:13px; font-weight:600; border-radius:999px; padding:8px 14px; cursor:pointer; margin-bottom:16px; }
+.an-back:hover{ border-color:var(--gold); color:var(--gold-bright); }
+.an-phead{ display:flex; align-items:center; gap:18px; margin-bottom:18px; padding:20px; border-radius:20px; border:1px solid var(--line-soft); background:linear-gradient(120deg, color-mix(in srgb, var(--gold) 12%, var(--bg)), var(--bg) 60%); }
+.an-pid h4{ margin:0 0 4px; font-size:26px; color:var(--cream); font-weight:500; }
+.an-pid > div{ font-size:13px; color:var(--stone); }
+.an-pmeta{ display:flex; flex-wrap:wrap; gap:6px 18px; margin-top:10px; }
+.an-pmeta b{ color:var(--cream); font-weight:600; }
+.an-bad{ color:#e08a8a; }
+@media (max-width:1000px){ .an-grid.g-21,.an-grid.g-12,.an-grid.g-11,.an-grid.g-111{ grid-template-columns:minmax(0,1fr); } }
+@media (max-width:760px){
+  .an-head-r{ width:100%; justify-content:space-between; margin-left:0; }
+  .an-seg button{ padding:7px 10px; font-size:12px; }
+  .an-tabs{ padding:0 12px; overflow-x:auto; }
+  .an-body{ padding:16px 14px 40px !important; }
+  .an-kpis{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .an-kpi b{ font-size:22px; }
+  .an-bar{ grid-template-columns:minmax(0,110px) minmax(0,1fr) 40px 32px; font-size:12.5px; }
+  .an-phead{ flex-direction:column; align-items:flex-start; padding:16px; }
+  .an-svg{ height:160px; }
+  .an-xax span.o{ display:none; }
+  .an-dot{ width:5px; height:5px; }
+  .an-week{ height:130px; }
+  .an-hours{ height:120px; }
+}
+
 /* ================= Refined price list: dropdown filters, active-filter tags, hold banner, slim rows ================= */
 .fdd{ position:relative; }
 .fdd-btn{ display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 14px; border-radius:12px; border:1px solid var(--line-soft); background:var(--surface); color:var(--cream); font:500 13.5px var(--font-body,'Inter'),sans-serif; cursor:pointer; white-space:nowrap; }
