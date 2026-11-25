@@ -2093,18 +2093,25 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a39a8a" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       <input type="text" id="searchInput" placeholder="Search unit no., section, floor…">
     </div>
-    <div class="chipset" id="typeChips"></div>
+    <div class="fdd" id="typeDd">
+      <button class="fdd-btn" type="button" aria-haspopup="true" aria-expanded="false">Type<b class="fdd-val" id="typeDdVal"></b><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="fdd-pop" hidden><div class="chipset" id="typeChips"></div></div>
+    </div>
     <div class="selectbox">
       <select id="viewSelect"><option value="">All Views</option></select>
     </div>
-    <div class="rangebox">
-      <span>EGP</span>
-      <input type="text" id="minPrice" placeholder="Min">
-      <span>–</span>
-      <input type="text" id="maxPrice" placeholder="Max">
+    <div class="fdd" id="priceDd">
+      <button class="fdd-btn" type="button" aria-haspopup="true" aria-expanded="false">Price<b class="fdd-val" id="priceDdVal"></b><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="fdd-pop" hidden>
+        <div class="rangebox">
+          <span>EGP</span>
+          <input type="text" id="minPrice" placeholder="Min" aria-label="Minimum price">
+          <span>–</span>
+          <input type="text" id="maxPrice" placeholder="Max" aria-label="Maximum price">
+        </div>
+      </div>
     </div>
-    <button class="reset-btn" id="resetBtn">Reset filters</button>
-    <button class="reset-btn" id="saveFilterBtn" style="display:none;">💾 Save filter</button>
+    <span class="fbar-sp"></span>
     <div class="currency-toggle">
       <button class="cur-btn active" id="curEGP">EGP</button>
       <button class="cur-btn" id="curUSD">USD</button>
@@ -2116,6 +2123,7 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
 </div>
 
 <div class="wrap">
+  <div class="active-filters" id="activeFilters"><span id="afTags"></span><button class="af-link" id="resetBtn" type="button">Clear all</button><button class="af-link gold" id="saveFilterBtn" type="button" style="display:none;">Save this filter</button></div>
   <div class="saved-filters" id="savedFilters" style="display:none;"></div>
   <div class="results-meta">
     <div class="count"><b id="resCount">0</b> units matching</div>
@@ -2890,6 +2898,70 @@ document.getElementById('resetBtn').addEventListener('click', ()=>{
   render();
 });
 
+
+// ---------- filter dropdowns (Type, Price) and the row of active filters ----------
+function renderActiveFilters(){
+  const esc = t => String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const types = [...state.types];
+  document.getElementById('typeDdVal').textContent = types.length ? (types.length === 1 ? types[0] : types.length + ' types') : '';
+  const mn = state.min ? fmtM(Number(state.min)) : '', mx = state.max ? fmtM(Number(state.max)) : '';
+  document.getElementById('priceDdVal').textContent = (mn || mx) ? (mn && mx ? `${mn}–${mx}` : mn ? `from ${mn}` : `up to ${mx}`) : '';
+  const X = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  const tags = [];
+  types.forEach(t=> tags.push(`<span class="af-tag">${esc(t)}<button type="button" data-af="type" data-v="${esc(t)}" aria-label="Remove ${esc(t)}">${X}</button></span>`));
+  if(state.view) tags.push(`<span class="af-tag">${esc(state.view)}<button type="button" data-af="view" aria-label="Remove view filter">${X}</button></span>`);
+  if(mn || mx) tags.push(`<span class="af-tag">${esc(document.getElementById('priceDdVal').textContent)} EGP<button type="button" data-af="price" aria-label="Remove price filter">${X}</button></span>`);
+  if(state.search) tags.push(`<span class="af-tag">“${esc(state.search)}”<button type="button" data-af="search" aria-label="Clear search">${X}</button></span>`);
+  const allProj = state.projects.size === PROJECTS.length;
+  if(!allProj) PROJECTS.filter(p=> state.projects.has(p.key)).forEach(p=> tags.push(`<span class="af-tag">${esc(p.project)}${p.subtitle ? ' · ' + esc(p.subtitle) : ''}<button type="button" data-af="proj" data-v="${esc(p.key)}" aria-label="Remove project filter">${X}</button></span>`));
+  document.getElementById('afTags').innerHTML = tags.join('');
+  document.getElementById('activeFilters').classList.toggle('on', tags.length > 0);
+}
+document.getElementById('afTags').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-af]'); if(!b) return;
+  const k = b.dataset.af;
+  if(k === 'type'){ state.types.delete(b.dataset.v); typeChips.querySelectorAll('.chip').forEach(c=>{ if(c.dataset.type === b.dataset.v || c.textContent.trim() === b.dataset.v) c.classList.remove('active'); }); }
+  if(k === 'view'){ state.view = ''; viewSelect.value = ''; }
+  if(k === 'price'){ state.min = ''; state.max = ''; document.getElementById('minPrice').value = ''; document.getElementById('maxPrice').value = ''; }
+  if(k === 'search'){ state.search = ''; document.getElementById('searchInput').value = ''; }
+  if(k === 'proj'){ state.projects.delete(b.dataset.v); if(!state.projects.size) PROJECTS.forEach(p=> state.projects.add(p.key)); sealRow.querySelectorAll('.seal').forEach(s=> s.classList.toggle('active', state.projects.has(s.dataset.key))); }
+  render();
+});
+(function(){
+  const dds = [...document.querySelectorAll('.fdd')];
+  const closeAll = except => dds.forEach(d=>{ if(d !== except){ d.querySelector('.fdd-pop').hidden = true; d.querySelector('.fdd-btn').setAttribute('aria-expanded','false'); } });
+  dds.forEach(d=>{
+    const btn = d.querySelector('.fdd-btn'), pop = d.querySelector('.fdd-pop');
+    btn.addEventListener('click', e=>{ e.stopPropagation(); const open = pop.hidden; closeAll(d); pop.hidden = !open; btn.setAttribute('aria-expanded', String(open)); if(open){ const f = pop.querySelector('input, button'); if(f && d.id === 'priceDd') f.focus(); } });
+  });
+  document.addEventListener('click', e=>{ if(!e.target.closest('.fdd')) closeAll(null); });
+  document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeAll(null); });
+})();
+// "more" menu on each row: a copy of the row's hidden menu is shown on top of the page (so the table's
+// scroll box and row effects never clip it); each item clicks the real button in the row.
+let morePop = null, moreBtn = null;
+function closeMore(){ if(morePop){ morePop.remove(); morePop = null; } if(moreBtn){ moreBtn.setAttribute('aria-expanded','false'); moreBtn = null; } }
+document.getElementById('tbody').addEventListener('click', e=>{
+  const mb = e.target.closest('.more-btn'); if(!mb) return;
+  e.stopPropagation();
+  if(moreBtn === mb){ closeMore(); return; }
+  closeMore();
+  const src = mb.nextElementSibling; if(!src) return;
+  const pop = src.cloneNode(true); pop.hidden = false; pop.classList.add('portal');
+  const real = [...src.querySelectorAll('.mi')];
+  [...pop.querySelectorAll('.mi')].forEach((b, i)=>{ b.removeAttribute('id'); b.addEventListener('click', ev=>{ ev.stopPropagation(); closeMore(); if(real[i]) real[i].click(); }); });
+  document.body.appendChild(pop);
+  const r = mb.getBoundingClientRect(), w = pop.offsetWidth || 230, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
+  pop.style.top = (r.bottom + 6 + h > window.innerHeight ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+  morePop = pop; moreBtn = mb; mb.setAttribute('aria-expanded','true');
+  moreY = window.scrollY;
+});
+document.addEventListener('click', e=>{ if(morePop && !e.target.closest('.more-pop.portal')) closeMore(); });
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && morePop){ const b = moreBtn; closeMore(); if(b) b.focus(); } });
+let moreY = 0;
+window.addEventListener('scroll', ()=>{ if(morePop && Math.abs(window.scrollY - moreY) > 40) closeMore(); }, { passive:true });
+
 // ---------- saved quick filters (stored per person in this browser) ----------
 function sfKey(){ return 'castelloSavedFilters:' + (currentAgentName() || 'guest'); }
 function sfLoad(){ try{ return JSON.parse(localStorage.getItem(sfKey()) || '[]') || []; }catch(e){ return []; } }
@@ -2958,6 +3030,9 @@ const ROW_ICONS = {
   layout:'<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 11h8M11.5 3.5v11M11.5 14.5h9M16 14.5v6"/>',
   pin:'<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>'
 };
+function menuItem(cls, idx, label, name){
+  return `<button class="${cls} mi" data-idx="${idx}" title="${label}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ROW_ICONS[name]}</svg>${label}</button>`;
+}
 function rowIcon(cls, idx, title, name){
   return `<button class="${cls}" data-idx="${idx}" title="${title}" aria-label="${title}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ROW_ICONS[name]}</svg></button>`;
 }
@@ -2996,6 +3071,7 @@ function render(){
 
   lastRows = rows;
   document.getElementById('resCount').textContent = rows.length;
+  try{ renderActiveFilters(); }catch(e){}
 
   const tbody = document.getElementById('tbody');
   if(rows.length===0){
@@ -3009,25 +3085,32 @@ function render(){
     const trClass = [held ? 'tr-held' : '', isNew ? 'tr-new' : ''].filter(Boolean).join(' ');
     return `
     <tr class="${trClass}">
-      <td class="star-cell"><div class="row-icons">${rowIcon('star-btn'+(shortlist.has(u.__idx)?' active':''), u.__idx, shortlist.has(u.__idx)?'Remove from shortlist':'Add to shortlist', shortlist.has(u.__idx)?'starOn':'star')}${featureOn('can_compare') ? rowIcon('star-btn cmp-btn'+(cmpSet.has(u.__idx)?' active':''), u.__idx, 'Add to comparison (up to 3)', 'compare') : ''}${featureOn('can_share') ? rowIcon('star-btn share-btn', u.__idx, 'Copy / share this unit with a client', 'share') : ''}${canLay(u) ? rowIcon('star-btn lay-btn', u.__idx, 'View unit layout', 'layout') : ''}${canLoc(u) ? rowIcon('star-btn loc-btn', u.__idx, 'Show unit location on the floor plan', 'pin') : ''}</div></td>
+      <td class="star-cell"></td>
       <td class="proj"><span class="proj-inner"><img src="${iconFor(u.sheet)}" alt="" data-sheet="${u.sheet}" data-icon="${u.sheet}"><span><span class="pj-name">${u.project}${isNew?'<span class="new-tag" title="Added in the last 48 hours">NEW</span>':''}${priceChangeTag(u)}${held?'<span class="hold-flash" title="On hold">⚡</span>':''}${(u.archived && canArchiveUnit())?'<span class="archived-tag">Archived</span>':''}</span>${u.subtitle?`<span class="pj-sub">${u.subtitle}</span>`:''}</span></span></td>
       <td class="mono">${u.section||'—'}</td>
-      <td class="mono unit">${u.unit_no}</td>
+      <td class="mono unit">${u.unit_no}${held && (holdsMap[key] && isMineHold(holdsMap[key])) ? `<span class="held-by-you">Held by you · ${fmtLeft(holdLeftMs(holdsMap[key]))}</span>` : ''}</td>
       <td><span class="pill ${pillClass(u.unit_type)}">${u.unit_type||'—'}</span></td>
       <td class="mono">${u.floor||'—'}</td>
       <td class="mono">${u.view||'—'}</td>
       <td class="mono">${u.area ?? '—'}</td>
       <td class="mono price-m2-cell" data-egp="${u.price_m2||0}">${fmtCur(u.price_m2)}</td>
       <td class="price price-cell" data-egp="${u.price||0}">${fmtCur(u.price)}</td>
-      <td class="actions-cell">
+      <td class="actions-cell"><div class="act-row">
+        ${u.cash_only ? `<span class="act-cash" title="Cash only — 10% minimum fee is calculated on the original price">Cash only · fee ${fmtCur(u.maintenance_fee)}</span>` : (featureOn('can_payment_plan') ? `<button class="act-btn act-plan" data-idx="${u.__idx}">Payment plan</button>` : '')}
+        ${canLay(u) ? rowIcon('star-btn lay-btn act-ic', u.__idx, 'Layout', 'layout') : (canLoc(u) ? rowIcon('star-btn loc-btn act-ic', u.__idx, 'Location on the floor plan', 'pin') : '')}
         ${canHold() ? holdButtonHtml(u) : ''}
-        ${canArchiveUnit() ? (u.archived ? `<button class="act-btn act-unarchive-unit" data-idx="${u.__idx}">📤 Unarchive</button>` : `<button class="act-btn act-archive-unit" data-idx="${u.__idx}">📥 Archive</button>`) : ''}
-        ${u.cash_only ? `<button class="act-btn act-cash-only-tag" data-idx="${u.__idx}" style="pointer-events:none; cursor:default;" title="Cash only — 10% minimum fee is calculated on the original price">
-          <span class="cot-line1">💵 Cash Only</span>
-          <span class="cot-line2">${fmtCur(u.price)} · Fee ${fmtCur(u.maintenance_fee)}</span>
-        </button>` : (featureOn('can_payment_plan') ? `<button class="act-btn act-plan" data-idx="${u.__idx}">Payment Plan</button>` : '')}
-        ${featureOn('can_roi') ? `<button class="act-btn act-roi ${actionButtonCountIsOdd()?'span-full':''}" data-idx="${u.__idx}">ROI Calc</button>` : ''}
+        <div class="row-more"><button class="act-ic more-btn" type="button" aria-haspopup="true" aria-expanded="false" title="More actions" aria-label="More actions"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+          <div class="more-pop" hidden>
+            ${menuItem('star-btn'+(shortlist.has(u.__idx)?' active':''), u.__idx, shortlist.has(u.__idx)?'Remove from shortlist':'Add to shortlist', shortlist.has(u.__idx)?'starOn':'star')}
+            ${featureOn('can_compare') ? menuItem('star-btn cmp-btn'+(cmpSet.has(u.__idx)?' active':''), u.__idx, 'Compare (up to 3)', 'compare') : ''}
+            ${featureOn('can_share') ? menuItem('star-btn share-btn', u.__idx, 'Share with a client', 'share') : ''}
+            ${canLay(u) && canLoc(u) ? menuItem('star-btn loc-btn', u.__idx, 'Location on the floor plan', 'pin') : ''}
+            ${featureOn('can_roi') ? `<button class="act-roi mi" data-idx="${u.__idx}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M8 15h2M12 15h2M16 11v6"/></svg>ROI calculator</button>` : ''}
+            ${canArchiveUnit() ? (u.archived ? `<button class="act-unarchive-unit mi" data-idx="${u.__idx}">Unarchive</button>` : `<button class="act-archive-unit mi" data-idx="${u.__idx}">Archive</button>`) : ''}
+          </div>
+        </div>
         <span class="roi-badge" id="roiBadge_${u.__idx}"></span>
+      </div>
       </td>
     </tr>
   `;
@@ -3264,9 +3347,12 @@ function updateHoldBanner(){
   const label = h => String(h.unitLabel || h.unitKey || '').replace('::',' · ').replace(/[<>&"]/g,'');
   b.className = soon.length ? 'warn' : '';
   b.style.display = 'block';
-  b.innerHTML = soon.length
-    ? `⏰ <b>${soon.length}</b> of your holds ${soon.length>1?'are':'is'} about to expire: ` + soon.map(h=>`${label(h)} <b>(${fmtLeft(holdLeftMs(h))} left)</b>`).join(' · ')
-    : `🔒 You are holding <b>${mine.length}</b> unit${mine.length>1?'s':''} — next expires in <b>${fmtLeft(holdLeftMs(mine[0]))}</b>`;
+  const LOCK = '<span class="hb-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>';
+  const names = mine.map(h=> `<b class="hb-unit">${String(h.unitLabel || h.unitKey || '').split('::').pop().replace(/^.*—\s*/,'').replace(/[<>&"]/g,'')}</b>`).join(', ');
+  b.innerHTML = LOCK + '<span class="hb-text">' + (soon.length
+    ? `<b>${soon.length}</b> of your holds ${soon.length>1?'are':'is'} about to expire: ` + soon.map(h=>`${label(h)} <b class="hb-time">(${fmtLeft(holdLeftMs(h))} left)</b>`).join(' · ')
+    : `You're holding <b>${mine.length} unit${mine.length>1?'s':''}</b>: ${names}. ${mine.length>1?'The next hold ends':'The hold ends'} in <b class="hb-time">${fmtLeft(holdLeftMs(mine[0]))}</b>.`) + '</span><button class="hb-show" type="button">Show</button>';
+  b.querySelector('.hb-show').addEventListener('click', ()=>{ const r = document.querySelector('#tbody tr.tr-held'); (r || document.querySelector('.table-scroll')).scrollIntoView({ behavior:'smooth', block:'center' }); });
 }
 setInterval(()=>{ try{ updateHoldBanner(); }catch(e){} }, 30000);
 function holdButtonHtml(u){
@@ -7338,6 +7424,60 @@ header.top .brand img{ height:54px !important; width:auto !important; max-width:
 .acct-item.out{ color:#f0a58a; border-top:1px solid var(--line-soft); border-radius:0 0 10px 10px; margin-top:6px; }
 @media (max-width:1100px){ .top-nav{ order:3; flex-basis:100%; justify-content:flex-start; overflow-x:auto; flex-wrap:nowrap; } }
 @media (max-width:640px){ .brand-sep,.brand-tool,.acct-name,.top-right .promo-pill.show{ display:none; } .top-right .admin-btn.export-btn span{ display:none; } .top-nav .nav-btn span{ display:none; } .top-nav .nav-btn{ padding:10px 12px; } }
+/* ================= Refined price list: dropdown filters, active-filter tags, hold banner, slim rows ================= */
+.fdd{ position:relative; }
+.fdd-btn{ display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 14px; border-radius:12px; border:1px solid var(--line-soft); background:var(--surface); color:var(--cream); font:500 13.5px var(--font-body,'Inter'),sans-serif; cursor:pointer; white-space:nowrap; }
+.fdd-btn:hover,.fdd-btn[aria-expanded="true"]{ border-color:var(--gold); }
+.fdd-val{ color:var(--gold-bright); font-weight:600; }
+.fdd-val:empty{ display:none; }
+.fdd-pop{ position:absolute; left:0; top:calc(100% + 8px); z-index:120; min-width:280px; padding:12px; border-radius:16px; background:var(--surface); border:1px solid var(--line); box-shadow:0 24px 50px rgba(0,0,0,.5); }
+.fdd-pop[hidden]{ display:none; }
+.fdd-pop .chipset{ display:flex; flex-wrap:wrap; gap:6px; max-width:420px; }
+.fdd-pop .rangebox{ display:flex; align-items:center; gap:8px; border:none !important; background:none !important; padding:0 !important; }
+.fdd-pop .rangebox input{ width:120px; height:40px; padding:0 12px; border-radius:10px; border:1px solid var(--line-soft); background:var(--bg-alt); color:var(--cream); font:15px var(--font-body,'Inter'),sans-serif; }
+.fbar-sp{ flex:1; }
+.filterbar .selectbox select{ height:42px; border-radius:12px; }
+.active-filters{ display:none; flex-wrap:wrap; align-items:center; gap:8px; margin:14px 0 2px; font-size:13px; }
+.active-filters.on{ display:flex; }
+#afTags{ display:contents; }
+.af-tag{ display:inline-flex; align-items:center; gap:6px; padding:5px 6px 5px 11px; border-radius:999px; background:color-mix(in srgb, var(--gold) 12%, transparent); color:var(--gold-bright); }
+.af-tag button{ display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; border:0; background:transparent; color:inherit; cursor:pointer; }
+.af-tag button:hover{ background:color-mix(in srgb, var(--gold) 22%, transparent); }
+.af-link{ background:none !important; border:0 !important; padding:4px 2px !important; color:var(--stone) !important; font:500 13px var(--font-body,'Inter'),sans-serif !important; text-decoration:underline; cursor:pointer; }
+.af-link.gold{ color:var(--gold) !important; text-decoration:none; }
+#holdBanner{ display:flex !important; align-items:center; gap:14px; flex-wrap:wrap; margin:14px 0 0; padding:10px 14px; border-radius:14px; border:1px solid color-mix(in srgb, var(--gold) 45%, transparent); background:linear-gradient(90deg, color-mix(in srgb, var(--gold) 14%, transparent), color-mix(in srgb, var(--gold) 3%, transparent)); color:var(--cream); font-size:14px; }
+#holdBanner[style*="display: none"]{ display:none !important; }
+#holdBanner.warn{ border-color:rgba(240,165,138,.6); background:linear-gradient(90deg, rgba(240,165,138,.16), rgba(240,165,138,.03)); }
+.hb-ic{ width:34px; height:34px; border-radius:50%; flex:none; display:inline-flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--gold) 18%, transparent); color:var(--gold-bright); }
+.hb-text{ flex:1 1 300px; }
+.hb-unit{ font-family:'Cormorant Garamond', Georgia, serif; font-size:18px; }
+.hb-time{ color:var(--gold-bright); }
+.hb-show{ padding:7px 14px; border-radius:999px; border:1px solid color-mix(in srgb, var(--gold) 50%, transparent); background:transparent; color:var(--gold-bright); font:500 13px var(--font-body,'Inter'),sans-serif; cursor:pointer; }
+th.th-star,td.star-cell{ display:none; }
+.held-by-you{ display:block; margin-top:3px; font-family:var(--font-body,'Inter'),sans-serif; font-size:11.5px; font-weight:500; color:var(--gold-bright); letter-spacing:0; white-space:nowrap; }
+tr.tr-held td{ background:color-mix(in srgb, var(--gold) 6%, var(--surface)) !important; }
+tr.tr-held td:first-child,tr.tr-held td.proj{ box-shadow:inset 3px 0 0 var(--gold); }
+.actions-cell{ width:1%; white-space:nowrap; }
+.act-row{ display:flex; align-items:center; justify-content:flex-end; gap:6px; }
+.act-row .act-btn{ margin:0 !important; width:auto !important; grid-column:auto !important; }
+.act-row .act-plan{ height:36px; padding:0 14px !important; border-radius:999px !important; border:0 !important; background:var(--gold) !important; color:#0b0b0d !important; font:600 12.5px var(--font-body,'Inter'),sans-serif !important; white-space:nowrap; }
+.act-row .act-plan:hover{ background:var(--gold-bright) !important; }
+.act-row .act-ic{ width:36px; height:36px; padding:0 !important; border-radius:50% !important; border:1px solid var(--line) !important; background:transparent !important; color:var(--stone) !important; display:inline-flex !important; align-items:center; justify-content:center; cursor:pointer; flex:none; }
+.act-row .act-ic:hover{ border-color:var(--gold) !important; color:var(--gold-bright) !important; }
+.act-row .act-hold{ height:36px; min-width:0; padding:0 12px !important; border-radius:999px !important; display:inline-flex !important; flex-direction:column; justify-content:center; line-height:1.1; font-size:12px !important; white-space:nowrap; }
+.act-row .act-hold .hold-l2{ font-size:10px; opacity:.85; }
+.act-cash{ display:inline-flex; align-items:center; height:36px; padding:0 12px; border-radius:999px; border:1px solid color-mix(in srgb, #4fd6a0 50%, transparent); color:#7fe0b6; font-size:12px; white-space:nowrap; }
+.row-more{ position:relative; }
+.more-pop{ position:fixed; z-index:400; width:230px; padding:6px; border-radius:14px; background:var(--surface); border:1px solid var(--line); box-shadow:0 22px 46px rgba(0,0,0,.5); display:flex; flex-direction:column; }
+.more-pop[hidden]{ display:none; }
+.more-pop .mi{ display:flex !important; align-items:center; gap:10px; width:100% !important; height:auto !important; padding:9px 10px !important; border-radius:9px !important; border:0 !important; background:transparent !important; color:var(--cream) !important; font:500 13px var(--font-body,'Inter'),sans-serif !important; text-align:left; cursor:pointer; margin:0 !important; }
+.more-pop .mi:hover{ background:color-mix(in srgb, var(--gold) 10%, transparent) !important; }
+.more-pop .mi.active{ color:var(--gold-bright) !important; }
+.more-pop .act-archive-unit,.more-pop .act-unarchive-unit{ border-top:1px solid var(--line-soft) !important; border-radius:0 0 9px 9px !important; margin-top:4px !important; color:var(--stone) !important; }
+.roi-badge:empty{ display:none; }
+html[data-theme="gold-atelier"] .table-scroll tbody td{ padding-top:12px; padding-bottom:12px; }
+html[data-theme="gold-atelier"] .table-scroll tbody tr:hover td.actions-cell{ background:#1a1814 !important; border-color:#4a412f !important; }
+html[data-theme="gold-atelier"] .table-scroll tbody td.actions-cell{ background:#121115; }
 /* ---- Header: small visual analysis of prices and available units ---- */
 .ledger.ledger-vis{ display:grid; grid-template-columns:1.25fr 1fr 1.2fr 1fr; gap:12px; border:none; background:transparent; }
 .ledger-vis .cell.lv{ border:1px solid var(--line-soft) !important; border-radius:16px; background:var(--surface); padding:16px 18px; display:flex; flex-direction:column; gap:7px; min-width:0; }
