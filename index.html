@@ -2738,17 +2738,46 @@ let state = { projects: new Set(PROJECTS.map(p=>p.key)), types: new Set(), view:
 function renderHeroLedger(){
   const el = document.getElementById('heroLedger');
   if(!el) return;
-  const totalUnits = UNITS.length;
-  const devCount = new Set(PROJECTS.map(p=>(p.project||'').split(' ')[0].toLowerCase())).size;
-  const allPrices = UNITS.map(u=>u.price).filter(Boolean);
-  const allPm2 = UNITS.map(u=>u.price_m2).filter(Boolean);
-  const ledgerData = [
-    {num: totalUnits, lbl:'Total Units Listed'},
-    {num: devCount, lbl:'Developments'},
-    {num: allPm2.length ? fmt(Math.min(...allPm2))+' EGP' : '—', lbl:'From / m²'},
-    {num: allPrices.length ? fmtM(Math.min(...allPrices)) : '—', lbl:'Lowest Unit Price'},
-  ];
-  el.innerHTML = ledgerData.map(c=>`<div class="cell"><div class="num">${c.num}</div><div class="lbl">${c.lbl}</div></div>`).join('');
+  const units = UNITS.filter(u=>!u.archived);
+  const cOn = k => { try{ return colOn(k); }catch(e){ return true; } };   // permissions are not set up yet on the very first render
+  const esc = t => String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const COL = { 'Atlantis PH1':'#d4b87a', 'Atlantis PH2':'#a8875a', 'Atlantis Commercial':'#7d7262', 'Storia Del Mare':'#5b7fb0', 'Oro Beach':'#e9c25a', 'Sea Breeze':'#3fa7b5' };
+  const nameOf = p => (p.project||p.key) + (p.subtitle ? ' · ' + p.subtitle : '');
+  // 1 · available units by project
+  const byProj = PROJECTS.map(p=>({ key:p.key, name:nameOf(p), n:units.filter(u=>u.sheet===p.key).length, c:COL[p.key] || 'var(--gold)' })).sort((a,b)=>b.n-a.n);
+  const total = units.length || 1;
+  const cardUnits = `<div class="cell lv">
+      <div class="lv-top"><div class="num">${units.length}</div><div class="lbl">Units available<br><span>${PROJECTS.length} developments</span></div></div>
+      <div class="lv-stack" role="img" aria-label="Available units by project">${byProj.filter(x=>x.n).map(x=>`<i style="width:${(x.n/total*100).toFixed(2)}%;background:${x.c}" title="${esc(x.name)}: ${x.n}"></i>`).join('')}</div>
+      <div class="lv-legend">${byProj.map(x=>`<span><i style="background:${x.c}"></i>${esc(x.name)}<b>${x.n}</b></span>`).join('')}</div></div>`;
+  // 2 · units by type
+  const tKey = t => { t = String(t||''); if(/studio/i.test(t)) return 'Studio'; if(/^1/.test(t)) return '1 Bedroom'; if(/^2/.test(t)) return '2 Bedroom'; if(/office|shop/i.test(t)) return 'Commercial'; return '3 Bed · Condo · Duplex'; };
+  const types = ['Studio','1 Bedroom','2 Bedroom','3 Bed · Condo · Duplex','Commercial'].map(k=>({ k, n:units.filter(u=>tKey(u.unit_type)===k).length })).filter(x=>x.n);
+  const tMax = Math.max(1, ...types.map(x=>x.n));
+  const cardTypes = `<div class="cell lv"><div class="lv-h">By type</div>
+      ${types.map(x=>`<div class="lv-bar"><span>${x.k}</span><em><i style="width:${(x.n/tMax*100).toFixed(1)}%"></i></em><b>${x.n}</b></div>`).join('')}</div>`;
+  let cards = cardUnits + cardTypes;
+  // 3 · price per m² range by project
+  if(cOn('price_m2')){
+    const rows = PROJECTS.map(p=>{ const v = units.filter(u=>u.sheet===p.key && u.price_m2).map(u=>u.price_m2); return v.length ? { name:nameOf(p), lo:Math.min(...v), hi:Math.max(...v), c:COL[p.key] || 'var(--gold)' } : null; }).filter(Boolean).sort((a,b)=>a.lo-b.lo);
+    if(rows.length){
+      const lo = Math.min(...rows.map(r=>r.lo)), hi = Math.max(...rows.map(r=>r.hi)), span = Math.max(1, hi - lo), X = v => ((v - lo) / span * 100).toFixed(2);
+      cards += `<div class="cell lv"><div class="lv-h">EGP per m² <small>from <b>${fmt(lo)}</b></small></div>
+        ${rows.map(r=>`<div class="lv-range" title="${esc(r.name)}: ${fmt(r.lo)} – ${fmt(r.hi)} per m²"><span>${esc(r.name)}</span><em><i style="left:${X(r.lo)}%;width:${Math.max(1.5, X(r.hi) - X(r.lo))}%;background:${r.c}"></i></em><b>${(r.lo/1000).toFixed(r.lo < 1e5 ? 1 : 0).replace(/\.0$/,'')}K</b></div>`).join('')}</div>`;
+    }
+  }
+  // 4 · unit prices in bands
+  if(cOn('price')){
+    const pr = units.map(u=>u.price).filter(Boolean);
+    if(pr.length){
+      const bands = [['Under 4M',0,4e6],['4–6M',4e6,6e6],['6–8M',6e6,8e6],['8–12M',8e6,12e6],['12M+',12e6,Infinity]].map(([l,a,b])=>({ l, n:pr.filter(v=>v>=a && v<b).length }));
+      const bMax = Math.max(1, ...bands.map(b=>b.n));
+      cards += `<div class="cell lv"><div class="lv-h">Unit prices <small>lowest <b>${fmtM(Math.min(...pr))}</b></small></div>
+        <div class="lv-hist" role="img" aria-label="Units by price band">${bands.map(b=>`<div title="${b.l}: ${b.n} units"><b>${b.n}</b><i style="height:${Math.max(3, b.n/bMax*100).toFixed(1)}%"></i><span>${b.l}</span></div>`).join('')}</div></div>`;
+    }
+  }
+  el.innerHTML = cards;
+  el.classList.add('ledger-vis');
 }
 renderHeroLedger();
 
@@ -7252,6 +7281,35 @@ html[data-theme="gold-atelier"] .pm-floor{ border-radius:14px; }
 html[data-theme="gold-atelier"] .pm-floor b{ font-family:'Cormorant Garamond', Georgia, serif; font-weight:500; font-size:28px; }
 html[data-theme="gold-atelier"] .pm-cell{ border-radius:16px; }
 html[data-theme="gold-atelier"] .pm-no{ font-family:'Cormorant Garamond', Georgia, serif; font-size:16px; font-weight:600; }
+/* ---- Header: small visual analysis of prices and available units ---- */
+.ledger.ledger-vis{ display:grid; grid-template-columns:1.25fr 1fr 1.2fr 1fr; gap:12px; border:none; background:transparent; }
+.ledger-vis .cell.lv{ border:1px solid var(--line-soft) !important; border-radius:16px; background:var(--surface); padding:16px 18px; display:flex; flex-direction:column; gap:7px; min-width:0; }
+.lv-top{ display:flex; align-items:flex-end; gap:12px; }
+.ledger-vis .lv-top .num{ font-size:44px; line-height:.9; }
+.ledger-vis .lv-top .lbl{ margin:0; text-transform:none; letter-spacing:0; font-size:12.5px; color:var(--stone); line-height:1.35; }
+.lv-top .lbl span{ color:var(--stone-dim); }
+.lv-stack{ display:flex; gap:2px; height:9px; border-radius:999px; overflow:hidden; margin-top:4px; }
+.lv-stack i{ display:block; height:100%; }
+.lv-legend{ display:grid; grid-template-columns:1fr 1fr; gap:3px 12px; font-size:11px; color:var(--stone); }
+.lv-legend span{ display:flex; align-items:center; gap:6px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lv-legend i{ width:7px; height:7px; border-radius:50%; flex:none; }
+.lv-legend b{ margin-left:auto; color:var(--cream); font-weight:600; }
+.lv-h{ font-size:12px; font-weight:600; color:var(--gold); display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.lv-h small{ font-weight:400; color:var(--stone); font-size:11.5px; }
+.lv-h small b{ color:var(--cream); font-weight:600; }
+.lv-bar,.lv-range{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.4fr) auto; align-items:center; gap:8px; font-size:11.5px; color:var(--stone); }
+.lv-bar span,.lv-range span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lv-bar em,.lv-range em{ position:relative; display:block; height:7px; border-radius:999px; background:color-mix(in srgb, var(--cream) 7%, transparent); overflow:hidden; }
+.lv-bar em i{ display:block; height:100%; border-radius:999px; background:var(--gold); }
+.lv-range em i{ position:absolute; top:0; bottom:0; border-radius:999px; }
+.lv-bar b,.lv-range b{ color:var(--cream); font-weight:600; min-width:22px; text-align:right; }
+.lv-hist{ flex:1; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; align-items:end; min-height:96px; }
+.lv-hist div{ height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px; }
+.lv-hist i{ display:block; width:100%; max-width:34px; border-radius:6px 6px 2px 2px; background:linear-gradient(180deg, var(--gold-bright), var(--gold-dim)); }
+.lv-hist b{ font-size:12px; color:var(--cream); }
+.lv-hist span{ font-size:10.5px; color:var(--stone); white-space:nowrap; }
+@media (max-width:1100px){ .ledger.ledger-vis{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:600px){ .ledger.ledger-vis{ grid-template-columns:minmax(0,1fr); } }
 /* ================= Gold Atelier — dark luxury, champagne gold, serif display (default theme) ================= */
 html[data-theme="gold-atelier"]{
   --bg:#0b0b0d; --bg-rgb:11,11,13; --bg-alt:#0e0e11; --surface:#131215; --surface-rgb:19,18,21; --surface-2:#1a191d;
