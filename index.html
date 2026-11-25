@@ -3500,28 +3500,33 @@ function defaultsForUnit(u){
 // Each project with drawings has its own folder. Sea Breeze: one drawing per position, repeated on every
 // floor. Atlantis Building C (Atlantis PH2): one drawing per unit, cut from the CAD floor plans.
 const PLAN_SETS = {
-  'Sea Breeze':   { name:'Sea Breeze', layouts:'layouts/', floors:'floors/', blocks:['A','B','C','D','P'], keyFor: sbLayoutKey },
-  'Atlantis PH1': { name:'Atlantis · Building B', layouts:'atlantis_b/layouts/', floors:'atlantis_b/floors/', blocks:['B1','B2','B3'],
-                    thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } },
-  'Atlantis PH2': { name:'Atlantis · Building C', layouts:'atlantis_c/layouts/', floors:'atlantis_c/floors/', blocks:['C1','C2','C3'],
-                    thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } }
+  'Sea Breeze':  { sheet:'Sea Breeze', name:'Sea Breeze', layouts:'layouts/', floors:'floors/', blocks:['A','B','C','D','P'], keyFor: sbLayoutKey },
+  'Atlantis A':  { sheet:'Atlantis PH1', name:'Atlantis · Building A', layouts:'atlantis_a/layouts/', floors:'atlantis_a/floors/', blocks:['A1','A2'],
+                   thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } },
+  'Atlantis B':  { sheet:'Atlantis PH1', name:'Atlantis · Building B', layouts:'atlantis_b/layouts/', floors:'atlantis_b/floors/', blocks:['B1','B2','B3'],
+                   thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } },
+  'Atlantis PH2':{ sheet:'Atlantis PH2', name:'Atlantis · Building C', layouts:'atlantis_c/layouts/', floors:'atlantis_c/floors/', blocks:['C1','C2','C3'],
+                   thumbsJson:true, keyFor: (u, lay)=>{ const k = normNo(u.unit_no); return lay[k] ? k : null; } }
 };
+// which drawing set a unit belongs to (Atlantis Phase One has two buildings: A and B, told apart by the unit number)
+function psk(u){ if(!u) return null; if(u.sheet === 'Atlantis PH1'){ const b = String(u.unit_no||'').trim().toUpperCase()[0]; return b === 'A' ? 'Atlantis A' : b === 'B' ? 'Atlantis B' : null; } return u.sheet; }
+function PS(){ return PLAN_SETS[PM_PROJECT] || {}; }
 const PLAN_DATA = {};   // project -> { lay: layout manifest, floors: floor plans, idx: unit index }
 function planSet(sheet){ try{ return PLAN_SETS[sheet] || null; }catch(e){ return null; } }   // safe before this block has run
 function planLay(sheet){ try{ return (PLAN_DATA[sheet] || {}).lay || null; }catch(e){ return null; } }
 function planFloors(sheet){ try{ return (PLAN_DATA[sheet] || {}).floors || null; }catch(e){ return null; } }
-function planProjects(){ let ks; try{ ks = Object.keys(PLAN_SETS); }catch(e){ return []; } return ks.filter(k=> ((planLay(k) && canProjPlan(k,'layout')) || (planFloors(k) && canProjPlan(k,'location')))); }
+function planProjects(){ let ks; try{ ks = Object.keys(PLAN_SETS); }catch(e){ return []; } return ks.filter(k=> ((planLay(k) && canProjPlan(PLAN_SETS[k].sheet,'layout')) || (planFloors(k) && canProjPlan(PLAN_SETS[k].sheet,'location')))); }
 let LAYOUT_BASE = 'layouts/';
 const layoutCache = {};
 // Unit numbers are Block + Floor + 2-digit unit (B106 = block B, floor 1, unit 06). The same plan repeats
 // on every floor, so B106, B206, B306... all use the "B106" drawing. Block D's units 10-13 have their own
 // upper-floor plans (D210-D213).
 function layoutKeyFor(u){
-  const S = u && planSet(u.sheet), lay = u && planLay(u.sheet);
+  const S = u && planSet(psk(u)), lay = u && planLay(psk(u));
   return (S && lay) ? S.keyFor(u, lay) : null;
 }
-function layMetaFor(u){ const k = layoutKeyFor(u), lay = u && planLay(u.sheet); return (k && lay && lay[k]) || {}; }
-function layUrl(u, key){ return planSet(u.sheet).layouts + key + '.svg'; }
+function layMetaFor(u){ const k = layoutKeyFor(u), lay = u && planLay(psk(u)); return (k && lay && lay[k]) || {}; }
+function layUrl(u, key){ return planSet(psk(u)).layouts + key + '.svg'; }
 function sbLayoutKey(u, LAYOUT_MANIFEST){
   const m = String(u.unit_no||'').trim().toUpperCase().match(/^([A-Z])(\d)(\d{2})$/);
   if(!m) return null;
@@ -3600,13 +3605,13 @@ function pmIndex(sheet){
   }));
   return idx;
 }
-function dispNo(u){ const i = u && pmIndex(u.sheet)[normNo(u.unit_no)]; return i ? i.label : (u ? u.unit_no : ''); }
+function dispNo(u){ const i = u && pmIndex(psk(u))[normNo(u.unit_no)]; return i ? i.label : (u ? u.unit_no : ''); }
 function floorOf(u){
-  if(!u || !planFloors(u.sheet)) return null;
-  const i = pmIndex(u.sheet)[normNo(u.unit_no)];
+  if(!u || !planFloors(psk(u))) return null;
+  const i = pmIndex(psk(u))[normNo(u.unit_no)];
   return i ? String(i.plan != null ? i.plan : i.floor) : null;
 }
-function floorUrl(u, f){ return planSet(u.sheet).floors + 'F' + f + '.svg'; }
+function floorUrl(u, f){ return planSet(psk(u)).floors + 'F' + f + '.svg'; }
 function canLay(u){ return !!layoutKeyFor(u) && canProjPlan(u.sheet, 'layout'); }
 function canLoc(u){ return floorOf(u) != null && canProjPlan(u.sheet, 'location'); }
 let layMode = 'layout';
@@ -3625,7 +3630,7 @@ async function openLayout(u, navList, mode){
   document.getElementById('layModes').innerHTML = (okLay && okLoc) ? `<button data-m="layout" class="${layMode==='layout'?'on':''}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ROW_ICONS.layout}</svg>Layout</button><button data-m="location" class="${layMode==='location'?'on':''}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ROW_ICONS.pin}</svg>Location</button>` : '';
   const meta = layMetaFor(u);
   const esc = t => String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  document.getElementById('layTitle').textContent = (pmIndex(u.sheet)[normNo(u.unit_no)] || {}).kind === 'shop' ? `Shop ${dispNo(u)}` : `Unit ${dispNo(u)}`;
+  document.getElementById('layTitle').textContent = (pmIndex(psk(u))[normNo(u.unit_no)] || {}).kind === 'shop' ? `Shop ${dispNo(u)}` : `Unit ${dispNo(u)}`;
   document.getElementById('laySub').textContent = `${u.project}${u.subtitle?' · '+u.subtitle:''}`;
   document.getElementById('layArea').textContent = u.area ? u.area : (meta.sqm || '—');
   document.getElementById('layPrice').innerHTML = u.__unavailable ? '<b style="color:var(--stone)">Not available</b>' : u.price ? `${u.cash_only ? 'Cash price ' : 'From '}<b>${fmtCur(u.price)}</b>` : '';
@@ -3662,7 +3667,7 @@ async function openLayout(u, navList, mode){
   layoutOverlay.classList.add('open');
   if(layMode === 'location'){ await showUnitLocation(u); return; }
   try{
-    const ck = u.sheet + '|' + key;
+    const ck = psk(u) + '|' + key;
     if(!layoutCache[ck]){
       const res = await fetch(layUrl(u, key), { cache:'no-cache' });
       if(!res.ok) throw new Error('missing');
@@ -3679,7 +3684,7 @@ async function showUnitLocation(u){
   const f = floorOf(u); if(f == null) return;
   const no = normNo(u.unit_no), noLabel = dispNo(u);
   try{
-    const fk = u.sheet + '|' + f, FL = planFloors(u.sheet)[f];
+    const fk = psk(u) + '|' + f, FL = planFloors(psk(u))[f];
     if(!floorCache[fk]){ const r = await fetch(floorUrl(u, f), { cache:'no-cache' }); if(!r.ok) throw new Error('missing'); floorCache[fk] = await r.text(); }
     if(layCur !== u || layMode !== 'location') return;
     layPan.innerHTML = floorCache[fk];
@@ -3827,7 +3832,7 @@ async function downloadMasterPlan(u, btn, mode, action){
     try{ track(action === 'print' ? 'masterplan_print' : 'masterplan_download', unitLabelForTrack(u)); }catch(e){}
     const cv = await masterCanvas(u, mode);
     const fN = Number(f);
-    (action === 'print' ? printSheet : savePdf)(cv, 'l', `${(pmIndex(u.sheet)[no]||{}).kind==='shop' ? 'Shop' : 'Unit'} ${label} · Location`, `${u.project||'Sea Breeze Resort'} · ${fN === 0 ? 'Ground floor' : pmOrd(fN) + ' floor'} master plan`, mode, `${String(label).replace(/\s+/g,'_')}_master_plan${mode==='colour'?'_colour':''}`);
+    (action === 'print' ? printSheet : savePdf)(cv, 'l', `${(pmIndex(psk(u))[no]||{}).kind==='shop' ? 'Shop' : 'Unit'} ${label} · Location`, `${u.project||'Sea Breeze Resort'} · ${fN === 0 ? 'Ground floor' : pmOrd(fN) + ' floor'} master plan`, mode, `${String(label).replace(/\s+/g,'_')}_master_plan${mode==='colour'?'_colour':''}`);
   }catch(e){
     console.error(e); alert('Could not prepare the master plan download. Please try again.');
   }finally{
@@ -3836,7 +3841,7 @@ async function downloadMasterPlan(u, btn, mode, action){
 }
 async function layoutCanvas(u, mode, H){
   const key = layoutKeyFor(u); if(!key) return null;
-  const ck = u.sheet + '|' + key;
+  const ck = psk(u) + '|' + key;
   if(!layoutCache[ck]){ const r = await fetch(layUrl(u, key), { cache:'no-cache' }); if(!r.ok) throw new Error('missing'); layoutCache[ck] = await r.text(); }
   const vb = (layoutCache[ck].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
   H = H || 3300; const W = Math.round(H * vb[2] / vb[3]), st = DL_STYLE[mode];
@@ -3847,15 +3852,15 @@ async function layoutCanvas(u, mode, H){
 async function masterCanvas(u, mode){
     const f = floorOf(u); if(f == null) return null;
     const no = normNo(u.unit_no), label = dispNo(u), st = DL_STYLE[mode];
-    const fk = u.sheet + '|' + f;
+    const fk = psk(u) + '|' + f;
     if(!floorCache[fk]){ const r = await fetch(floorUrl(u, f), { cache:'no-cache' }); if(!r.ok) throw new Error('missing'); floorCache[fk] = await r.text(); }
-    const fl = planFloors(u.sheet)[f], vb = (floorCache[fk].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
+    const fl = planFloors(psk(u))[f], vb = (floorCache[fk].match(/viewBox="([^"]+)"/) || [,'0 0 10 10'])[1].split(/\s+/).map(Number);
     const W = 3508, H = Math.round(W * vb[3] / vb[2]);
     const hl = '#ff5a1f', shape = (fl.shapes || {})[no], arw = (fl.arrows || {})[no];
     let mark = '';
     if(shape) mark += `<path d="${shape}" fill="${hl}" fill-opacity=".38" stroke="${hl}" stroke-width=".18" stroke-linejoin="round"/>`;
     if(arw){
-      const L = arw.len, i = pmIndex(u.sheet)[no] || {};
+      const L = arw.len, i = pmIndex(psk(u))[no] || {};
       const sub = `${i.type ? String(i.type).replace(' Bedroom',' BR') : ''}${i.sqm ? ' · ' + i.sqm + ' m²' : ''}`;
       mark += `<g transform="translate(${arw.tip[0]} ${arw.tip[1]}) rotate(${arw.ang})"><path d="M1.3 -.2L${L} -.06L${L} .06L1.3 .2Z" fill="${hl}"/><path d="M0 0L1.9 -1L1.5 0L1.9 1Z" fill="${hl}"/></g>
         <g transform="translate(${arw.lab[0]} ${arw.lab[1]})"><rect x="-3.3" y="-1.45" width="6.6" height="2.9" rx="1.45" fill="${mode==='colour'?'#1e232b':'#fff'}" stroke="${hl}" stroke-width=".14"/>
@@ -3894,7 +3899,7 @@ function offerFigures(u){
     maint: maintFeeFor(u, plan, eff), cashPct, cash: cashPriceFor(u).cash };
 }
 function offerPageHtml(u, F, who, validUntil, stamp){
-  const B = OFFER_BASE, lbl = dispNo(u), shop = (pmIndex(u.sheet)[normNo(u.unit_no)] || {}).kind === 'shop';
+  const B = OFFER_BASE, lbl = dispNo(u), shop = (pmIndex(psk(u))[normNo(u.unit_no)] || {}).kind === 'shop';
   const facts = [u.unit_type, u.area ? u.area + ' m²' : '', u.floor ? (String(u.floor).match(/^\d|Ground/i) ? u.floor + ' floor' : u.floor) : '', u.view].filter(Boolean);
   const card = (big, small, hot) => `<div style="flex:1;border:1px solid ${hot?'#f6b878':'rgba(255,255,255,.18)'};border-radius:12px;padding:18px 8px;text-align:center;background:${hot?'linear-gradient(160deg,#f6a650,#e47c2a)':'rgba(255,255,255,.06)'}"><div style="font-family:Michroma;font-size:19px;color:#fff;line-height:1.1;white-space:nowrap">${big}</div><div style="font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:${hot?'#fff':'#bcd2df'};margin-top:7px;line-height:1.4">${small}</div></div>`;
   const pay = F.cashOnly
@@ -4097,7 +4102,7 @@ function pmAllNos(){
   const s = new Set();
   const FLS = planFloors(PM_PROJECT), LAY = planLay(PM_PROJECT);
   if(FLS) Object.keys(pmIndex()).forEach(k=> s.add(k));
-  else if(LAY && PM_PROJECT === 'Sea Breeze') Object.keys(LAY).forEach(k=>{ for(let f=1; f<=5; f++){ const no = k[0]+f+k.slice(2); if(layoutKeyFor({sheet:PM_PROJECT, unit_no:no})) s.add(no); } });
+  else if(LAY && PM_PROJECT === 'Sea Breeze') Object.keys(LAY).forEach(k=>{ for(let f=1; f<=5; f++){ const no = k[0]+f+k.slice(2); if(layoutKeyFor({sheet:PS().sheet, unit_no:no})) s.add(no); } });
   return s;
 }
 function pmI(k){ return pmIndex()[k] || { floor:Number(k[1]), block:k[0], nn:String(Number(k.slice(2))), label:k, kind:'unit' }; }
@@ -4106,14 +4111,14 @@ function pmCols(block){ return [...new Set([...pmAllNos()].filter(k=>pmI(k).bloc
 function pmFloors(block){ return [...new Set([...pmAllNos()].filter(k=>pmI(k).block===block).map(k=>pmI(k).floor))].sort((a,b)=>b-a); }
 function pmShops(block, floor){ return [...pmAllNos()].filter(k=>{ const i = pmI(k); return i.kind==='shop' && i.block===block && i.floor===floor; }).sort((a,b)=> Number(pmI(a).nn) - Number(pmI(b).nn)); }
 function pmUnitNo(block, floor, nn){ pmIndex(); const g = (PLAN_DATA[PM_PROJECT] || {}).grid || {}; return g[`${block}|${floor}|${nn}`] || `${block}${floor}${String(nn).padStart(2,'0')}`; }
-function pmUnits(){ const m = new Map(); UNITS.forEach(u=>{ if(u.sheet===PM_PROJECT && !u.archived) m.set(normNo(u.unit_no), u); }); return m; }
+function pmUnits(){ const m = new Map(); UNITS.forEach(u=>{ if(psk(u)===PM_PROJECT && !u.archived) m.set(normNo(u.unit_no), u); }); return m; }
 const PM_TYPENAME = { 'Studio':'Studio', '1 BR':'1 Bedroom', '2 BR':'2 Bedroom', '3 BR':'3 Bedroom' };
 // A unit that is not on the market (reserved / blocked / sold): only its drawing info is shown, never price or status.
 function pmGhostUnit(no){
-  const key = layoutKeyFor({ sheet:PM_PROJECT, unit_no:no }), m = (key && (planLay(PM_PROJECT) || {})[key]) || {}, i = pmI(no);
-  const proj = PROJECTS.find(p=>p.key===PM_PROJECT) || {};
+  const key = layoutKeyFor({ sheet:PS().sheet, unit_no:no }), m = (key && (planLay(PM_PROJECT) || {})[key]) || {}, i = pmI(no);
+  const proj = PROJECTS.find(p=>p.key===PS().sheet) || {};
   const f = i.floor, t = m.type || i.type;
-  return { sheet:PM_PROJECT, project:proj.project || (planSet(PM_PROJECT) || {}).name || PM_PROJECT, subtitle:proj.subtitle || '', unit_no:i.label || no,
+  return { sheet:PS().sheet, project:proj.project || (planSet(PM_PROJECT) || {}).name || PM_PROJECT, subtitle:proj.subtitle || '', unit_no:i.label || no,
     unit_type: PM_TYPENAME[t] || t || '', area: m.sqm || i.sqm || null, floor: f === 0 ? 'Ground' : pmOrd(f), view:'', price:null, __unavailable:true };
 }
 // small outline picture of a layout for the map tiles (one file per unit, or all of them in thumbs.json)
@@ -4127,10 +4132,11 @@ function pmRender(){
   const projs = planProjects();
   if(!projs.includes(PM_PROJECT) && projs.length) PM_PROJECT = projs[0];
   if(!planLay(PM_PROJECT) && !planFloors(PM_PROJECT)) return;
-  { const pr = PROJECTS.find(p=>p.key===PM_PROJECT) || {};
-    document.getElementById('pmTitle').textContent = PM_PROJECT === 'Sea Breeze' ? 'Sea Breeze Resort' : `${pr.project || 'Atlantis Resort'} · ${PM_PROJECT === 'Atlantis PH1' ? 'Building B' : 'Building C'}`;
+  { const pr = PROJECTS.find(p=>p.key===PS().sheet) || {};
+    document.getElementById('pmTitle').textContent = PM_PROJECT === 'Sea Breeze' ? 'Sea Breeze Resort' : `${pr.project || 'Atlantis Resort'} · ${PS().name.split('· ')[1] || ''}`;
     document.getElementById('pmNote').textContent = PM_PROJECT === 'Sea Breeze' ? 'Floors and unit order follow the unit numbers (B106 = block B, floor 1, unit 06).'
-      : PM_PROJECT === 'Atlantis PH1' ? 'Floors and unit order follow the unit numbers (B2210 = section B2, floor 2, unit 10). Lofts sit on the ground floor, duplexes on their lower floor.'
+      : PM_PROJECT === 'Atlantis A' ? 'Floors and unit order follow the unit numbers (A1205 = section A1, floor 2, unit 05).'
+      : PM_PROJECT === 'Atlantis B' ? 'Floors and unit order follow the unit numbers (B2210 = section B2, floor 2, unit 10). Lofts sit on the ground floor, duplexes on their lower floor.'
       : 'Floors and unit order follow the unit numbers (C2211 = section C2, floor 2, unit 11). Lofts sit on the ground floor.'; }
   const sw = document.getElementById('pmProj');
   if(sw){ sw.innerHTML = projs.length > 1 ? projs.map(k=> `<button class="pm-proj ${k===PM_PROJECT?'on':''}" data-p="${k}">${planSet(k).name}</button>`).join('') : ''; sw.style.display = projs.length > 1 ? 'flex' : 'none'; }
@@ -4157,7 +4163,7 @@ function pmRender(){
     const rowNos = shops.length ? shops : cols.map(nn=> pmUnitNo(pmState.block, f, nn));
     rowNos.forEach(no=>{
       if(!nos.has(no)){ html += '<div class="pm-cell empty"></div>'; return; }
-      const key = layoutKeyFor({ sheet:PM_PROJECT, unit_no:no });
+      const key = layoutKeyFor({ sheet:PS().sheet, unit_no:no });
       const u = um.get(no);
       const i = idx++;
       const thumb = `style="${key ? `--m:url(${pmThumbUrl(key)});` : ''}--i:${Math.min(i,40)}"`;
@@ -5293,7 +5299,7 @@ function umRenderUsers(users){
     const fOn = k => (k in feats ? feats[k] !== false : featureDefault(k));
     const pExp = k => { const key = 'proj_export_' + projSlug(k); return key in feats ? feats[key] !== false : !!u.can_export; };
     const pPlan = (k, w) => { const key = `proj_${w}_` + projSlug(k); return key in feats ? feats[key] === true : false; };
-    const hasPlans = k => { try{ return !!PLAN_SETS[k]; }catch(e){ return false; } };
+    const hasPlans = k => { try{ return Object.values(PLAN_SETS).some(S=> S.sheet === k); }catch(e){ return false; } };
     const permStates = [...UC_PERM_COLUMNS.map(([k])=> !!u[k]), ...FEATURE_DEFS.map(([k])=> fOn(k)),
       ...ALL_PROJECTS.flatMap(p=> [fOn('proj_view_' + projSlug(p.key)), pExp(p.key), ...(hasPlans(p.key) ? [pPlan(p.key,'layout'), pPlan(p.key,'location')] : [])]), ...COL_DEFS.map(([k])=> fOn(k))];
     const enabled = permStates.filter(Boolean).length;
