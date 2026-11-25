@@ -1813,6 +1813,7 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
       </div>
       <button class="modal-close" id="layoutClose">×</button>
     </div>
+    <div class="lay-main">
     <div class="lay-stage" id="layStage">
       <div class="lay-count" id="layCount"></div>
       <div class="lay-modes" id="layModes"></div>
@@ -1821,6 +1822,8 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
       <div class="lay-tools"><button id="layZoomIn" title="Zoom in">+</button><button id="layZoomOut" title="Zoom out">−</button><button id="layZoomReset" title="Reset">⤢</button></div>
       <div class="lay-pan" id="layPan"></div>
       <div class="lay-legend" id="layLegend"></div>
+    </div>
+    <aside class="lay-side" id="laySide" aria-label="Unit details and payment"></aside>
     </div>
     <div class="lay-actions" id="layActions"></div>
     <div class="lay-note">Layout is indicative and for illustration only. Final areas and finishes are as per the contract.</div>
@@ -3630,6 +3633,37 @@ function floorUrl(u, f){ return planSet(psk(u)).floors + 'F' + f + '.svg'; }
 function canLay(u){ return !!layoutKeyFor(u) && canProjPlan(u.sheet, 'layout'); }
 function canLoc(u){ return floorOf(u) != null && canProjPlan(u.sheet, 'location'); }
 let layMode = 'layout';
+// Side panel of the unit window (shown by the Gold Atelier theme): key facts and the payment plans, worked out live
+let layPlanPick = 0;
+function renderLaySide(u){
+  const box = document.getElementById('laySide'); if(!box) return;
+  const esc = t => String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fact = (l, v) => v ? `<div class="ls-fact"><span>${l}</span><b>${esc(v)}</b></div>` : '';
+  let h = `<div class="ls-facts">${fact('Type', u.unit_type)}${fact('Area', u.area ? u.area + ' m²' : '')}${fact('Floor', u.floor)}${fact('View', u.view)}</div>`;
+  const showPrice = !u.__unavailable && u.price && colOn('price');
+  if(showPrice){
+    if(colOn('price_m2') && u.price_m2) h += `<div class="ls-pm">${fmtCur(u.price_m2)} per m²</div>`;
+    const pl = plansFor(u), opts = (pl && pl.options) || [];
+    const canPlan = featureOn('can_payment_plan') && !u.cash_only && opts.length;
+    const choices = canPlan ? [...opts.map((o,i)=>[String(i), o.label]), ...(pl.cashDiscount ? [['cash', 'Cash · ' + pl.cashDiscount + '% off']] : [])] : [];
+    if(layPlanPick >= choices.length) layPlanPick = 0;
+    const pick = choices.length ? choices[layPlanPick][0] : 'cash';
+    const F = offerFigures(u, pick);
+    if(choices.length) h += `<div class="ls-h">Payment plan</div><div class="ls-plans">${choices.map(([k,t],i)=>`<button data-i="${i}" class="${i===layPlanPick?'on':''}">${esc(t)}</button>`).join('')}</div>`;
+    const cell = (l, v, hot) => `<div class="ls-cell${hot?' hot':''}"><span>${l}</span><b>${v}</b></div>`;
+    h += '<div class="ls-grid">' + (F.cashOnly
+      ? cell(F.cashChoice ? 'Cash price · ' + F.cashPct + '% off' : 'Cash price', fmtCur(F.cash), true) + (F.cashChoice ? cell('You save', fmtCur(F.price - F.cash)) : '') + cell('Maintenance, at delivery', fmtCur(F.maint))
+      : cell(F.disc ? 'Price after ' + F.disc + '% off' : 'Unit price', fmtCur(F.eff)) + cell('Down payment · ' + F.dpPct + '%', fmtCur(F.dp)) + cell(F.n + ' quarterly installments', fmtCur(F.q), true) + cell('Maintenance, at delivery', fmtCur(F.maint))) + '</div>';
+    if(canPlan) h += `<button class="ls-full" data-act="plan">Full payment schedule ›</button>`;
+  } else if(u.__unavailable){
+    h += '<div class="ls-pm">This unit is not on the market.</div>';
+  }
+  box.innerHTML = h;
+}
+document.addEventListener('click', e=>{
+  const b = e.target.closest('#laySide .ls-plans button'); if(b && layCur){ layPlanPick = Number(b.dataset.i) || 0; renderLaySide(layCur); return; }
+  const f = e.target.closest('#laySide .ls-full'); if(f && layCur){ const u = layCur; layoutOverlay.classList.remove('open'); openPaymentModal(u); }
+});
 const floorCache = {};
 function layList(){ return (layNavList || lastRows).filter(x=> canLay(x) || canLoc(x)); }
 async function openLayout(u, navList, mode){
@@ -3655,6 +3689,7 @@ async function openLayout(u, navList, mode){
     (u.floor ? `<span class="lay-chip">🏢 ${esc(u.floor)} floor</span>` : '') +
     (u.view ? `<span class="lay-chip">🌊 ${esc(u.view)}</span>` : '') +
     (u.__unavailable ? '<span class="lay-chip">Not on the market</span>' : '');
+  layPlanPick = 0; renderLaySide(u);
   document.getElementById('layLegend').innerHTML = (meta.rooms || []).filter(k=>LAY_KINDS[k]).map(k=>`<span><i style="background:${LAY_KINDS[k][1]}"></i>${LAY_KINDS[k][0]}</span>`).join('');
   // prev / next through the units currently listed
   const list = layList(), at = list.indexOf(u);
@@ -7178,6 +7213,45 @@ html[data-theme="golden-glow"]{
   --gold:#f5c542; --gold-bright:#ffe08a; --gold-dim:#b38a1c; --teal:#e0a45a; --teal-bright:#f0c98f;
   --cream:#fbf6ea; --stone:#b6ab92; --stone-dim:#716952; --shadow:0 20px 50px rgba(0,0,0,0.6); --glow:rgba(245,197,66,0.42);
 }
+.lay-main{ flex:1; min-height:0; display:flex; flex-direction:column; }
+.lay-side{ display:none; }
+html[data-theme="gold-atelier"] .lay-main{ flex-direction:row; gap:18px; margin:18px 22px 0; }
+html[data-theme="gold-atelier"] .lay-main .lay-stage{ margin:0; flex:1 1 auto; min-width:0; }
+html[data-theme="gold-atelier"] .lay-side{ display:flex; flex-direction:column; gap:12px; flex:0 0 300px; max-height:min(620px,64vh); overflow:auto; padding:18px; border:1px solid #3a342a; border-radius:24px; background:#131215; }
+.ls-facts{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; }
+.ls-fact{ border-top:1px solid #2b2822; padding-top:8px; }
+.ls-fact span,.ls-cell span{ display:block; font-size:11.5px; color:var(--stone); }
+.ls-fact b{ font-family:'Cormorant Garamond', Georgia, serif; font-weight:500; font-size:21px; color:var(--cream); }
+.ls-pm{ font-size:12.5px; color:var(--stone); }
+.ls-h{ margin-top:4px; font-size:12px; font-weight:600; color:var(--gold); letter-spacing:.04em; }
+.ls-plans{ display:flex; flex-wrap:wrap; gap:6px; }
+.ls-plans button{ padding:8px 11px; border-radius:999px; border:1px solid #3a352c; background:transparent; color:#d9d3c7; font:500 12px 'Inter',sans-serif; cursor:pointer; }
+.ls-plans button:hover{ border-color:var(--gold); }
+.ls-plans button.on{ background:var(--gold); border-color:var(--gold); color:#0b0b0d; font-weight:600; }
+.ls-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.ls-cell{ border-top:1px solid #2b2822; padding-top:8px; }
+.ls-cell b{ display:block; font-family:'Cormorant Garamond', Georgia, serif; font-weight:600; font-size:22px; color:var(--cream); white-space:nowrap; }
+.ls-cell.hot b{ color:var(--gold-bright); }
+.ls-full{ margin-top:auto; padding:12px; border-radius:999px; border:1px solid #3a352c; background:transparent; color:var(--cream); font:500 13px 'Inter',sans-serif; cursor:pointer; }
+.ls-full:hover{ border-color:var(--gold); color:var(--gold-bright); }
+@media (max-width:900px){ html[data-theme="gold-atelier"] .lay-card{ overflow-y:auto; } html[data-theme="gold-atelier"] .lay-main{ flex:none; flex-direction:column; margin:14px 14px 0; } html[data-theme="gold-atelier"] .lay-main .lay-stage{ flex:none; height:62vh; min-height:360px; } html[data-theme="gold-atelier"] .lay-side{ flex:none; max-height:none; overflow:visible; } html[data-theme="gold-atelier"] .lay-actions{ flex-wrap:wrap; } html[data-theme="gold-atelier"] .lay-actions button{ flex:1 1 30%; } }
+/* Gold Atelier — project map */
+html[data-theme="gold-atelier"] .pm-card{ border-color:#3a342a; background:#0f0e11; }
+html[data-theme="gold-atelier"] .pm-hero{ border-bottom:1px solid #24221d; background:none; }
+html[data-theme="gold-atelier"] .pm-eyebrow{ letter-spacing:.06em; text-transform:none; font-size:13px; }
+html[data-theme="gold-atelier"] .pm-hero h3{ font-weight:500 !important; letter-spacing:0 !important; font-size:46px; line-height:1; }
+html[data-theme="gold-atelier"] .pm-stat{ border-radius:16px; border-color:#2b2822; background:#131215; }
+html[data-theme="gold-atelier"] .pm-stat b{ font-family:'Cormorant Garamond', Georgia, serif; font-weight:500; font-size:30px; }
+html[data-theme="gold-atelier"] .pm-stat span{ letter-spacing:.04em; text-transform:none; font-size:11.5px; }
+html[data-theme="gold-atelier"] .pm-tab,html[data-theme="gold-atelier"] .pm-proj{ border-radius:999px; }
+html[data-theme="gold-atelier"] .pm-tab.on{ color:#0b0b0d; }
+html[data-theme="gold-atelier"] .pm-body{ background:radial-gradient(ellipse at 50% 0%, #17150f 0%, #0b0b0d 60%); }
+html[data-theme="gold-atelier"] .pm-roof{ background:linear-gradient(180deg, rgba(212,184,122,.35), rgba(212,184,122,.04)); }
+html[data-theme="gold-atelier"] .pm-row{ border-bottom-color:rgba(212,184,122,.14); }
+html[data-theme="gold-atelier"] .pm-floor{ border-radius:14px; }
+html[data-theme="gold-atelier"] .pm-floor b{ font-family:'Cormorant Garamond', Georgia, serif; font-weight:500; font-size:28px; }
+html[data-theme="gold-atelier"] .pm-cell{ border-radius:16px; }
+html[data-theme="gold-atelier"] .pm-no{ font-family:'Cormorant Garamond', Georgia, serif; font-size:16px; font-weight:600; }
 /* ================= Gold Atelier — dark luxury, champagne gold, serif display (default theme) ================= */
 html[data-theme="gold-atelier"]{
   --bg:#0b0b0d; --bg-rgb:11,11,13; --bg-alt:#0e0e11; --surface:#131215; --surface-rgb:19,18,21; --surface-2:#1a191d;
