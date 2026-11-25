@@ -8051,12 +8051,7 @@ html[data-theme]:not([data-theme="gold-atelier"]) .ls-cell b{ display:block;  fo
 html[data-theme]:not([data-theme="gold-atelier"]) .ls-cell.hot b{ color:var(--gold-bright); }
 html[data-theme]:not([data-theme="gold-atelier"]) .ls-full{ margin-top:auto; padding:12px; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--cream); font-weight:500; font-size:13px; cursor:pointer; }
 html[data-theme]:not([data-theme="gold-atelier"]) .ls-full:hover{ border-color:var(--gold); color:var(--gold-bright); }
-html[data-theme]:not([data-theme="gold-atelier"]) .lay-card{ overflow-y:auto; }
-html[data-theme]:not([data-theme="gold-atelier"]) .lay-main{ flex:none; flex-direction:column; margin:14px 14px 0; }
-html[data-theme]:not([data-theme="gold-atelier"]) .lay-main .lay-stage{ flex:none; height:62vh; min-height:360px; }
-html[data-theme]:not([data-theme="gold-atelier"]) .lay-side{ flex:none; max-height:none; overflow:visible; }
-html[data-theme]:not([data-theme="gold-atelier"]) .lay-actions{ flex-wrap:wrap; }
-html[data-theme]:not([data-theme="gold-atelier"]) .lay-actions button{ flex:1 1 30%; }
+@media (max-width:900px){ html[data-theme]:not([data-theme="gold-atelier"]) .lay-card{ overflow-y:auto; } html[data-theme]:not([data-theme="gold-atelier"]) .lay-main{ flex:none; flex-direction:column; margin:14px 14px 0; } html[data-theme]:not([data-theme="gold-atelier"]) .lay-main .lay-stage{ flex:none; height:62vh; min-height:360px; } html[data-theme]:not([data-theme="gold-atelier"]) .lay-side{ flex:none; max-height:none; overflow:visible; } html[data-theme]:not([data-theme="gold-atelier"]) .lay-actions{ flex-wrap:wrap; } html[data-theme]:not([data-theme="gold-atelier"]) .lay-actions button{ flex:1 1 30%; } }
 html[data-theme]:not([data-theme="gold-atelier"]) .pm-card{ border-color:var(--line); background:var(--surface); }
 html[data-theme]:not([data-theme="gold-atelier"]) .pm-hero{ border-bottom:1px solid var(--line-soft); background:none; }
 html[data-theme]:not([data-theme="gold-atelier"]) .pm-eyebrow{ letter-spacing:.06em; text-transform:none; font-size:13px; }
@@ -8123,17 +8118,14 @@ html[data-theme]:not([data-theme="gold-atelier"]) .lay-chip{ background:transpar
 html[data-theme]:not([data-theme="gold-atelier"]) .lay-area{  font-weight:500; font-size:54px; letter-spacing:0; }
 html[data-theme]:not([data-theme="gold-atelier"]) .lay-area b{ font-weight:500 !important; }
 html[data-theme]:not([data-theme="gold-atelier"]) .lay-price b{  font-size:22px; color:var(--gold-bright); }
-html[data-theme]:not([data-theme="gold-atelier"]) .lay-stage{ min-height:min(620px,64vh); margin:18px 22px 0; border-radius:24px; border-color:#2b2822; background:radial-gradient(ellipse at 50% 45%, #1a1813 0%, #0a0a0b 70%); }
+html[data-theme]:not([data-theme="gold-atelier"]) .lay-stage{ min-height:min(620px,64vh); margin:18px 22px 0; border-radius:24px; border-color:var(--line); background:radial-gradient(ellipse at 50% 45%, color-mix(in srgb, var(--gold) 9%, var(--bg-alt, var(--bg))) 0%, var(--bg-alt, var(--bg)) 72%); }
 html[data-theme]:not([data-theme="gold-atelier"]) .lay-modes{ border-radius:999px; }
 html[data-theme]:not([data-theme="gold-atelier"]) .lay-modes button{ border-radius:999px !important; }
 html[data-theme]:not([data-theme="gold-atelier"]) .lay-actions{ padding:16px 22px 8px; }
 html[data-theme]:not([data-theme="gold-atelier"]) .lay-actions button{ border-radius:999px; border-color:var(--line); background:transparent; }
 html[data-theme]:not([data-theme="gold-atelier"]) .lay-actions button.primary{ background:var(--gold); color:var(--bg); border-color:var(--gold); }
-html[data-theme]:not([data-theme="gold-atelier"]) .lay-stage{ --gold:#f5c542; --gold-bright:#ffe08a; --gold-dim:#b38a1c; }
-html[data-theme]:not([data-theme="gold-atelier"]) .lay-stage .lay-modes,html[data-theme]:not([data-theme="gold-atelier"]) .lay-stage .lay-count{ --gold:#d4b87a; --gold-bright:#ecd9a8; }
-html[data-theme]:not([data-theme="gold-atelier"]) .seal-row{ grid-template-columns:repeat(2,minmax(0,1fr)); }
-html[data-theme]:not([data-theme="gold-atelier"]) .lay-hero h3{ font-size:40px; }
-html[data-theme]:not([data-theme="gold-atelier"]) .seal-row{ grid-template-columns:minmax(0,1fr); }
+@media (max-width:900px){ html[data-theme]:not([data-theme="gold-atelier"]) .seal-row{ grid-template-columns:repeat(2,minmax(0,1fr)); } html[data-theme]:not([data-theme="gold-atelier"]) .lay-hero h3{ font-size:40px; } }
+@media (max-width:560px){ html[data-theme]:not([data-theme="gold-atelier"]) .seal-row{ grid-template-columns:minmax(0,1fr); } }
 html[data-theme]:not([data-theme="gold-atelier"]) .seal.has-photo .pname{ color:#fff !important; }
 html[data-theme]:not([data-theme="gold-atelier"]) .seal.has-photo .psub{ color:#ecd9a8 !important; }
 html[data-theme]:not([data-theme="gold-atelier"]) .seal.has-photo .ptag{ color:#ecd9a8 !important; border-color:rgba(236,217,168,.45) !important; }
@@ -8143,6 +8135,18 @@ html[data-theme]:not([data-theme="gold-atelier"]) .seal:not(.has-photo) .pmeta b
 html[data-theme]:not([data-theme="gold-atelier"]) .seal:not(.has-photo) .ptag{ background:transparent; color:var(--gold); border-color:color-mix(in srgb, var(--gold) 45%, transparent); }
 html[data-theme]:not([data-theme="gold-atelier"]) .seal:not(.has-photo) .medallion{ background:transparent !important; backdrop-filter:none; }
 
+/* Unit window: theme fonts for the side panel numbers, and a tidy phone header (all themes) */
+html[data-theme]:not([data-theme="gold-atelier"]) .ls-fact b,html[data-theme]:not([data-theme="gold-atelier"]) .ls-cell b{ font-family:var(--font-head); }
+@media (max-width:760px){
+  html[data-theme][data-theme] .lay-hero{ padding:16px 54px 14px 18px !important; flex-direction:column; align-items:stretch; gap:10px; }
+  html[data-theme][data-theme] .lay-hero h3{ font-size:34px !important; line-height:1 !important; margin:2px 0 10px !important; }
+  html[data-theme][data-theme] .lay-hero .lay-eyebrow{ font-size:12px !important; }
+  html[data-theme][data-theme] .lay-chips{ flex-direction:row !important; flex-wrap:wrap !important; }
+  html[data-theme][data-theme] .lay-hero-r{ display:flex; align-items:baseline; justify-content:space-between; text-align:left; border-top:1px solid var(--line-soft); padding-top:10px; }
+  html[data-theme][data-theme] .lay-area{ font-size:30px !important; }
+  html[data-theme][data-theme] .lay-price{ margin-top:0 !important; }
+  html[data-theme][data-theme] .lay-main .lay-stage{ height:58vh !important; }
+}
 /* ================= Gold Atelier — type and the phone layout ================= */
 html[data-theme][data-theme] body{ font-family:var(--font-body); font-variant-numeric:lining-nums; }
 html[data-theme][data-theme] .hero h1,html[data-theme][data-theme] .lay-hero h3,html[data-theme][data-theme] .pm-hero h3{ font-weight:500 !important; letter-spacing:-0.01em !important; }
