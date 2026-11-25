@@ -3111,7 +3111,7 @@ function render(){
         ${canHold() ? holdButtonHtml(u) : ''}
         <div class="row-more"><button class="act-ic more-btn" type="button" aria-haspopup="true" aria-expanded="false" title="More actions" aria-label="More actions"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
           <div class="more-pop" hidden>
-            ${menuItem('star-btn'+(shortlist.has(u.__idx)?' active':''), u.__idx, shortlist.has(u.__idx)?'Remove from shortlist':'Add to shortlist', shortlist.has(u.__idx)?'starOn':'star')}
+            ${featureOn('can_shortlist') ? menuItem('star-btn'+(shortlist.has(u.__idx)?' active':''), u.__idx, shortlist.has(u.__idx)?'Remove from shortlist':'Add to shortlist', shortlist.has(u.__idx)?'starOn':'star') : ''}
             ${featureOn('can_compare') ? menuItem('star-btn cmp-btn'+(cmpSet.has(u.__idx)?' active':''), u.__idx, 'Compare (up to 3)', 'compare') : ''}
             ${featureOn('can_share') ? menuItem('star-btn share-btn', u.__idx, 'Share with a client', 'share') : ''}
             ${canLay(u) && canLoc(u) ? menuItem('star-btn loc-btn', u.__idx, 'Location on the floor plan', 'pin') : ''}
@@ -3256,7 +3256,72 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Open unavailable units'],['can_dl_layout','Download layout (PDF)'],['can_dl_masterplan','Download master plan (PDF)'],['can_dl_colour','Colour, as the CAD file'],['can_dl_black','Black & white'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan'],['can_offer','Client offer (PDF)'],['can_offer_currency','Offer in selected currency'],['can_offer_print','Print client offer'],['can_analytics_people','Analytics per person']];
+// ===== Permission catalog: every switch on the Users screen, grouped, with a plain-English hint.
+// col:true = stored in its own column (can_hold, can_archive, can_view_analytics); the rest live in users.features.
+// parent = only works when that permission is on (shown indented, greyed out when the parent is off).
+const PERM_SECTIONS = [
+  { id:'pages', icon:'🧭', title:'Pages', desc:'Which pages appear in the top bar.', items:[
+    { k:'can_project_map', l:'Project map', d:'Floor-by-floor map of every project' },
+    { k:'can_view_unavailable', l:'Open unavailable units on the map', d:'Sold or reserved units can still be opened', parent:'can_project_map' },
+    { k:'can_view_analytics', col:true, l:'Analytics', d:'Team activity, inventory and sign-ins' },
+    { k:'can_analytics_people', l:'Analytics per person', d:'Each salesperson’s own page', parent:'can_view_analytics' },
+  ]},
+  { id:'home', icon:'🏠', title:'Home page', desc:'What they see above the price list.', items:[
+    { k:'can_see_stats', l:'Price & availability charts', d:'The four small charts under the headline' },
+    { k:'can_see_devs', l:'Development cards', d:'The project cards with photos' },
+    { k:'can_see_tips', l:'Daily sales tip', d:'The quote under the headline' },
+    { k:'can_see_promo', l:'Offer counter', d:'“Building B offer · N left” in the top bar' },
+    { k:'can_change_theme', l:'Change theme', d:'The palette button in the corner' },
+  ]},
+  { id:'list', icon:'📋', title:'Price list tools', desc:'Searching, sorting and keeping track of units.', items:[
+    { k:'can_currency', l:'Switch currency', d:'Show prices in USD, EUR or GBP' },
+    { k:'can_edit_rates', l:'Set exchange rates', d:'The ✎ next to the currencies (only on their device)', parent:'can_currency' },
+    { k:'can_filter_price', l:'Price range filter', d:'Filter by minimum and maximum price' },
+    { k:'can_sort', l:'Sort the list', d:'Sort by price, area, floor…' },
+    { k:'can_saved_filters', l:'Saved filters', d:'Save a search and reuse it' },
+    { k:'can_shortlist', l:'Shortlist', d:'Star units and keep a short list' },
+    { k:'can_compare', l:'Compare units', d:'Side by side, up to 3 units' },
+    { k:'can_share', l:'Share a unit', d:'Send a unit’s details to a client' },
+    { k:'can_price_tags', l:'Price change tags', d:'See when a price went up or down' },
+  ]},
+  { id:'unit', icon:'🔑', title:'Unit actions', desc:'What they can do with a unit.', items:[
+    { k:'can_hold', col:true, l:'Hold units', d:'Put a unit on hold for a client' },
+    { k:'can_hold_alerts', l:'Hold expiry alerts', d:'Reminder banner before their hold ends', parent:'can_hold' },
+    { k:'can_archive', col:true, l:'Archive units', d:'Hide a unit from the price list' },
+    { k:'can_payment_plan', l:'Payment plan', d:'Open the installment schedule' },
+    { k:'can_download_plan', l:'Download payment plan PDF', d:'', parent:'can_payment_plan' },
+    { k:'can_roi', l:'ROI calculator', d:'Rental return and resale estimate' },
+  ]},
+  { id:'offer', icon:'📄', title:'Client offer', desc:'The branded offer PDF for a client.', items:[
+    { k:'can_offer', l:'Client offer (PDF)', d:'Download the offer with photos and the chosen plan' },
+    { k:'can_offer_print', l:'Print the offer', d:'', parent:'can_offer' },
+    { k:'can_offer_currency', l:'Offer in the selected currency', d:'Otherwise offers are always in EGP', parent:'can_offer' },
+  ]},
+  { id:'plans', icon:'📐', title:'Floor plans & drawings', desc:'Which projects show layouts and locations is set per project below.', items:[
+    { k:'can_dl_layout', l:'Download unit layout (PDF)', d:'' },
+    { k:'can_print_layout', l:'Print unit layout', d:'' },
+    { k:'can_dl_masterplan', l:'Download floor master plan (PDF)', d:'' },
+    { k:'can_print_masterplan', l:'Print floor master plan', d:'' },
+    { k:'can_dl_colour', l:'Drawings in colour', d:'As the CAD file' },
+    { k:'can_dl_black', l:'Drawings in black & white', d:'For printing' },
+  ]},
+];
+// Quick setups for the Users screen (projects and columns are left as they are).
+const PERM_PRESETS = {
+  viewer: { label:'Viewer', hint:'Look only', on:['can_see_stats','can_see_devs','can_see_tips','can_see_promo','can_change_theme','can_currency','can_filter_price','can_sort','can_shortlist','can_payment_plan'] },
+  sales:  { label:'Sales agent', hint:'Everyday selling', on:['can_see_stats','can_see_devs','can_see_tips','can_see_promo','can_change_theme','can_currency','can_edit_rates','can_filter_price','can_sort','can_saved_filters','can_shortlist','can_compare','can_share','can_price_tags','can_hold','can_hold_alerts','can_payment_plan','can_download_plan','can_roi','can_offer','can_project_map'] },
+  senior: { label:'Senior sales', hint:'Plus drawings, printing and analytics', on:'ALL_BUT', off:['can_archive','can_analytics_people','can_view_unavailable'] },
+  all:    { label:'Everything', hint:'', on:'ALL' },
+  none:   { label:'Nothing', hint:'', on:[] },
+};
+const PERM_COL_KEYS = ['can_hold','can_archive','can_view_analytics'];
+function permItems(){ return PERM_SECTIONS.flatMap(s=> s.items); }
+function permPresetMap(id){
+  const P = PERM_PRESETS[id], all = permItems().map(i=>i.k), m = {};
+  all.forEach(k=> m[k] = P.on==='ALL' ? true : P.on==='ALL_BUT' ? !P.off.includes(k) : P.on.includes(k));
+  return m;
+}
+const FEATURE_DEFS = permItems().filter(i=> !i.col).map(i=> [i.k, i.l]);
 // Features listed here stay OFF for a user until an admin ticks them on the Users screen.
 // How the permission switches are grouped on the Users screen
 const FEATURE_GROUPS = [
@@ -5088,12 +5153,21 @@ document.getElementById('ratesSaveBtn').addEventListener('click', ()=>{
   render();
   if(typeof renderPPSchedule==='function' && ppUnit) renderPPSchedule();
 });
+// Home-page parts and list tools that each have their own permission (see PERM_SECTIONS)
+function applyUiPerms(){
+  const map = { stats:'can_see_stats', devs:'can_see_devs', tips:'can_see_tips', promo:'can_see_promo', theme:'can_change_theme', currency:'can_currency', price:'can_filter_price', sort:'can_sort', shortlist:'can_shortlist' };
+  const root = document.documentElement;
+  Object.entries(map).forEach(([n,k])=> root.classList.toggle('np-'+n, !featureOn(k)));
+  try{ if(!featureOn('can_currency') && currency !== 'EGP') setCurrency('EGP'); }catch(e){}
+  try{ if(!featureOn('can_filter_price')){ const a = document.getElementById('minPrice'), b = document.getElementById('maxPrice'); if((a&&a.value)||(b&&b.value)){ a.value = ''; b.value = ''; render(); } } }catch(e){}
+}
 function refreshAdminUI(){
   try{ sfRender(); }catch(e){}
   const isAdmin = isAdminUser();
   // Everyone can set exchange rates -- except a test/view-only account, since
   // that's a real action that affects what everyone else sees.
-  document.getElementById('curEditBtn').style.display = isTestUser() ? 'none' : 'inline-flex';
+  document.getElementById('curEditBtn').style.display = (isTestUser() || !featureOn('can_currency') || !featureOn('can_edit_rates')) ? 'none' : 'inline-flex';
+  applyUiPerms();
   document.getElementById('adminAnalyticsBtn').classList.toggle('show', canViewAnalytics());
   document.getElementById('exportPriceListBtn').classList.toggle('show', exportableProjects().length > 0);
   document.getElementById('adminUsersBtn').classList.toggle('show', isAdmin);
@@ -5790,7 +5864,7 @@ function umTempPassword(){
 }
 function umSetMsg(id, text, ok){ const el = document.getElementById(id); el.textContent = text || ''; el.className = 'um-msg' + (text ? (ok ? ' ok' : ' err') : ''); }
 const UC_PERM_COLUMNS = [['can_hold','Hold units'],['can_archive','Archive units'],['can_view_analytics','Analytics']];   // price-list export is now per project (Projects card)
-let umUsersCache = [], umOpenCards = new Set();
+let umUsersCache = [], umOpenCards = new Set(), ucFind = {};
 function ucEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function ucInitials(u){
   const parts = String(u.full_name || u.username).trim().split(/\s+/).filter(Boolean);
@@ -5802,6 +5876,7 @@ function ucSwitch(cls, attrs, checked, label, hint){
   return `<label class="uc-cb uc-cbl uc-row"><input type="checkbox" class="${cls}" ${attrs} ${checked?'checked':''}><i></i><span>${label}${hint?`<small>${hint}</small>`:''}</span></label>`;
 }
 function umRenderUsers(users){
+  setTimeout(()=> document.querySelectorAll('#usersBody .uc-card').forEach(c=>{ if(c.querySelector('.um-pfind')?.value) ucFilterPerms(c); }), 0);
   if(Array.isArray(users)) umUsersCache = users;
   const me = currentAgentName().toLowerCase();
   const body = document.getElementById('usersBody');
@@ -5886,13 +5961,24 @@ function umRenderUsers(users){
         </div>
         ${isAdminRole ? '<div class="uc-note">👑 Admins have every permission, can manage users and see all reserved units.</div>'
           : isTest ? '<div class="uc-note">👁 Test accounts are view-only: no holds, archive, export or analytics.</div>'
-          : `<div class="uc-perm-grid">
-              <div class="uc-group"><div class="uc-group-title">⚡ Actions</div>
-                ${UC_PERM_COLUMNS.map(([k,l])=> ucSwitch('um-perm', `data-user="${un}" data-perm="${k}"`, !!u[k], l)).join('')}
+          : `<div class="pm2">
+              <div class="pm2-top">
+                <div class="pm2-presets"><span>Quick setup</span>${Object.entries(PERM_PRESETS).map(([id,P])=>`<button type="button" class="um-preset" data-user="${un}" data-preset="${id}" title="${ucEsc(P.hint)}">${P.label}</button>`).join('')}</div>
+                <label class="pm2-find"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input class="um-pfind" data-user="${un}" placeholder="Find a permission…" value="${ucEsc(ucFind[u.username]||'')}"></label>
               </div>
-              ${FEATURE_GROUPS.map(([gt, ic, keys])=> `<div class="uc-group"><div class="uc-group-title">${ic} ${gt}</div>
-                ${keys.map(k=> FEATURE_DEFS.find(d=>d[0]===k)).filter(Boolean).map(([k,l])=> ucSwitch('um-feat', `data-user="${un}" data-feat="${k}"`, (k in feats ? feats[k] !== false : featureDefault(k)), l)).join('')}
-              </div>`).join('')}
+              <div class="pm2-grid">${PERM_SECTIONS.map(sec=>{
+                const val = it=> it.col ? !!u[it.k] : fOn(it.k);
+                const onN = sec.items.filter(val).length;
+                return `<section class="pm2-sec" data-sec="${sec.id}">
+                  <header><span class="pm2-ic">${sec.icon}</span><div class="pm2-ht"><h6>${sec.title}</h6><p>${sec.desc}</p></div>
+                    <span class="pm2-n ${onN===sec.items.length?'all':onN?'some':''}">${onN}/${sec.items.length}</span></header>
+                  <div class="pm2-acts"><button type="button" class="um-secall" data-user="${un}" data-sec="${sec.id}" data-on="1">All on</button><button type="button" class="um-secall" data-user="${un}" data-sec="${sec.id}" data-on="0">All off</button></div>
+                  ${sec.items.map(it=>{ const pOff = it.parent && !val(sec.items.find(x=>x.k===it.parent) || {k:it.parent});
+                    return `<label class="pm2-row ${it.parent?'kid':''} ${pOff?'off':''}" data-txt="${ucEsc((it.l+' '+it.d+' '+sec.title).toLowerCase())}">
+                      <input type="checkbox" class="${it.col?'um-perm':'um-feat'}" data-user="${un}" ${it.col?`data-perm="${it.k}"`:`data-feat="${it.k}"`} ${val(it)?'checked':''} ${pOff?'disabled':''}><i class="pm2-sw"></i>
+                      <span><b>${it.l}</b>${it.d?`<small>${it.d}</small>`:''}${pOff?`<small class="pm2-dep">Needs “${ucEsc((permItems().find(x=>x.k===it.parent)||{}).l||'')}”</small>`:''}</span></label>`; }).join('')}
+                </section>`; }).join('')}</div>
+              <div class="uc-perm-grid pm2-more">
               <div class="uc-group"><div class="uc-group-title">🔒 Reserved units</div>
                 <div class="uc-reserved ${u.title?'yes':''}">${u.title==='Sales Director' ? '✔ Sees both teams’ reservations' : u.title==='Sales Manager' ? `✔ Sees ${ucEsc(teamName||'no team yet — set a team')} reservations` : '✖ No access — give a Sales Manager or Director title'}</div>
               </div>
@@ -5911,6 +5997,7 @@ function umRenderUsers(users){
                 <div class="uc-cols">${COL_DEFS.map(([k,l])=> `<label class="uc-cb uc-cbl"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="${k}" ${fOn(k)?'checked':''}><i></i><span>${l}</span></label>`).join('')}</div>
                 <div class="uc-hint">Project and Unit No. always show. A hidden column is also left out of Compare, Share and the price-list PDF.</div>
               </div>
+            </div>
             </div>`}
       </div>
     </div>`;
@@ -5923,6 +6010,43 @@ document.getElementById('usersBody').addEventListener('click', e=>{
   const card = t.closest('.uc-card'); card.classList.toggle('open', umOpenCards.has(u)); t.textContent = umOpenCards.has(u) ? '▴' : '▾';
 });
 document.getElementById('ucSearch').addEventListener('input', ()=> umRenderUsers());
+async function ucApplyMap(user, map){
+  const perms = {}, feats = {};
+  Object.entries(map).forEach(([k,v])=> (PERM_COL_KEYS.includes(k) ? perms : feats)[k] = v);
+  let d = null;
+  if(Object.keys(perms).length) d = await umCall({ action:'set_permissions', targetUsername:user, permissions:perms });
+  if(Object.keys(feats).length) d = await umCall({ action:'set_features', targetUsername:user, features:feats });
+  if(d) umRenderUsers(d.users);
+}
+function ucFilterPerms(card){
+  const q = (card.querySelector('.um-pfind')?.value || '').trim().toLowerCase();
+  card.querySelectorAll('.pm2-sec').forEach(sec=>{
+    let any = false;
+    sec.querySelectorAll('.pm2-row').forEach(r=>{ const hit = !q || r.dataset.txt.includes(q); r.style.display = hit ? '' : 'none'; if(hit) any = true; });
+    sec.style.display = any ? '' : 'none';
+  });
+}
+document.getElementById('usersBody').addEventListener('input', e=>{
+  const f = e.target.closest('.um-pfind'); if(!f) return;
+  ucFind[f.dataset.user] = f.value; ucFilterPerms(f.closest('.uc-card'));
+});
+document.getElementById('usersBody').addEventListener('click', async e=>{
+  const b = e.target.closest('.um-secall, .um-preset'); if(!b) return;
+  const user = b.dataset.user;
+  try{
+    if(b.classList.contains('um-secall')){
+      const sec = PERM_SECTIONS.find(x=> x.id === b.dataset.sec), on = b.dataset.on === '1', map = {};
+      sec.items.forEach(it=> map[it.k] = on);
+      b.disabled = true; await ucApplyMap(user, map);
+      umSetMsg('um_msg', `${sec.title}: everything turned ${on?'on':'off'} for ${user}.`, true);
+    } else {
+      const P = PERM_PRESETS[b.dataset.preset];
+      if(!confirm(`Apply “${P.label}” to ${user}?\n\nThis sets every switch in the sections above. Projects and table columns stay as they are.`)) return;
+      b.disabled = true; await ucApplyMap(user, permPresetMap(b.dataset.preset));
+      umSetMsg('um_msg', `${user} now has the “${P.label}” setup.`, true);
+    }
+  }catch(err){ umSetMsg('um_msg', err.message, false); await umRefresh().catch(()=>{}); }
+});
 document.getElementById('ucFilter').addEventListener('change', ()=> umRenderUsers());
 async function umRefresh(){
   const data = await umCall({ action:'list' });
@@ -8183,6 +8307,55 @@ html[data-theme]:not([data-theme="gold-atelier"]) .ls-fact b,html[data-theme]:no
   .pm-roof{ margin-left:72px !important; }
   .pm-foot{ padding:12px 28px 16px !important; font-size:12px !important; }
 }
+/* ===== Users screen: organised permissions ===== */
+html.np-stats #heroLedger, html.np-devs section.projects, html.np-tips #heroTip, html.np-promo #promoPill, html.np-theme #themeFab, html.np-theme #themePanel,
+html.np-currency .currency-toggle, html.np-price #priceDd, html.np-sort .sortbox, html.np-shortlist #shortlistFab, html.np-shortlist .shortlist-panel{ display:none !important; }
+.pm2{ display:flex; flex-direction:column; gap:14px; }
+.pm2-top{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 14px; border:1px solid var(--line-soft); border-radius:14px; background:color-mix(in srgb, var(--gold) 5%, transparent); }
+.pm2-presets{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.pm2-presets span{ font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--stone); margin-right:4px; }
+.pm2-presets button{ border:1px solid var(--line); background:transparent; color:var(--cream); font:inherit; font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:999px; cursor:pointer; }
+.pm2-presets button:hover{ border-color:var(--gold); color:var(--gold-bright); }
+.pm2-find{ margin-left:auto; display:flex; align-items:center; gap:7px; border:1px solid var(--line); border-radius:999px; padding:0 12px; height:34px; color:var(--stone); background:var(--bg); min-width:220px; }
+.pm2-find input{ border:0; outline:0; background:transparent; color:var(--cream); font:inherit; font-size:13px; flex:1; min-width:0; }
+.pm2-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; align-items:start; }
+.pm2-sec{ border:1px solid var(--line-soft); border-radius:16px; background:var(--bg); padding:14px 14px 8px; }
+.pm2-sec header{ display:flex; align-items:flex-start; gap:10px; }
+.pm2-ic{ width:34px; height:34px; flex:none; border-radius:10px; display:grid; place-items:center; font-size:16px; background:color-mix(in srgb, var(--gold) 14%, transparent); }
+.pm2-ht{ flex:1; min-width:0; }
+.pm2-ht h6{ margin:0; font-size:14.5px; font-weight:700; color:var(--cream); font-family:inherit !important; letter-spacing:0; }
+.pm2-ht p{ margin:2px 0 0; font-size:12px; color:var(--stone); line-height:1.35; }
+.pm2-n{ font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px; color:var(--stone); border:1px solid var(--line); white-space:nowrap; }
+.pm2-n.all{ color:var(--bg); background:var(--gold); border-color:var(--gold); }
+.pm2-n.some{ color:var(--gold-bright); border-color:color-mix(in srgb, var(--gold) 55%, transparent); }
+.pm2-acts{ display:flex; gap:6px; margin:10px 0 4px 44px; }
+.pm2-acts button{ border:0; background:transparent; color:var(--gold); font:inherit; font-size:12px; font-weight:600; cursor:pointer; padding:2px 6px; border-radius:6px; }
+.pm2-acts button:hover{ background:color-mix(in srgb, var(--gold) 12%, transparent); }
+.pm2-row{ position:relative; display:flex; align-items:flex-start; gap:12px; padding:9px 4px; border-top:1px solid var(--line-soft); cursor:pointer; }
+.pm2-row.kid{ padding-left:30px; }
+.pm2-row.kid::before{ content:""; position:absolute; left:14px; top:0; bottom:50%; width:10px; border-left:1.5px solid var(--line); border-bottom:1.5px solid var(--line); border-bottom-left-radius:6px; }
+.pm2-row input{ position:absolute; opacity:0; pointer-events:none; }
+.pm2-sw{ flex:none; width:36px; height:20px; border-radius:999px; background:var(--line); position:relative; transition:background .18s; margin-top:1px; }
+.pm2-sw::after{ content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:transform .18s; }
+.pm2-row input:checked + .pm2-sw{ background:var(--gold); }
+.pm2-row input:checked + .pm2-sw::after{ transform:translateX(16px); }
+.pm2-row input:focus-visible + .pm2-sw{ outline:2px solid var(--gold-bright); outline-offset:2px; }
+.pm2-row span{ display:flex; flex-direction:column; min-width:0; }
+.pm2-row b{ font-size:13.5px; font-weight:600; color:var(--cream); }
+.pm2-row small{ font-size:11.5px; color:var(--stone); margin-top:1px; }
+.pm2-row.off{ opacity:.5; cursor:not-allowed; }
+.pm2-row small.pm2-dep{ color:var(--gold); }
+.pm2-more{ grid-template-columns:repeat(auto-fit,minmax(280px,1fr)) !important; }
+#usersOverlay .modal-card{ max-width:1500px !important; }
+.pm2-more{ gap:12px !important; }
+.pm2-more .uc-group{ border-radius:16px; background:var(--bg); padding:16px; border-color:var(--line-soft); }
+.pm2-more .uc-group-title{ font-size:14.5px; font-weight:700; letter-spacing:0; text-transform:none; color:var(--cream); margin-bottom:10px; font-family:inherit !important; }
+.pm2-more .uc-group-title small{ display:block; margin:3px 0 0; font-size:12px; color:var(--stone); font-weight:400; }
+.pm2-more .uc-ptab td{ font-size:13.5px; padding:9px 6px; }
+.pm2-more .uc-ptab th{ font-size:11px; }
+.pm2-more .uc-cbl span{ font-size:13.5px; }
+.pm2-more .uc-reserved{ font-size:13px; color:var(--cream); }
+@media (max-width:760px){ .pm2-find{ margin-left:0; width:100%; } .pm2-grid{ grid-template-columns:minmax(0,1fr); } }
 /* ================= Gold Atelier — type and the phone layout ================= */
 html[data-theme][data-theme] body{ font-family:var(--font-body); font-variant-numeric:lining-nums; }
 html[data-theme][data-theme] .hero h1,html[data-theme][data-theme] .lay-hero h3,html[data-theme][data-theme] .pm-hero h3{ font-weight:500 !important; letter-spacing:-0.01em !important; }
