@@ -5289,6 +5289,13 @@ async function umCall(payload){
   if(!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
+// readable temporary password: no look-alike letters (0/O, 1/l/I)
+function umTempPassword(){
+  const L = 'abcdefghjkmnpqrstuvwxyz', U = 'ABCDEFGHJKLMNPQRSTUVWXYZ', D = '23456789';
+  const r = n => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; };
+  const pick = s => s[r(s.length)];
+  return pick(U) + pick(L) + pick(L) + pick(L) + pick(D) + pick(D) + pick(D) + pick(D) + pick(L);
+}
 function umSetMsg(id, text, ok){ const el = document.getElementById(id); el.textContent = text || ''; el.className = 'um-msg' + (text ? (ok ? ' ok' : ' err') : ''); }
 const UC_PERM_COLUMNS = [['can_hold','Hold units'],['can_archive','Archive units'],['can_view_analytics','Analytics']];   // price-list export is now per project (Projects card)
 let umUsersCache = [], umOpenCards = new Set();
@@ -5361,13 +5368,15 @@ function umRenderUsers(users){
           ${isMe ? '' : (u.is_active
             ? `<button class="act-btn act-remove-unit um-suspend" data-user="${un}">⛔ Suspend</button>`
             : `<button class="act-btn act-unarchive-unit um-unsuspend" data-user="${un}">✅ Restore</button>`)}
-          <button class="act-btn um-reset" data-user="${un}">🔑 Password</button>
+          <button class="act-btn um-reset" data-user="${un}" title="Give a temporary password; they must choose their own at next sign-in">🔑 Reset password</button>
           <button class="act-btn uc-toggle" data-user="${un}" aria-label="Show details">${open?'▴':'▾'}</button>
         </div>
       </div>
       <div class="um-pw-row" data-for="${un}" style="display:none;">
-        <input type="text" placeholder="New password (8+, letters + numbers)" class="um-pw-input" autocomplete="off">
-        <button class="act-btn um-pw-save" data-user="${un}">Save</button>
+        <span class="um-pw-lbl">Temporary password</span>
+        <input type="text" placeholder="8+ characters, letters + numbers" class="um-pw-input" autocomplete="off" spellcheck="false">
+        <button class="act-btn um-pw-gen" type="button" title="Make a new random password">🎲 New</button>
+        <button class="act-btn um-pw-save" data-user="${un}">Reset</button>
         <button class="act-btn um-pw-cancel" data-user="${un}">Cancel</button>
       </div>
       <div class="uc-summary">${permSummary}</div>
@@ -5529,15 +5538,21 @@ document.getElementById('usersBody').addEventListener('click', async (e)=>{
     } else if(btn.classList.contains('um-unsuspend')){
       const d = await umCall({ action:'unsuspend', targetUsername:user }); umRenderUsers(d.users); umSetMsg('um_msg', `${user} restored.`, true);
     } else if(btn.classList.contains('um-reset')){
-      const row = btn.closest('.uc-card').querySelector('.um-pw-row'); row.style.display = 'flex'; row.querySelector('input').focus();
+      const row = btn.closest('.uc-card').querySelector('.um-pw-row'); row.style.display = 'flex';
+      const inp = row.querySelector('input'); if(!inp.value) inp.value = umTempPassword(); inp.focus(); inp.select();
+    } else if(btn.classList.contains('um-pw-gen')){
+      const inp = btn.closest('.um-pw-row').querySelector('input'); inp.value = umTempPassword(); inp.focus(); inp.select();
     } else if(btn.classList.contains('um-pw-cancel')){
       const row = btn.closest('.um-pw-row'); row.style.display = 'none'; row.querySelector('input').value = '';
     } else if(btn.classList.contains('um-pw-save')){
       const row = btn.closest('.um-pw-row'); const pw = row.querySelector('input').value;
       if(!pwStrong(pw)){ umSetMsg('um_msg', 'Password must be at least 8 characters and include letters and numbers.', false); return; }
+      if(!confirm(`Reset ${user}'s password to "${pw}"?\n\nThey will have to choose their own password the next time they sign in.`)) return;
       await umCall({ action:'set_password', targetUsername:user, newPassword:pw });
       row.style.display = 'none'; row.querySelector('input').value = '';
-      umSetMsg('um_msg', `Password updated for ${user}.`, true);
+      try{ await navigator.clipboard.writeText(pw); }catch(_){}
+      umSetMsg('um_msg', `Password reset for ${user}. Temporary password: ${pw} (copied). Send it to them — at their next sign-in they will be asked to choose a new one.`, true);
+      await umRefresh().catch(()=>{});
     }
   }catch(err){ umSetMsg('um_msg', err.message, false); }
 });
@@ -6157,6 +6172,11 @@ async function verifySession(){
     const st = Array.isArray(rows) ? rows[0] : rows;
     if(!st || st.is_active === false){
       forceSignOut('This account has been suspended. Please contact your administrator.');
+      return;
+    }
+    // an admin reset this person's password: sign them out (unless they are on the "choose your password" screen right now)
+    if(st.must_change_password === true && !pwForced && !document.getElementById('pwOverlay').classList.contains('open')){
+      forceSignOut('Your password was reset by an administrator. Please sign in with the temporary password you were given.');
       return;
     }
     const newPerms = JSON.stringify({ can_hold: st.can_hold, can_archive: st.can_archive, can_export: st.can_export, can_view_analytics: st.can_view_analytics, title: st.title || null, features: st.features || {} });
@@ -6948,6 +6968,8 @@ setInterval(()=>{
 .uc-cbl span{ font-size:12.5px; color:var(--cream); }
 .uc-row{ display:flex; padding:5px 0; } .uc-row span small{ display:block; font-size:10.5px; color:var(--stone-dim); }
 .uc-na{ color:var(--stone-dim); }
+.um-pw-lbl{ font-size:11px; color:var(--stone); align-self:center; white-space:nowrap; }
+.um-pw-row .um-pw-input{ font-family:var(--font-mono, monospace); letter-spacing:.04em; }
 .uc-hint{ margin-top:8px; font-size:10.5px; color:var(--stone-dim); font-style:italic; }
 .uc-sw{ display:flex; align-items:center; gap:10px; padding:6px 0; cursor:pointer; font-size:12.5px; }
 .uc-sw input{ position:absolute; opacity:0; pointer-events:none; }
