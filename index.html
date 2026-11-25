@@ -21,6 +21,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Manrope:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Lato:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 
 /* Graphite Champagne — dark graphite with champagne gold */
@@ -7355,7 +7356,7 @@ html[data-theme="gold-atelier"] .lay-side{ display:flex; flex-direction:column; 
 .ls-facts{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; }
 .ls-fact{ border-top:1px solid #2b2822; padding-top:8px; }
 .ls-fact span,.ls-cell span{ display:block; font-size:11.5px; color:var(--stone); }
-.ls-fact b{ font-family:'Cormorant Garamond', Georgia, serif; font-weight:500; font-size:21px; color:var(--cream); }
+.ls-fact b{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif; font-weight:500; font-size:21px; color:var(--cream); }
 .ls-pm{ font-size:12.5px; color:var(--stone); }
 .ls-h{ margin-top:4px; font-size:12px; font-weight:600; color:var(--gold); letter-spacing:.04em; }
 .ls-plans{ display:flex; flex-wrap:wrap; gap:6px; }
@@ -7364,7 +7365,7 @@ html[data-theme="gold-atelier"] .lay-side{ display:flex; flex-direction:column; 
 .ls-plans button.on{ background:var(--gold); border-color:var(--gold); color:#0b0b0d; font-weight:600; }
 .ls-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .ls-cell{ border-top:1px solid #2b2822; padding-top:8px; }
-.ls-cell b{ display:block; font-family:'Cormorant Garamond', Georgia, serif; font-weight:600; font-size:22px; color:var(--cream); white-space:nowrap; }
+.ls-cell b{ display:block; font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif; font-weight:600; font-size:22px; color:var(--cream); white-space:nowrap; }
 .ls-cell.hot b{ color:var(--gold-bright); }
 .ls-full{ margin-top:auto; padding:12px; border-radius:999px; border:1px solid #3a352c; background:transparent; color:var(--cream); font:500 13px 'Inter',sans-serif; cursor:pointer; }
 .ls-full:hover{ border-color:var(--gold); color:var(--gold-bright); }
@@ -7375,7 +7376,7 @@ html[data-theme="gold-atelier"] .pm-hero{ border-bottom:1px solid #24221d; backg
 html[data-theme="gold-atelier"] .pm-eyebrow{ letter-spacing:.06em; text-transform:none; font-size:13px; }
 html[data-theme="gold-atelier"] .pm-hero h3{ font-weight:500 !important; letter-spacing:0 !important; font-size:46px; line-height:1; }
 html[data-theme="gold-atelier"] .pm-stat{ border-radius:16px; border-color:#2b2822; background:#131215; }
-html[data-theme="gold-atelier"] .pm-stat b{ font-family:'Cormorant Garamond', Georgia, serif; font-weight:500; font-size:30px; }
+html[data-theme="gold-atelier"] .pm-stat b{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif; font-weight:500; font-size:30px; }
 html[data-theme="gold-atelier"] .pm-stat span{ letter-spacing:.04em; text-transform:none; font-size:11.5px; }
 html[data-theme="gold-atelier"] .pm-tab,html[data-theme="gold-atelier"] .pm-proj{ border-radius:999px; }
 html[data-theme="gold-atelier"] .pm-tab.on{ color:#0b0b0d; }
@@ -7383,9 +7384,9 @@ html[data-theme="gold-atelier"] .pm-body{ background:radial-gradient(ellipse at 
 html[data-theme="gold-atelier"] .pm-roof{ background:linear-gradient(180deg, rgba(212,184,122,.35), rgba(212,184,122,.04)); }
 html[data-theme="gold-atelier"] .pm-row{ border-bottom-color:rgba(212,184,122,.14); }
 html[data-theme="gold-atelier"] .pm-floor{ border-radius:14px; }
-html[data-theme="gold-atelier"] .pm-floor b{ font-family:'Cormorant Garamond', Georgia, serif; font-weight:500; font-size:28px; }
+html[data-theme="gold-atelier"] .pm-floor b{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif; font-weight:500; font-size:28px; }
 html[data-theme="gold-atelier"] .pm-cell{ border-radius:16px; }
-html[data-theme="gold-atelier"] .pm-no{ font-family:'Cormorant Garamond', Georgia, serif; font-size:16px; font-weight:600; }
+html[data-theme="gold-atelier"] .pm-no{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif; font-size:16px; font-weight:600; }
 /* ================= Top bar: centred pages, account menu (all themes) ================= */
 header.top{ position:relative; z-index:300; padding:6px 0 !important; }
 header.top .top-inner{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; padding-top:2px !important; padding-bottom:2px !important; min-height:0 !important; }
@@ -7395,7 +7396,7 @@ header.top .acct-av{ width:30px; height:30px; }
 header.top .brand{ display:flex; align-items:center; gap:14px; flex:none; }
 header.top .brand img{ height:54px !important; width:auto !important; max-width:none !important; }
 .brand-sep{ width:1px; height:26px; background:var(--line); }
-.brand-tool{ font-family:'Cormorant Garamond', Georgia, serif; font-size:21px; color:var(--cream); white-space:nowrap; }
+.brand-tool{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif; font-size:21px; color:var(--cream); white-space:nowrap; }
 .top-nav{ flex:1 1 420px; display:flex; justify-content:center; flex-wrap:wrap; gap:4px; }
 .top-nav .nav-btn,.top-nav .admin-btn.nav-btn{ margin:0; display:none; align-items:center; gap:8px; padding:10px 14px; border-radius:10px; border:0 !important; background:transparent !important; color:var(--stone); font:500 14px var(--font-body, 'Inter'), sans-serif; text-decoration:none; cursor:pointer; box-shadow:none !important; }
 .top-nav a.nav-btn,.top-nav .admin-btn.nav-btn.show{ display:inline-flex; }
@@ -7450,7 +7451,7 @@ header.top .brand img{ height:54px !important; width:auto !important; max-width:
 #holdBanner.warn{ border-color:rgba(240,165,138,.6); background:linear-gradient(90deg, rgba(240,165,138,.16), rgba(240,165,138,.03)); }
 .hb-ic{ width:34px; height:34px; border-radius:50%; flex:none; display:inline-flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--gold) 18%, transparent); color:var(--gold-bright); }
 .hb-text{ flex:1 1 300px; }
-.hb-unit{ font-family:'Cormorant Garamond', Georgia, serif; font-size:18px; }
+.hb-unit{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif; font-size:18px; }
 .hb-time{ color:var(--gold-bright); }
 .hb-show{ padding:7px 14px; border-radius:999px; border:1px solid color-mix(in srgb, var(--gold) 50%, transparent); background:transparent; color:var(--gold-bright); font:500 13px var(--font-body,'Inter'),sans-serif; cursor:pointer; }
 th.th-star,td.star-cell{ display:none; }
@@ -7541,7 +7542,7 @@ html[data-theme="gold-atelier"]{
   --line:rgba(212,184,122,0.24); --line-soft:rgba(255,255,255,0.07);
   --gold:#d4b87a; --gold-bright:#ecd9a8; --gold-dim:#a08a55; --teal:#b9a68a; --teal-bright:#d6c6a6;
   --cream:#f1ede4; --stone:#a59f93; --stone-dim:#6f6a60; --shadow:0 24px 60px rgba(0,0,0,0.6); --glow:rgba(212,184,122,0.35);
-  --font-head:'Cormorant Garamond', Georgia, serif; --font-body:'Inter', system-ui, sans-serif; --font-mono:'Inter', system-ui, sans-serif;
+  --font-display:'Playfair Display'; --font-head:'Playfair Display', Georgia, serif; --font-body:'Manrope', 'Inter', system-ui, sans-serif; --font-mono:'Manrope', 'Inter', system-ui, sans-serif;
 }
 .seal-photo{ display:none; }
 html[data-theme="gold-atelier"] body{ background:#0b0b0d; }
@@ -7554,7 +7555,7 @@ html[data-theme="gold-atelier"] .hero h1 em{ color:var(--gold); }
 html[data-theme="gold-atelier"] .eyebrow{ color:var(--gold); letter-spacing:.08em; }
 html[data-theme="gold-atelier"] .ledger{ border:none; background:transparent; gap:12px; }
 html[data-theme="gold-atelier"] .ledger .cell{ border:1px solid #2b2822 !important; border-radius:16px; background:#131215; }
-html[data-theme="gold-atelier"] .ledger .cell .num{ font-family:'Cormorant Garamond', Georgia, serif !important; font-size:42px; color:var(--cream); font-weight:500; letter-spacing:0; }
+html[data-theme="gold-atelier"] .ledger .cell .num{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif !important; font-size:42px; color:var(--cream); font-weight:500; letter-spacing:0; }
 html[data-theme="gold-atelier"] .ledger .cell .lbl{ letter-spacing:.04em; text-transform:none; font-size:13px; color:var(--stone); }
 html[data-theme="gold-atelier"] .section-head h2{ font-family:'Cormorant Garamond', serif; font-weight:500; font-size:34px; }
 html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
@@ -7585,16 +7586,16 @@ html[data-theme="gold-atelier"] .table-scroll tbody td{ background:#121115; bord
 html[data-theme="gold-atelier"] .table-scroll tbody td:first-child{ border-left:1px solid #211f1b; border-radius:14px 0 0 14px; }
 html[data-theme="gold-atelier"] .table-scroll tbody td:last-child{ border-right:1px solid #211f1b; border-radius:0 14px 14px 0; }
 html[data-theme="gold-atelier"] .table-scroll tbody tr:hover td{ background:#1a1814; border-color:#4a412f; }
-html[data-theme="gold-atelier"] td.mono.unit{ font-family:'Cormorant Garamond', Georgia, serif !important; font-size:21px; font-weight:600; letter-spacing:0; }
+html[data-theme="gold-atelier"] td.mono.unit{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif !important; font-size:21px; font-weight:600; letter-spacing:0; }
 html[data-theme="gold-atelier"] .modal-card{ border-color:#3a342a; border-radius:22px; }
 html[data-theme="gold-atelier"] .lay-card{ max-width:1180px !important; width:min(1180px,96vw); border:1px solid #3a342a; background:#0f0e11; }
 html[data-theme="gold-atelier"] .lay-hero{ padding:26px 70px 20px 30px; border-bottom:1px solid #24221d; background:none; }
 html[data-theme="gold-atelier"] .lay-hero h3{ font-weight:500 !important; letter-spacing:0 !important; font-size:56px; line-height:.95; }
 html[data-theme="gold-atelier"] .lay-eyebrow{ letter-spacing:.06em; text-transform:none; font-size:13px; }
 html[data-theme="gold-atelier"] .lay-chip{ background:transparent; border-color:#3a352c; }
-html[data-theme="gold-atelier"] .lay-area{ font-family:'Cormorant Garamond', Georgia, serif !important; font-weight:500; font-size:54px; letter-spacing:0; }
+html[data-theme="gold-atelier"] .lay-area{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif !important; font-weight:500; font-size:54px; letter-spacing:0; }
 html[data-theme="gold-atelier"] .lay-area b{ font-weight:500 !important; }
-html[data-theme="gold-atelier"] .lay-price b{ font-family:'Cormorant Garamond', Georgia, serif !important; font-size:22px; color:var(--gold-bright); }
+html[data-theme="gold-atelier"] .lay-price b{ font-family:var(--font-display, 'Cormorant Garamond'), Georgia, serif !important; font-size:22px; color:var(--gold-bright); }
 html[data-theme="gold-atelier"] .lay-stage{ min-height:min(620px,64vh); margin:18px 22px 0; border-radius:24px; border-color:#2b2822; background:radial-gradient(ellipse at 50% 45%, #1a1813 0%, #0a0a0b 70%); }
 html[data-theme="gold-atelier"] .lay-modes{ border-radius:999px; }
 html[data-theme="gold-atelier"] .lay-modes button{ border-radius:999px !important; }
@@ -7606,6 +7607,55 @@ html[data-theme="gold-atelier"] .lay-stage{ --gold:#f5c542; --gold-bright:#ffe08
 html[data-theme="gold-atelier"] .lay-stage .lay-modes,html[data-theme="gold-atelier"] .lay-stage .lay-count{ --gold:#d4b87a; --gold-bright:#ecd9a8; }
 @media (max-width:900px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(2,minmax(0,1fr)); } html[data-theme="gold-atelier"] .lay-hero h3{ font-size:40px; } }
 @media (max-width:560px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:minmax(0,1fr); } }
+
+/* ================= Gold Atelier — type and the phone layout ================= */
+html[data-theme="gold-atelier"] body{ font-family:var(--font-body); font-variant-numeric:lining-nums; }
+html[data-theme="gold-atelier"] .hero h1,html[data-theme="gold-atelier"] .lay-hero h3,html[data-theme="gold-atelier"] .pm-hero h3{ font-weight:500 !important; letter-spacing:-0.01em !important; }
+html[data-theme="gold-atelier"] .price,html[data-theme="gold-atelier"] .mono,html[data-theme="gold-atelier"] .ls-cell b,html[data-theme="gold-atelier"] .lv-top .num,html[data-theme="gold-atelier"] .ledger .cell .num{ font-variant-numeric:lining-nums tabular-nums; }
+html[data-theme="gold-atelier"] td.mono.unit{ font-family:var(--font-body) !important; font-weight:700 !important; font-size:17px !important; letter-spacing:.01em !important; }
+html[data-theme="gold-atelier"] .seal .pname{ font-weight:500 !important; }
+@media (max-width:760px){
+  html[data-theme="gold-atelier"] .hero{ padding:28px 0 18px; }
+  html[data-theme="gold-atelier"] .hero h1{ font-size:38px !important; line-height:1.05 !important; }
+  html[data-theme="gold-atelier"] .hero-tip{ font-size:13.5px; }
+  html[data-theme="gold-atelier"] .ledger.ledger-vis{ display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:6px; margin:0 -16px; padding-left:16px; padding-right:16px; scrollbar-width:none; }
+  html[data-theme="gold-atelier"] .ledger.ledger-vis::-webkit-scrollbar{ display:none; }
+  html[data-theme="gold-atelier"] .ledger-vis .cell.lv{ flex:0 0 84%; scroll-snap-align:start; }
+  html[data-theme="gold-atelier"] .projects .section-head{ margin-bottom:10px; }
+  html[data-theme="gold-atelier"] .projects .section-head .hint{ display:none; }
+  html[data-theme="gold-atelier"] .seal-row{ display:flex !important; gap:10px !important; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 -16px; padding:0 16px 6px; scrollbar-width:none; }
+  html[data-theme="gold-atelier"] .seal-row::-webkit-scrollbar{ display:none; }
+  html[data-theme="gold-atelier"] .seal{ flex:0 0 74%; scroll-snap-align:start; min-height:150px !important; }
+  html[data-theme="gold-atelier"] .seal .pname{ font-size:22px !important; }
+  html[data-theme="gold-atelier"] .seal .pmeta{ font-size:11.5px !important; }
+  html[data-theme="gold-atelier"] .table-scroll #tbody tr{ grid-template-columns:repeat(12,minmax(0,1fr)) !important;
+    grid-template-areas:"proj proj proj proj proj proj proj price price price price price" "unit unit unit unit unit unit unit pm2 pm2 pm2 pm2 pm2" "type type type floor floor view view view view area area area" "actions actions actions actions actions actions actions actions actions actions actions actions" !important;
+    gap:10px 8px !important; padding:16px !important; border-radius:20px !important; border:1px solid #2b2822 !important; background:linear-gradient(180deg,#16151a,#121115) !important; box-shadow:0 10px 24px rgba(0,0,0,.35) !important; margin-bottom:12px !important; }
+  html[data-theme="gold-atelier"] .table-scroll #tbody tr.tr-held{ border-color:#6b5a35 !important; background:linear-gradient(180deg,#1d1a12,#141217) !important; }
+  html[data-theme="gold-atelier"] .table-scroll #tbody td{ background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; padding:0 !important; }
+  html[data-theme="gold-atelier"] .table-scroll #tbody td.proj{ border:0 !important; margin:0 !important; padding:0 !important; align-self:center; }
+  html[data-theme="gold-atelier"] #tbody td.proj img{ width:30px !important; height:30px !important; }
+  html[data-theme="gold-atelier"] #tbody td.proj .pj-name{ font-size:14px !important; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(3){ display:none !important; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(4)::before,html[data-theme="gold-atelier"] #tbody td:nth-child(5)::before,html[data-theme="gold-atelier"] #tbody td:nth-child(9)::before,html[data-theme="gold-atelier"] #tbody td:nth-child(10)::before{ content:none !important; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(10){ align-self:center; text-align:right; font-size:19px !important; font-weight:700; color:var(--gold-bright) !important; }
+  html[data-theme="gold-atelier"] .table-scroll #tbody td:nth-child(4){ font-size:22px !important; padding-top:10px !important; border-top:1px solid #24221d !important; }
+  html[data-theme="gold-atelier"] .table-scroll #tbody td:nth-child(9){ align-self:stretch; text-align:right; color:var(--stone) !important; font-size:12px !important; padding-top:14px !important; border-top:1px solid #24221d !important; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(9)::after{ content:" / m²"; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(5){ align-self:end; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(5) *{ white-space:nowrap !important; font-size:11.5px !important; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(6)::before,html[data-theme="gold-atelier"] #tbody td:nth-child(7)::before,html[data-theme="gold-atelier"] #tbody td:nth-child(8)::before{ font-size:10px !important; letter-spacing:.04em !important; color:#8d877b !important; margin-bottom:2px !important; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(8)::before{ content:"Area" !important; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(8)::after{ content:" m²"; }
+  html[data-theme="gold-atelier"] #tbody td:nth-child(6),html[data-theme="gold-atelier"] #tbody td:nth-child(7),html[data-theme="gold-atelier"] #tbody td:nth-child(8){ font-size:13px !important; color:#e6dfd0 !important; }
+  html[data-theme="gold-atelier"] .table-scroll #tbody td.actions-cell{ display:block !important; padding-top:12px !important; margin-top:2px !important; border-top:1px solid #24221d !important; }
+  html[data-theme="gold-atelier"] .act-row{ justify-content:flex-start; }
+  html[data-theme="gold-atelier"] .act-row .act-plan{ flex:1; height:42px !important; font-size:13.5px !important; }
+  html[data-theme="gold-atelier"] .act-row .act-ic,html[data-theme="gold-atelier"] .act-row .act-hold{ width:42px !important; min-width:42px !important; height:42px !important; }
+  html[data-theme="gold-atelier"] #holdBanner{ padding:10px 12px; gap:10px; font-size:13.5px; }
+  html[data-theme="gold-atelier"] #holdBanner .hb-text{ flex:1 1 200px; }
+}
+
 /* Gold Atelier — compact development cards (one row on wide screens) */
 html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; }
 html[data-theme="gold-atelier"] .seal{ min-height:112px; padding:10px 12px 10px; border-radius:10px; }
