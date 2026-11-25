@@ -1896,12 +1896,16 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
     <div class="modal-body">
       <div id="usersLocked" class="analytics-loading">Confirm your admin password to manage users.</div>
       <div id="usersContent" style="display:none;">
+        <nav class="an-tabs uc-tabs" id="ucTabs"><button data-t="people" class="on">People</button><button data-t="positions">Positions</button></nav>
+        <div id="ucPositions" hidden></div>
+        <div id="ucPeople">
         <div class="um-add">
           <div class="um-add-title">Add a user</div>
           <div class="um-add-row">
             <div class="roi-field"><label>Username</label><input type="text" id="um_newUser" autocomplete="off"></div>
             <div class="roi-field"><label>Full name</label><input type="text" id="um_newName" autocomplete="off"></div>
             <div class="roi-field"><label>Role</label><select id="um_newRole"><option value="sales">Sales</option><option value="admin">Admin</option><option value="test">Test (view only)</option></select></div>
+            <div class="roi-field"><label>Position</label><select id="um_newPos"><option value="">No position</option></select></div>
             <div class="roi-field"><label>Password</label><input type="text" id="um_newPass" autocomplete="off" placeholder="8+ chars, letters + numbers"></div>
             <button class="act-btn um-add-btn" id="um_addBtn" type="button">➕ Add user</button>
           </div>
@@ -1918,6 +1922,7 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
           </div>
         </div>
         <div class="uc-list" id="usersBody"></div>
+        </div>
         <div class="um-msg" id="um_msg"></div>
       </div>
     </div>
@@ -5853,6 +5858,7 @@ async function umCall(payload){
   });
   const data = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(data.error || 'Request failed');
+  if(Array.isArray(data.positions)){ window.__positions = data.positions; try{ posRender(); }catch(e){} }
   return data;
 }
 // readable temporary password: no look-alike letters (0/O, 1/l/I)
@@ -5875,6 +5881,74 @@ function ucIsLocked(u){ return !!(u.locked_until && new Date(u.locked_until) > n
 function ucSwitch(cls, attrs, checked, label, hint){
   return `<label class="uc-cb uc-cbl uc-row"><input type="checkbox" class="${cls}" ${attrs} ${checked?'checked':''}><i></i><span>${label}${hint?`<small>${hint}</small>`:''}</span></label>`;
 }
+// Shared permission editor (a person's card and the Positions tab).
+// o.get(k) -> on/off · o.inp(k) -> attributes for that switch's <input> · o.pfx 'um' | 'pos' · o.scope extra attributes for buttons
+function permDefault(k){
+  if(k === 'can_hold') return true;
+  if(PERM_COL_KEYS.includes(k)) return false;
+  if(/^proj_(export|layout|location)_/.test(k)) return false;
+  return featureDefault(k);
+}
+function permAllKeys(){
+  const hasPlans = k => { try{ return Object.values(PLAN_SETS).some(S=> S.sheet === k); }catch(e){ return false; } };
+  return [...permItems().map(i=> i.k),
+    ...ALL_PROJECTS.flatMap(p=>{ const s = projSlug(p.key); return ['proj_view_'+s, 'proj_export_'+s, ...(hasPlans(p.key) ? ['proj_layout_'+s, 'proj_location_'+s] : [])]; }),
+    ...COL_DEFS.map(([k])=> k)];
+}
+function permEditorHtml(o){
+  const hasPlans = k => { try{ return Object.values(PLAN_SETS).some(S=> S.sheet === k); }catch(e){ return false; } };
+  const P = o.pfx, sc = o.scope || '';
+  return `<div class="pm2">
+    <div class="pm2-top">
+      <div class="pm2-presets"><span>Quick setup</span>${Object.entries(PERM_PRESETS).map(([id,Pr])=>`<button type="button" class="${P}-preset" ${sc} data-preset="${id}" title="${ucEsc(Pr.hint)}">${Pr.label}</button>`).join('')}${o.extraTop||''}</div>
+      <label class="pm2-find"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input class="${P}-pfind" ${sc} placeholder="Find a permission…" value="${ucEsc(o.find||'')}"></label>
+    </div>
+    <div class="pm2-grid">${PERM_SECTIONS.map(sec=>{
+      const onN = sec.items.filter(it=> o.get(it.k)).length;
+      return `<section class="pm2-sec" data-sec="${sec.id}">
+        <header><span class="pm2-ic">${sec.icon}</span><div class="pm2-ht"><h6>${sec.title}</h6><p>${sec.desc}</p></div>
+          <span class="pm2-n ${onN===sec.items.length?'all':onN?'some':''}">${onN}/${sec.items.length}</span></header>
+        <div class="pm2-acts"><button type="button" class="${P}-secall" ${sc} data-sec="${sec.id}" data-on="1">All on</button><button type="button" class="${P}-secall" ${sc} data-sec="${sec.id}" data-on="0">All off</button></div>
+        ${sec.items.map(it=>{ const pOff = it.parent && !o.get(it.parent);
+          return `<label class="pm2-row ${it.parent?'kid':''} ${pOff?'off':''}" data-txt="${ucEsc((it.l+' '+it.d+' '+sec.title).toLowerCase())}">
+            <input type="checkbox" ${o.inp(it.k)} ${o.get(it.k)?'checked':''} ${pOff?'disabled':''}><i class="pm2-sw"></i>
+            <span><b>${it.l}</b>${it.d?`<small>${it.d}</small>`:''}${pOff?`<small class="pm2-dep">Needs “${ucEsc((permItems().find(x=>x.k===it.parent)||{}).l||'')}”</small>`:''}</span></label>`; }).join('')}
+      </section>`; }).join('')}</div>
+    <div class="uc-perm-grid pm2-more">
+      ${o.reserved || ''}
+      <div class="uc-group uc-wide"><div class="uc-group-title">🏗 Projects <small>see the project · export its price list · unit layout · unit location</small></div>
+        <table class="uc-ptab"><thead><tr><th></th><th>See</th><th>Export</th><th>Layout</th><th>Location</th></tr></thead><tbody>
+        ${ALL_PROJECTS.map(p=>{ const s = projSlug(p.key), see = o.get('proj_view_' + s);
+          const cell = k => `<td><label class="uc-cb"><input type="checkbox" ${o.inp(k)} ${o.get(k)&&see?'checked':''} ${see?'':'disabled'}><i></i></label></td>`;
+          return `<tr><td>${ucEsc(p.project)}${p.subtitle?` <span>· ${ucEsc(p.subtitle)}</span>`:''}</td>
+            <td><label class="uc-cb"><input type="checkbox" ${o.inp('proj_view_'+s)} ${see?'checked':''}><i></i></label></td>
+            ${cell('proj_export_'+s)}
+            ${['layout','location'].map(w=> hasPlans(p.key) ? cell(`proj_${w}_${s}`) : '<td><span class="uc-na" title="No drawings for this project yet">—</span></td>').join('')}</tr>`; }).join('')}
+        </tbody></table>
+      </div>
+      <div class="uc-group uc-wide"><div class="uc-group-title">📋 Table columns <small>untick to hide a column</small></div>
+        <div class="uc-cols">${COL_DEFS.map(([k,l])=> `<label class="uc-cb uc-cbl"><input type="checkbox" ${o.inp(k)} ${o.get(k)?'checked':''}><i></i><span>${l}</span></label>`).join('')}</div>
+        <div class="uc-hint">Project and Unit No. always show. A hidden column is also left out of Compare, Share and the price-list PDF.</div>
+      </div>
+    </div>
+  </div>`;
+}
+function ucUserGet(u){
+  const feats = u.features || {};
+  return k => {
+    if(PERM_COL_KEYS.includes(k)) return k === 'can_hold' ? u[k] !== false : !!u[k];
+    if(k.startsWith('proj_export_')) return k in feats ? feats[k] !== false : !!u.can_export;
+    if(/^proj_(layout|location)_/.test(k)) return k in feats ? feats[k] === true : false;
+    return k in feats ? feats[k] !== false : featureDefault(k);
+  };
+}
+// Does this person still match their position, or have switches been changed by hand?
+function ucCustomised(u){
+  const pos = (window.__positions || []).find(p=> p.name === u.position); if(!pos) return false;
+  const get = ucUserGet(u);
+  return Object.entries(pos.permissions || {}).some(([k,v])=> get(k) !== v);
+}
+
 function umRenderUsers(users){
   setTimeout(()=> document.querySelectorAll('#usersBody .uc-card').forEach(c=>{ if(c.querySelector('.um-pfind')?.value) ucFilterPerms(c); }), 0);
   if(Array.isArray(users)) umUsersCache = users;
@@ -5908,8 +5982,7 @@ function umRenderUsers(users){
     const pExp = k => { const key = 'proj_export_' + projSlug(k); return key in feats ? feats[key] !== false : !!u.can_export; };
     const pPlan = (k, w) => { const key = `proj_${w}_` + projSlug(k); return key in feats ? feats[key] === true : false; };
     const hasPlans = k => { try{ return Object.values(PLAN_SETS).some(S=> S.sheet === k); }catch(e){ return false; } };
-    const permStates = [...UC_PERM_COLUMNS.map(([k])=> !!u[k]), ...FEATURE_DEFS.map(([k])=> fOn(k)),
-      ...ALL_PROJECTS.flatMap(p=> [fOn('proj_view_' + projSlug(p.key)), pExp(p.key), ...(hasPlans(p.key) ? [pPlan(p.key,'layout'), pPlan(p.key,'location')] : [])]), ...COL_DEFS.map(([k])=> fOn(k))];
+    const ug = ucUserGet(u), permStates = permAllKeys().map(k=> ug(k));
     const enabled = permStates.filter(Boolean).length;
     const permSummary = isAdminRole ? 'Full access' : (isTest ? 'View only' : `${enabled} of ${permStates.length} permissions on`);
     const locked = ucIsLocked(u);
@@ -5923,6 +5996,7 @@ function umRenderUsers(users){
           <div class="uc-user">@${un}</div>
           <div class="uc-badges">
             <span class="uc-badge role-${ucEsc(u.role)}">${isAdminRole?'👑 ':''}${ucEsc(u.role)}</span>
+            ${u.position && !isAdminRole ? `<span class="uc-badge pos">💼 ${ucEsc(u.position)}${ucCustomised(u)?' · customised':''}</span>`:''}
             ${u.title?`<span class="uc-badge title">🎖 ${ucEsc(u.title)}</span>`:''}
             ${teamName?`<span class="uc-badge team-${ucEsc(u.team)}">${ucEsc(teamName)}</span>`:''}
             ${!u.is_active?'<span class="uc-badge bad">Suspended</span>':''}
@@ -5949,6 +6023,7 @@ function umRenderUsers(users){
       <div class="uc-summary">${permSummary}</div>
       <div class="uc-body">
         <div class="uc-selects">
+          ${isAdminRole || isTest ? '' : `<label>Position <select class="um-position" data-user="${un}"><option value="">No position</option>${(window.__positions||[]).map(p=>`<option value="${ucEsc(p.name)}" ${u.position===p.name?'selected':''}>${ucEsc(p.name)}</option>`).join('')}</select></label>`}
           <label>Role ${isMe ? `<span class="uc-fixed">${ucEsc(u.role)}</span>` : `<select class="um-role" data-user="${un}">${['admin','sales','test'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${r}</option>`).join('')}</select>`}</label>
           ${isTest ? '' : `<label>Title <select class="um-title" data-user="${un}">
               <option value="" ${!u.title?'selected':''}>No title</option>
@@ -5961,44 +6036,11 @@ function umRenderUsers(users){
         </div>
         ${isAdminRole ? '<div class="uc-note">👑 Admins have every permission, can manage users and see all reserved units.</div>'
           : isTest ? '<div class="uc-note">👁 Test accounts are view-only: no holds, archive, export or analytics.</div>'
-          : `<div class="pm2">
-              <div class="pm2-top">
-                <div class="pm2-presets"><span>Quick setup</span>${Object.entries(PERM_PRESETS).map(([id,P])=>`<button type="button" class="um-preset" data-user="${un}" data-preset="${id}" title="${ucEsc(P.hint)}">${P.label}</button>`).join('')}</div>
-                <label class="pm2-find"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input class="um-pfind" data-user="${un}" placeholder="Find a permission…" value="${ucEsc(ucFind[u.username]||'')}"></label>
-              </div>
-              <div class="pm2-grid">${PERM_SECTIONS.map(sec=>{
-                const val = it=> it.col ? !!u[it.k] : fOn(it.k);
-                const onN = sec.items.filter(val).length;
-                return `<section class="pm2-sec" data-sec="${sec.id}">
-                  <header><span class="pm2-ic">${sec.icon}</span><div class="pm2-ht"><h6>${sec.title}</h6><p>${sec.desc}</p></div>
-                    <span class="pm2-n ${onN===sec.items.length?'all':onN?'some':''}">${onN}/${sec.items.length}</span></header>
-                  <div class="pm2-acts"><button type="button" class="um-secall" data-user="${un}" data-sec="${sec.id}" data-on="1">All on</button><button type="button" class="um-secall" data-user="${un}" data-sec="${sec.id}" data-on="0">All off</button></div>
-                  ${sec.items.map(it=>{ const pOff = it.parent && !val(sec.items.find(x=>x.k===it.parent) || {k:it.parent});
-                    return `<label class="pm2-row ${it.parent?'kid':''} ${pOff?'off':''}" data-txt="${ucEsc((it.l+' '+it.d+' '+sec.title).toLowerCase())}">
-                      <input type="checkbox" class="${it.col?'um-perm':'um-feat'}" data-user="${un}" ${it.col?`data-perm="${it.k}"`:`data-feat="${it.k}"`} ${val(it)?'checked':''} ${pOff?'disabled':''}><i class="pm2-sw"></i>
-                      <span><b>${it.l}</b>${it.d?`<small>${it.d}</small>`:''}${pOff?`<small class="pm2-dep">Needs “${ucEsc((permItems().find(x=>x.k===it.parent)||{}).l||'')}”</small>`:''}</span></label>`; }).join('')}
-                </section>`; }).join('')}</div>
-              <div class="uc-perm-grid pm2-more">
-              <div class="uc-group"><div class="uc-group-title">🔒 Reserved units</div>
-                <div class="uc-reserved ${u.title?'yes':''}">${u.title==='Sales Director' ? '✔ Sees both teams’ reservations' : u.title==='Sales Manager' ? `✔ Sees ${ucEsc(teamName||'no team yet — set a team')} reservations` : '✖ No access — give a Sales Manager or Director title'}</div>
-              </div>
-              <div class="uc-group uc-wide"><div class="uc-group-title">🏗 Projects <small>see the project · export its price list · unit layout · unit location</small></div>
-                <table class="uc-ptab"><thead><tr><th></th><th>See</th><th>Export</th><th>Layout</th><th>Location</th></tr></thead><tbody>
-                ${ALL_PROJECTS.map(p=>{ const s = projSlug(p.key), see = fOn('proj_view_' + s);
-                  return `<tr><td>${ucEsc(p.project)}${p.subtitle?` <span>· ${ucEsc(p.subtitle)}</span>`:''}</td>
-                    <td><label class="uc-cb"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="proj_view_${s}" ${see?'checked':''}><i></i></label></td>
-                    <td><label class="uc-cb"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="proj_export_${s}" ${pExp(p.key)&&see?'checked':''} ${see?'':'disabled'}><i></i></label></td>
-                    ${['layout','location'].map(w=> hasPlans(p.key)
-                      ? `<td><label class="uc-cb"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="proj_${w}_${s}" ${pPlan(p.key,w)&&see?'checked':''} ${see?'':'disabled'}><i></i></label></td>`
-                      : '<td><span class="uc-na" title="No drawings for this project yet">—</span></td>').join('')}</tr>`; }).join('')}
-                </tbody></table>
-              </div>
-              <div class="uc-group uc-wide"><div class="uc-group-title">📋 Table columns <small>untick to hide a column from this person</small></div>
-                <div class="uc-cols">${COL_DEFS.map(([k,l])=> `<label class="uc-cb uc-cbl"><input type="checkbox" class="um-feat" data-user="${un}" data-feat="${k}" ${fOn(k)?'checked':''}><i></i><span>${l}</span></label>`).join('')}</div>
-                <div class="uc-hint">Project and Unit No. always show. A hidden column is also left out of Compare, Share and the price-list PDF.</div>
-              </div>
-            </div>
-            </div>`}
+          : permEditorHtml({ pfx:'um', scope:`data-user="${un}"`, find: ucFind[u.username], get: ucUserGet(u),
+              inp: k => PERM_COL_KEYS.includes(k) ? `class="um-perm" data-user="${un}" data-perm="${k}"` : `class="um-feat" data-user="${un}" data-feat="${k}"`,
+              extraTop: `<button type="button" class="um-savepos" data-user="${un}" title="Save these switches as a new position">＋ Save as position</button>`,
+              reserved: `<div class="uc-group"><div class="uc-group-title">🔒 Reserved units</div>
+                <div class="uc-reserved ${u.title?'yes':''}">${u.title==='Sales Director' ? '✔ Sees both teams’ reservations' : u.title==='Sales Manager' ? `✔ Sees ${ucEsc(teamName||'no team yet — set a team')} reservations` : '✖ No access — give a Sales Manager or Director title'}</div></div>` })}
       </div>
     </div>`;
   }).join('');
@@ -6019,7 +6061,7 @@ async function ucApplyMap(user, map){
   if(d) umRenderUsers(d.users);
 }
 function ucFilterPerms(card){
-  const q = (card.querySelector('.um-pfind')?.value || '').trim().toLowerCase();
+  const q = (card.querySelector('.um-pfind, .pos-pfind')?.value || '').trim().toLowerCase();
   card.querySelectorAll('.pm2-sec').forEach(sec=>{
     let any = false;
     sec.querySelectorAll('.pm2-row').forEach(r=>{ const hit = !q || r.dataset.txt.includes(q); r.style.display = hit ? '' : 'none'; if(hit) any = true; });
@@ -6173,6 +6215,97 @@ document.getElementById('usersBody').addEventListener('click', async (e)=>{
   }catch(err){ umSetMsg('um_msg', err.message, false); }
 });
 
+/* ---- Positions: name + saved permissions; everyone in a position gets them ---- */
+const POS = { sel:null, draft:null, name:'', find:'', isNew:false };
+function posResolved(map){ const out = {}; permAllKeys().forEach(k=> out[k] = (map && k in map) ? map[k] : permDefault(k)); return out; }
+function posSelect(name){
+  const p = (window.__positions||[]).find(x=> x.name === name);
+  POS.sel = name; POS.isNew = !p; POS.name = name || ''; POS.draft = posResolved(p ? p.permissions : PERM_PRESETS && permPresetMap('sales'));
+  posRender();
+}
+function posRender(){
+  const el = document.getElementById('ucPositions'); if(!el) return;
+  const list = window.__positions || [], users = umUsersCache || [];
+  const np = document.getElementById('um_newPos');
+  if(np){ const v = np.value; np.innerHTML = '<option value="">No position</option>' + list.map(p=>`<option value="${ucEsc(p.name)}" ${v===p.name?'selected':''}>${ucEsc(p.name)}</option>`).join(''); }
+  if(el.hidden) return;
+  const members = n => users.filter(u=> u.position === n && u.role !== 'admin');
+  const keysOn = p => Object.values(p.permissions||{}).filter(Boolean).length;
+  const total = permAllKeys().length;
+  const left = `<aside class="pos-list">
+      <div class="pos-new"><input id="posNewName" placeholder="New position, e.g. Junior Sales" maxlength="40"><button type="button" id="posNewBtn">＋ Add</button></div>
+      ${list.map(p=>`<button type="button" class="pos-item ${POS.sel===p.name?'on':''}" data-pos-pick="${ucEsc(p.name)}">
+          <span class="pos-ic">💼</span><span class="pos-tx"><b>${ucEsc(p.name)}</b><small>${members(p.name).length} ${members(p.name).length===1?'person':'people'} · ${keysOn(p)} of ${total} on</small></span></button>`).join('')
+        || '<div class="pos-empty">No positions yet. Add one above, or open a person and press “Save as position”.</div>'}
+    </aside>`;
+  let right = '<div class="pos-ed pos-blank"><div>Pick a position on the left, or add a new one.</div></div>';
+  if(POS.draft){
+    const mem = POS.isNew ? [] : members(POS.sel);
+    const people = users.filter(u=> u.role === 'sales');
+    right = `<div class="pos-ed">
+      <div class="pos-head">
+        <label class="pos-name"><span>Position name</span><input id="posName" value="${ucEsc(POS.name)}" maxlength="40"></label>
+        <label class="pos-copy"><span>Start from a person</span><select id="posCopy"><option value="">—</option>${people.map(u=>`<option value="${ucEsc(u.username)}">${ucEsc(u.full_name||u.username)}</option>`).join('')}</select></label>
+        <div class="pos-btns">${POS.isNew ? '' : '<button type="button" class="pos-del" id="posDel">Delete</button>'}<button type="button" class="pos-save" id="posSave">${POS.isNew ? 'Create position' : 'Save changes'}</button></div>
+      </div>
+      <div class="pos-mem"><span>${mem.length ? `In this position (${mem.length}) — saving updates them all:` : POS.isNew ? 'New position — give people this position from their card on the People tab.' : 'Nobody has this position yet.'}</span>
+        ${mem.map(u=>`<em>${ucEsc(u.full_name||u.username)}${ucCustomised(u)?' ✎':''}</em>`).join('')}</div>
+      ${permEditorHtml({ pfx:'pos', scope:'data-pos="1"', find: POS.find, get: k=> !!POS.draft[k], inp: k=> `class="pos-sw" data-k="${k}"` })}
+    </div>`;
+  }
+  el.innerHTML = `<div class="pos-wrap">${left}${right}</div>`;
+  if(POS.find) ucFilterPerms(el.querySelector('.pos-ed'));
+}
+function posSetTab(t){
+  document.querySelectorAll('#ucTabs button').forEach(b=> b.classList.toggle('on', b.dataset.t === t));
+  document.getElementById('ucPeople').hidden = t !== 'people';
+  document.getElementById('ucPositions').hidden = t !== 'positions';
+  if(t === 'positions') posRender();
+}
+document.getElementById('ucTabs').addEventListener('click', e=>{ const b = e.target.closest('button[data-t]'); if(b) posSetTab(b.dataset.t); });
+document.getElementById('ucPositions').addEventListener('change', e=>{
+  const t = e.target;
+  if(t.classList.contains('pos-sw')){ POS.draft[t.dataset.k] = t.checked; if(t.dataset.k.startsWith('proj_view_') && !t.checked){ ['export','layout','location'].forEach(w=>{ const k = t.dataset.k.replace('proj_view_','proj_'+w+'_'); if(k in POS.draft) POS.draft[k] = false; }); } posRender(); }
+  else if(t.id === 'posCopy' && t.value){ const u = umUsersCache.find(x=> x.username === t.value); if(u){ const g = ucUserGet(u); permAllKeys().forEach(k=> POS.draft[k] = g(k)); posRender(); umSetMsg('um_msg', `Copied ${u.full_name||u.username}’s switches — press Save to keep them.`, true); } }
+});
+document.getElementById('ucPositions').addEventListener('input', e=>{
+  if(e.target.id === 'posName') POS.name = e.target.value;
+  if(e.target.classList.contains('pos-pfind')){ POS.find = e.target.value; ucFilterPerms(e.target.closest('.pos-ed')); }
+});
+document.getElementById('ucPositions').addEventListener('click', async e=>{
+  const pick = e.target.closest('[data-pos-pick]'); if(pick){ POS.find = ''; posSelect(pick.dataset.posPick); return; }
+  const sa = e.target.closest('.pos-secall'); if(sa){ PERM_SECTIONS.find(x=> x.id === sa.dataset.sec).items.forEach(it=> POS.draft[it.k] = sa.dataset.on === '1'); posRender(); return; }
+  const pr = e.target.closest('.pos-preset'); if(pr){ Object.assign(POS.draft, permPresetMap(pr.dataset.preset)); posRender(); return; }
+  try{
+    if(e.target.id === 'posNewBtn'){
+      const n = document.getElementById('posNewName').value.trim(); if(!n) return;
+      if((window.__positions||[]).some(p=> p.name.toLowerCase() === n.toLowerCase())){ umSetMsg('um_msg', `“${n}” already exists.`, false); return; }
+      POS.sel = null; POS.isNew = true; POS.name = n; POS.find = ''; POS.draft = posResolved(permPresetMap('sales')); posRender();
+    } else if(e.target.id === 'posSave'){
+      const name = POS.name.trim(); if(!name){ umSetMsg('um_msg', 'Give the position a name.', false); return; }
+      const n = POS.isNew ? 0 : umUsersCache.filter(u=> u.position === POS.sel && u.role !== 'admin').length;
+      if(n && !confirm(`Save “${name}”?\n\nThe ${n} ${n===1?'person':'people'} in this position will get these permissions now.`)) return;
+      e.target.disabled = true;
+      const d = await umCall({ action:'save_position', name, oldName: POS.isNew ? null : POS.sel, permissions: POS.draft });
+      umRenderUsers(d.users); POS.sel = name; POS.isNew = false; posRender();
+      umSetMsg('um_msg', `Position “${name}” saved${n?` — ${n} ${n===1?'person':'people'} updated`:''}.`, true);
+    } else if(e.target.id === 'posDel'){
+      if(!confirm(`Delete the position “${POS.sel}”?\n\nPeople in it keep their current permissions; they just won’t have a position.`)) return;
+      const d = await umCall({ action:'delete_position', name: POS.sel });
+      umRenderUsers(d.users); POS.sel = null; POS.draft = null; posRender(); umSetMsg('um_msg', 'Position deleted.', true);
+    }
+  }catch(err){ umSetMsg('um_msg', err.message, false); posRender(); }
+});
+// "Save as position" on a person's card
+document.getElementById('usersBody').addEventListener('click', e=>{
+  const b = e.target.closest('.um-savepos'); if(!b) return;
+  const u = umUsersCache.find(x=> x.username === b.dataset.user); if(!u) return;
+  const g = ucUserGet(u), draft = {}; permAllKeys().forEach(k=> draft[k] = g(k));
+  POS.sel = null; POS.isNew = true; POS.name = ''; POS.find = ''; POS.draft = draft;
+  posSetTab('positions'); setTimeout(()=> document.getElementById('posName')?.focus(), 50);
+  umSetMsg('um_msg', `Name the new position — it starts with ${u.full_name||u.username}’s switches.`, true);
+});
+
 document.getElementById('usersBody').addEventListener('change', async (e)=>{
   const el = e.target;
   try{
@@ -6180,6 +6313,11 @@ document.getElementById('usersBody').addEventListener('change', async (e)=>{
       const user = el.dataset.user, role = el.value;
       if(!confirm(`Change ${user}'s role to ${role}?`)){ await umRefresh(); return; }
       const d = await umCall({ action:'set_role', targetUsername:user, role }); umRenderUsers(d.users); umSetMsg('um_msg', `${user} is now ${role}.`, true);
+    } else if(el.classList.contains('um-position')){
+      const user = el.dataset.user, pos = el.value;
+      if(pos && !confirm(`Make ${user} a “${pos}”?\n\nTheir permissions will be replaced with the ones saved for this position.`)){ umRenderUsers(); return; }
+      const d = await umCall({ action:'set_position', targetUsername:user, position: pos || null });
+      umRenderUsers(d.users); umSetMsg('um_msg', pos ? `${user} is now a ${pos} — permissions copied.` : `${user} has no position now (permissions kept).`, true);
     } else if(el.classList.contains('um-title')){
       const user = el.dataset.user;
       const d = await umCall({ action:'set_title', targetUsername:user, title: el.value || null });
@@ -6207,7 +6345,9 @@ document.getElementById('um_addBtn').addEventListener('click', async ()=>{
   const newPassword = document.getElementById('um_newPass').value;
   if(!newUsername || !pwStrong(newPassword)){ umSetMsg('um_addMsg', 'Username and a password of 8+ characters with letters and numbers are required.', false); return; }
   try{
-    const d = await umCall({ action:'create', newUsername, fullName, role, newPassword });
+    let d = await umCall({ action:'create', newUsername, fullName, role, newPassword });
+    const np = document.getElementById('um_newPos').value;
+    if(np && role === 'sales') d = await umCall({ action:'set_position', targetUsername:newUsername, position:np });
     umRenderUsers(d.users);
     ['um_newUser','um_newName','um_newPass'].forEach(id=> document.getElementById(id).value = '');
     umSetMsg('um_addMsg', `${newUsername} added as ${role}.`, true);
@@ -8356,6 +8496,36 @@ html.np-currency .currency-toggle, html.np-price #priceDd, html.np-sort .sortbox
 .pm2-more .uc-cbl span{ font-size:13.5px; }
 .pm2-more .uc-reserved{ font-size:13px; color:var(--cream); }
 @media (max-width:760px){ .pm2-find{ margin-left:0; width:100%; } .pm2-grid{ grid-template-columns:minmax(0,1fr); } }
+/* ===== Users: positions ===== */
+.uc-tabs{ padding:0 !important; margin:-6px 0 16px; }
+.uc-badge.pos{ background:color-mix(in srgb, var(--gold) 16%, transparent); color:var(--gold-bright); border-color:color-mix(in srgb, var(--gold) 45%, transparent); }
+.pm2-presets .um-savepos{ border-style:dashed !important; color:var(--gold-bright) !important; }
+.pos-wrap{ display:grid; grid-template-columns:280px minmax(0,1fr); gap:16px; align-items:start; }
+.pos-list{ display:flex; flex-direction:column; gap:6px; position:sticky; top:0; }
+.pos-new{ display:flex; gap:6px; margin-bottom:6px; }
+.pos-new input{ flex:1; min-width:0; height:38px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--cream); font:inherit; font-size:13px; padding:0 10px; }
+.pos-new button,.pos-save{ height:38px; border:0; border-radius:10px; background:var(--gold); color:var(--bg); font:inherit; font-size:13px; font-weight:700; padding:0 14px; cursor:pointer; white-space:nowrap; }
+.pos-item{ display:flex; align-items:center; gap:10px; text-align:left; border:1px solid var(--line-soft); background:var(--bg); border-radius:14px; padding:10px 12px; cursor:pointer; color:inherit; font:inherit; }
+.pos-item:hover{ border-color:var(--gold); }
+.pos-item.on{ border-color:var(--gold); background:color-mix(in srgb, var(--gold) 10%, var(--bg)); }
+.pos-ic{ width:32px; height:32px; border-radius:10px; display:grid; place-items:center; background:color-mix(in srgb, var(--gold) 14%, transparent); flex:none; }
+.pos-tx{ display:flex; flex-direction:column; min-width:0; }
+.pos-tx b{ font-size:14px; color:var(--cream); font-weight:700; }
+.pos-tx small{ font-size:11.5px; color:var(--stone); }
+.pos-empty{ font-size:12.5px; color:var(--stone); padding:12px; border:1px dashed var(--line); border-radius:12px; line-height:1.45; }
+.pos-ed{ display:flex; flex-direction:column; gap:12px; min-width:0; }
+.pos-blank{ min-height:220px; display:grid; place-items:center; border:1px dashed var(--line); border-radius:16px; color:var(--stone); font-size:13.5px; }
+.pos-head{ display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; }
+.pos-head label{ display:flex; flex-direction:column; gap:4px; }
+.pos-head label span{ font-size:11.5px; font-weight:600; color:var(--stone); letter-spacing:.04em; text-transform:uppercase; }
+.pos-name input{ width:260px; height:40px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--cream); font:inherit; font-size:16px; font-weight:600; padding:0 12px; }
+.pos-copy select{ height:40px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--cream); font:inherit; font-size:13px; padding:0 10px; }
+.pos-btns{ margin-left:auto; display:flex; gap:8px; }
+.pos-save{ height:40px; padding:0 18px; }
+.pos-del{ height:40px; border:1px solid #c0392b; background:transparent; color:#e08a8a; border-radius:10px; font:inherit; font-size:13px; font-weight:600; padding:0 14px; cursor:pointer; }
+.pos-mem{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:12.5px; color:var(--stone); }
+.pos-mem em{ font-style:normal; font-size:12.5px; color:var(--cream); border:1px solid var(--line); border-radius:999px; padding:3px 10px; }
+@media (max-width:900px){ .pos-wrap{ grid-template-columns:minmax(0,1fr); } .pos-list{ position:static; } .pos-btns{ margin-left:0; } .pos-name input{ width:100%; } }
 /* ================= Gold Atelier — type and the phone layout ================= */
 html[data-theme][data-theme] body{ font-family:var(--font-body); font-variant-numeric:lining-nums; }
 html[data-theme][data-theme] .hero h1,html[data-theme][data-theme] .lay-hero h3,html[data-theme][data-theme] .pm-hero h3{ font-weight:500 !important; letter-spacing:-0.01em !important; }
