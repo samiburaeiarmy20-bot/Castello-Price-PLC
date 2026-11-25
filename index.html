@@ -1783,10 +1783,12 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
     </div>
     <div class="pm-bar">
       <div class="pm-proj-sw" id="pmProj" style="display:none"></div>
-      <div class="pm-tabs" id="pmTabs"></div>
-      <div class="pm-sep"></div>
-      <div class="pm-types" id="pmTypes"></div>
-      <label class="pm-toggle"><input type="checkbox" id="pmOnly"> Available only</label>
+      <div class="pm-bar2">
+        <div class="pm-grp"><span class="pm-lbl">Block</span><div class="pm-tabs" id="pmTabs"></div></div>
+        <div class="pm-sep"></div>
+        <div class="pm-grp"><span class="pm-lbl">Type</span><div class="pm-types" id="pmTypes"></div></div>
+        <label class="pm-toggle"><input type="checkbox" id="pmOnly"> Available only</label>
+      </div>
     </div>
     <div class="pm-body" id="pmBody"></div>
     <div class="pm-foot">
@@ -8155,6 +8157,32 @@ html[data-theme]:not([data-theme="gold-atelier"]) .ls-fact b,html[data-theme]:no
 @media (min-width:1280px){
   body{ zoom:.9; }
   .wrap{ max-width:2400px !important; }
+}
+/* ===== Project map: wide window, project row, then block / type row; units spread to fill the width ===== */
+:root{ --pz:1; }
+@media (min-width:1280px){ :root{ --pz:.9; } }
+@media (min-width:761px){
+  html[data-theme][data-theme] .pm-card{ width:calc(97vw / var(--pz)) !important; max-width:none !important; height:calc(94vh / var(--pz)) !important; }
+  html[data-theme][data-theme] #pmapOverlay{ padding:calc(3vh / var(--pz)) 0 !important; align-items:flex-start; }
+  html[data-theme][data-theme] .pm-hero{ padding:20px 70px 16px 28px; align-items:center; }
+  html[data-theme][data-theme] .pm-hero h3{ font-size:40px; margin-bottom:4px; }
+  html[data-theme][data-theme] .pm-stats{ gap:10px; }
+  html[data-theme][data-theme] .pm-stat{ min-width:104px; padding:10px 16px; }
+  .pm-bar{ flex-direction:column; align-items:stretch !important; gap:12px !important; padding:14px 28px !important; }
+  .pm-proj-sw{ margin:0 !important; gap:8px !important; padding-bottom:12px; border-bottom:1px solid var(--line-soft); }
+  .pm-proj{ padding:9px 18px !important; font-size:13.5px !important; }
+  .pm-bar2{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .pm-grp{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .pm-lbl{ font-size:11.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--stone); }
+  .pm-tab{ padding:8px 16px !important; }
+  .pm-body{ padding:18px 28px 12px !important; }
+  .pm-building{ display:block !important; min-width:0 !important; width:100%; }
+  .pm-row > .pm-cell{ min-width:68px !important; }
+  .pm-row{ gap:8px !important; }
+  .pm-cell{ flex:1 1 80px !important; min-width:68px; max-width:170px; height:140px !important; }
+  .pm-floor{ width:62px !important; }
+  .pm-roof{ margin-left:72px !important; }
+  .pm-foot{ padding:12px 28px 16px !important; font-size:12px !important; }
 }
 /* ================= Gold Atelier — type and the phone layout ================= */
 html[data-theme][data-theme] body{ font-family:var(--font-body); font-variant-numeric:lining-nums; }
