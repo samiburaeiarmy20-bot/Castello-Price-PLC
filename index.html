@@ -1587,6 +1587,15 @@ td.star-cell{ text-align:left; }
 .dl-pop .sw{ width:14px; height:14px; border-radius:4px; flex:none; }
 .dl-pop .sw.c{ background:conic-gradient(#ffbf00 0 25%, #0000ff 0 50%, #ff3f00 0 75%, #00c0c0 0); }
 .dl-pop .sw.b{ background:#fff; border:2px solid #000; }
+.of-pop{ padding:10px; gap:2px; }
+.of-pop .of-h{ font:600 10.5px 'Inter',sans-serif; letter-spacing:.12em; text-transform:uppercase; color:var(--stone); padding:2px 6px 6px; }
+.of-pop .of-opt{ display:flex; align-items:center; gap:9px; padding:8px 8px; border-radius:9px; cursor:pointer; color:var(--cream); font:600 12.5px 'Inter',sans-serif; }
+.of-pop .of-opt:hover{ background:color-mix(in srgb, var(--gold) 12%, transparent); }
+.of-pop .of-opt input{ accent-color:var(--gold); margin:0; flex:none; }
+.of-pop .of-opt small{ margin-left:auto; color:var(--gold); font-weight:600; }
+.of-pop .of-go{ display:flex; gap:6px; margin-top:6px; padding-top:8px; border-top:1px solid var(--line); }
+.of-pop .of-go button{ flex:1 !important; justify-content:center; background:color-mix(in srgb, var(--gold) 16%, transparent) !important; }
+.of-pop .of-go button svg{ flex:none; }
 
 .lay-actions button.ic{ display:inline-flex; align-items:center; justify-content:center; gap:7px; flex:0 0 auto; min-width:118px; }
 .lay-actions button.ic svg{ flex:none; }
@@ -3116,16 +3125,16 @@ function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms()
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
 /* Feature switches (Users screen checkboxes). Missing = allowed. Admins always have everything.
    To add a feature: add it here, add its key to FEATURE_KEYS in manage-users, then wrap its UI in featureOn('key'). */
-const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Open unavailable units'],['can_dl_layout','Download layout (PDF)'],['can_dl_masterplan','Download master plan (PDF)'],['can_dl_colour','Colour, as the CAD file'],['can_dl_black','Black & white'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan'],['can_offer','Client offer (PDF)'],['can_offer_currency','Offer in selected currency']];
+const FEATURE_DEFS = [['can_payment_plan','Payment plan'],['can_download_plan','Download plan PDF'],['can_roi','ROI calc'],['can_share','Share unit'],['can_compare','Compare units'],['can_saved_filters','Saved filters'],['can_hold_alerts','Hold expiry alerts'],['can_price_tags','Price change tags'],['can_unit_layout','Unit layout'],['can_project_map','Project map'],['can_unit_location','Unit location'],['can_view_unavailable','Open unavailable units'],['can_dl_layout','Download layout (PDF)'],['can_dl_masterplan','Download master plan (PDF)'],['can_dl_colour','Colour, as the CAD file'],['can_dl_black','Black & white'],['can_print_layout','Print layout'],['can_print_masterplan','Print master plan'],['can_offer','Client offer (PDF)'],['can_offer_currency','Offer in selected currency'],['can_offer_print','Print client offer']];
 // Features listed here stay OFF for a user until an admin ticks them on the Users screen.
 // How the permission switches are grouped on the Users screen
 const FEATURE_GROUPS = [
   ['Pricing & plans', '💳', ['can_payment_plan','can_download_plan','can_roi','can_price_tags']],
   ['Sharing & browsing', '🔎', ['can_share','can_compare','can_saved_filters','can_hold_alerts']],
   ['Unit plans', '🏢', ['can_project_map','can_view_unavailable']],
-  ['Download & print', '🖨', ['can_offer','can_offer_currency','can_dl_layout','can_dl_masterplan','can_print_layout','can_print_masterplan','can_dl_colour','can_dl_black']]
+  ['Download & print', '🖨', ['can_offer','can_offer_print','can_offer_currency','can_dl_layout','can_dl_masterplan','can_print_layout','can_print_masterplan','can_dl_colour','can_dl_black']]
 ];
-const FEATURE_DEFAULT_OFF = ['can_offer_currency','can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_dl_black','can_print_layout','can_print_masterplan','can_offer'];
+const FEATURE_DEFAULT_OFF = ['can_offer_currency','can_offer_print','can_unit_layout','can_project_map','can_unit_location','can_view_unavailable','can_dl_layout','can_dl_masterplan','can_dl_colour','can_dl_black','can_print_layout','can_print_masterplan','can_offer'];
 function featureDefault(k){ return !FEATURE_DEFAULT_OFF.includes(k); }
 function featureOn(k){ if(isAdminUser()) return true; const f = userPerms().features || {}; return k in f ? f[k] !== false : featureDefault(k); }
 function canViewReserved(){ const t = userPerms().title; return isAdminUser() || (!isTestUser() && (t === 'Sales Manager' || t === 'Sales Director')); }
@@ -3657,7 +3666,7 @@ async function openLayout(u, navList, mode){
   if(featureOn('can_share')) acts.push(['share','Share', false]);
   }
   const anyInk = featureOn('can_dl_colour') || featureOn('can_dl_black');
-  if(!u.__unavailable && u.price && ['Sea Breeze','Atlantis PH1','Atlantis PH2'].includes(u.sheet) && featureOn('can_offer')) acts.push(['of','Offer', false]);
+  if(!u.__unavailable && u.price && OFFER_SHEETS.includes(u.sheet) && featureOn('can_offer')) acts.push(['of','Offer', false]);
   if(layMode === 'layout' && okLay && anyInk && featureOn('can_dl_layout')) acts.push(['dl','Download', false]);
   if(layMode === 'location' && okLoc && anyInk && featureOn('can_dl_masterplan')) acts.push(['dl','Download', false]);
   if(layMode === 'layout' && okLay && anyInk && featureOn('can_print_layout')) acts.push(['pr','Print', false]);
@@ -3879,6 +3888,7 @@ async function masterCanvas(u, mode){
 
 /* ================= CLIENT OFFER (per unit): offer page + layout + location ================= */
 const OFFER_BASE = 'offer/';
+const OFFER_SHEETS = ['Sea Breeze','Atlantis PH1','Atlantis PH2','Oro Beach'];
 const CASTELLO_SITE = 'https://www.castelloeg.com';
 let offerFontsReady = null;
 function offerFonts(){
@@ -3903,10 +3913,13 @@ function offerFX(){
     tail: v => on ? `<span style="color:#9a8b7a;font-weight:400"> · ${f(v)}</span>` : '',
     note: on ? `Amounts in ${currency} are for reference only, at 1 ${currency} = ${r.toLocaleString('en-US')} EGP; all payments are made in EGP. ` : '' };
 }
-function offerFigures(u){
-  const pl = plansFor(u), plan = pl && pl.options && pl.options[0];
+// choice: index of the payment plan picked in the Offer menu, or 'cash' (cash price with the cash discount)
+function offerFigures(u, choice){
+  const pl = plansFor(u), opts = (pl && pl.options) || [];
+  const plan = opts[choice === 'cash' ? -1 : (Number(choice) || 0)] || (choice === 'cash' ? null : opts[0]);
   const price = Number(u.price) || 0, cashPct = (pl && pl.cashDiscount) || 0;
-  if(u.cash_only || !plan) return { price, cashOnly:true, cash: price, maint: Number(u.maintenance_fee) || price * MAINTENANCE_FEE_PCT / 100 };
+  if(u.cash_only || (!plan && choice !== 'cash') || !opts.length) return { price, cashOnly:true, cash: price, maint: Number(u.maintenance_fee) || price * MAINTENANCE_FEE_PCT / 100 };
+  if(choice === 'cash'){ const c = cashPriceFor(u); return { price, cashOnly:true, cashChoice:true, cashPct, promo:c.promo, cash:c.cash, maint: (c.promo ? c.base : price) * MAINTENANCE_FEE_PCT / 100 }; }
   const disc = plan.discount || 0, eff = price * (1 - disc/100), dp = eff * plan.dp / 100, n = Math.round(plan.years * 4);
   return { price, disc, promo: !!plan.promo, eff, dpPct: plan.dp, dp, n, years: plan.years, q: (eff - dp) / n,
     maint: maintFeeFor(u, plan, eff), cashPct, cash: cashPriceFor(u).cash };
@@ -3922,7 +3935,16 @@ function offerBrand(u){
       locPage:'atl_location.jpg',
       nextNote:'The location, payment schedule, layout and floor plan of this unit are on the next pages.',
       why: F => [['In the heart of Hurghada','Close to the Mamsha promenade'],['Everything within reach','Airport & Hadaba Road nearby'],['Resort-style living','Lagoon pools & palm courtyards'],
-                 ['Premium living','Classic arches & garden balconies'],[(F.dpPct||20) + '% down payment', F.years ? `Then ${F.years} years of quarterly installments` : 'Flexible payment plans'],['Where you belong','A calm, gated resort community']] };
+                 ['Premium living','Classic arches & garden balconies'],(F.cashChoice ? ['Pay cash, save ' + F.cashPct + '%', 'Cash discount on the unit price'] : [(F.dpPct||20) + '% down payment', F.years ? `Then ${F.years} years of quarterly installments` : 'Flexible payment plans']),['Where you belong','A calm, gated resort community']] };
+  }
+  if(u && u.sheet === 'Oro Beach'){
+    return { key:'oro', file:'Oro_Beach', hero:'oro_hero.jpg', heroPos:'center 30%', thumbs:['oro_1.jpg','oro_2.jpg','oro_3.jpg'],
+      logo:'oro_white.png', logoH:60, logoH2:44, place:'ORO BEACH', tag:'Where the days turn gold.',
+      dark:'#1f1a13', darker:'#15110c', rgb:'21,17,12', soft:'#c7b78f', soft2:'#e6d8b3', tagCol:'#f3dc95', factsCol:'#efe7d4',
+      hotA:'#e0b94c', hotB:'#b38a22', hotBorder:'#ecd17f', hotBg:'#fbf4df', line:'#c9a227', hotText:'#9c7616', badge:'#b38a22', locPage:null,
+      nextNote:'The payment schedule, layout and location of this unit are on the next pages.',
+      why: F => [['Resort pool deck','Pools, loungers & palm gardens'],['Sea & pool views','Balconies facing the water'],['Shops & cafés downstairs','Everyday life at your door'],
+                 ['Contemporary design','Copper tones, glass & timber'],(F.cashChoice ? ['Pay cash, save ' + F.cashPct + '%', 'Cash discount on the unit price'] : [(F.dpPct||20) + '% down payment', `Then ${F.n} quarterly installments`]),['Dedicated parking','On-site parking for residents']] };
   }
   return { key:'seabreeze', file:'Sea_Breeze', hero:'seaview.jpg', heroPos:'70% center', thumbs:['jacuzzi.jpg','pool.jpg','marina.jpg'],
     logo:'sb_white.png', logoH:66, logoH2:46, place:'SEA BREEZE RESORT · HURGHADA', tag:'Slow down. Stay awhile.',
@@ -3944,14 +3966,19 @@ function offerPageHtml(u, F, who, validUntil, stamp){
   const B = OFFER_BASE, lbl = dispNo(u), shop = (pmIndex(psk(u))[normNo(u.unit_no)] || {}).kind === 'shop';
   const facts = [u.unit_type, u.area ? u.area + ' m²' : '', u.floor ? (String(u.floor).match(/^\d|Ground/i) ? u.floor + ' floor' : u.floor) : '', u.view].filter(Boolean);
   const card = (big, small, hot) => `<div style="flex:1;border:1px solid ${hot?BR.hotBorder:'rgba(255,255,255,.18)'};border-radius:12px;padding:18px 8px;text-align:center;background:${hot?`linear-gradient(160deg,${BR.hotA},${BR.hotB})`:'rgba(255,255,255,.06)'}"><div style="font-family:Michroma;font-size:19px;color:#fff;line-height:1.1;white-space:nowrap">${big}</div><div style="font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:${hot?'#fff':BR.soft2};margin-top:7px;line-height:1.4">${small}</div></div>`;
-  const pay = F.cashOnly
+  const pay = F.cashChoice
+    ? `<div style="display:flex;gap:10px">${card(F.cashPct + '%', 'Cash discount<br>you save ' + offerNum(F.price - F.cash) + ' EGP' + FX.br(F.price - F.cash))}${card(offerNum(F.cash), 'Cash price (EGP)<br>paid at contract' + FX.br(F.cash), true)}${card(offerNum(F.maint), 'Maintenance (10%)<br>at delivery' + FX.br(F.maint))}</div>`
+    : F.cashOnly
     ? `<div style="display:flex;gap:10px">${card(offerNum(F.cash), 'Cash price (EGP)' + FX.br(F.cash))}${card(offerNum(F.maint), 'Maintenance (10%)' + FX.br(F.maint))}</div>`
-    : `<div style="display:flex;gap:10px">${card(F.dpPct + '%', 'Down payment<br>' + offerNum(F.dp) + ' EGP' + FX.br(F.dp))}${card(F.n, 'Quarterly installments<br>over ' + F.years + ' years')}${card(offerNum(F.q), 'Each installment<br>(EGP)' + FX.br(F.q), true)}${card(F.cashPct + '%', 'Cash discount<br>' + offerNum(F.cash) + ' EGP' + FX.br(F.cash))}</div>`;
-  const priceBlock = F.promo
-    ? `<div style="font-size:11px;color:${BR.soft};text-decoration:line-through">${offerNum(F.price)} EGP</div><div style="font-family:Michroma;font-size:28px;color:#fff;margin-top:2px">${offerNum(F.eff)}<span style="font-family:Inter;font-size:12px;color:${BR.soft2};margin-left:6px">EGP</span></div>${FX.on ? `<div style="font-size:12.5px;color:${BR.soft2};margin-top:4px">≈ <b style="color:#fff;font-size:15px">${FX.f(F.price === F.eff || F.cashOnly ? F.price : F.eff)}</b> &nbsp;<span style="font-size:10px;letter-spacing:.08em">at ${offerNum(FX.rate)} EGP / ${FX.code}</span></div>` : ''}<div style="display:inline-block;margin-top:6px;font-size:9.5px;font-weight:700;letter-spacing:.12em;color:#fff;background:#e8832f;padding:4px 10px;border-radius:20px">5% LAUNCH DISCOUNT · BUILDING B · FIRST 20 UNITS ONLY</div>`
+    : `<div style="display:flex;gap:10px">${card(F.dpPct + '%', 'Down payment<br>' + offerNum(F.dp) + ' EGP' + FX.br(F.dp))}${card(F.n, 'Quarterly installments<br>over ' + F.years + ' year' + (F.years === 1 ? '' : 's'))}${card(offerNum(F.q), 'Each installment<br>(EGP)' + FX.br(F.q), true)}${card(F.cashPct + '%', 'Cash discount<br>' + offerNum(F.cash) + ' EGP' + FX.br(F.cash))}</div>`;
+  const badge = F.promo ? '5% LAUNCH DISCOUNT · BUILDING B · FIRST 20 UNITS ONLY' : F.cashChoice ? F.cashPct + '% CASH DISCOUNT' : (F.disc ? F.disc + '% DISCOUNT · ' + F.years + '-YEAR PLAN' : '');
+  const shown = F.cashChoice ? F.cash : F.eff;
+  const priceBlock = (F.promo || (F.cashChoice && F.cash !== F.price) || (!F.cashOnly && F.disc))
+    ? `<div style="font-size:11px;color:${BR.soft};text-decoration:line-through">${offerNum(F.price)} EGP</div><div style="font-family:Michroma;font-size:28px;color:#fff;margin-top:2px">${offerNum(shown)}<span style="font-family:Inter;font-size:12px;color:${BR.soft2};margin-left:6px">EGP</span></div>${FX.on ? `<div style="font-size:12.5px;color:${BR.soft2};margin-top:4px">≈ <b style="color:#fff;font-size:15px">${FX.f(shown)}</b> &nbsp;<span style="font-size:10px;letter-spacing:.08em">at ${offerNum(FX.rate)} EGP / ${FX.code}</span></div>` : ''}<div style="display:inline-block;margin-top:6px;font-size:9.5px;font-weight:700;letter-spacing:.12em;color:#fff;background:${BR.badge||'#e8832f'};padding:4px 10px;border-radius:20px">${badge}</div>`
     : `<div style="font-family:Michroma;font-size:28px;color:#fff">${offerNum(F.price)}<span style="font-family:Inter;font-size:12px;color:${BR.soft2};margin-left:6px">EGP</span></div>${FX.on ? `<div style="font-size:12.5px;color:${BR.soft2};margin-top:4px">≈ <b style="color:#fff;font-size:15px">${FX.f(F.price === F.eff || F.cashOnly ? F.price : F.eff)}</b> &nbsp;<span style="font-size:10px;letter-spacing:.08em">at ${offerNum(FX.rate)} EGP / ${FX.code}</span></div>` : ''}`;
-  const rows = F.cashOnly ? [['Cash price', offerNum(F.cash) + ' EGP' + FX.tail(F.cash)], ['Maintenance (10%, at delivery)', offerNum(F.maint) + ' EGP' + FX.tail(F.maint)]]
-    : [[F.promo ? 'Price after 5% launch discount' : 'Unit price', offerNum(F.eff) + ' EGP' + FX.tail(F.eff)], ['Down payment (' + F.dpPct + '%) at contract', offerNum(F.dp) + ' EGP' + FX.tail(F.dp)],
+  const rows = F.cashChoice ? [['Unit price', offerNum(F.price) + ' EGP' + FX.tail(F.price)], ['Cash discount (' + F.cashPct + '%' + (F.promo ? ', after the 5% launch discount' : '') + ')', '− ' + offerNum(F.price - F.cash) + ' EGP' + FX.tail(F.price - F.cash)], ['Cash price, paid at contract', offerNum(F.cash) + ' EGP' + FX.tail(F.cash)], ['Maintenance (10%, at delivery)', offerNum(F.maint) + ' EGP' + FX.tail(F.maint)]]
+    : F.cashOnly ? [['Cash price', offerNum(F.cash) + ' EGP' + FX.tail(F.cash)], ['Maintenance (10%, at delivery)', offerNum(F.maint) + ' EGP' + FX.tail(F.maint)]]
+    : [[F.promo ? 'Price after 5% launch discount' : F.disc ? 'Price after ' + F.disc + '% discount (' + F.years + '-year plan)' : 'Unit price', offerNum(F.eff) + ' EGP' + FX.tail(F.eff)], ['Down payment (' + F.dpPct + '%) at contract', offerNum(F.dp) + ' EGP' + FX.tail(F.dp)],
        [F.n + ' quarterly installments', offerNum(F.q) + ' EGP each' + FX.tail(F.q)], ['Maintenance (10%' + (F.promo ? ' of discounted price' : '') + ', at delivery)', offerNum(F.maint) + ' EGP' + FX.tail(F.maint)],
        ['Or pay cash (' + F.cashPct + '% off' + (F.promo ? ' the discounted price' : '') + ')', offerNum(F.cash) + ' EGP' + FX.tail(F.cash)]];
   const why = BR.why(F);
@@ -3972,14 +3999,14 @@ function offerPageHtml(u, F, who, validUntil, stamp){
     <div style="flex:1;position:relative">
       <div style="background:${BR.dark};color:#fff;padding:30px 34px 28px">
         <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px">
-          <div><div style="font-size:10px;letter-spacing:.22em;color:${BR.soft};margin-bottom:6px">${F.cashOnly ? 'CASH PRICE' : 'UNIT PRICE'}</div>${priceBlock}</div>
+          <div><div style="font-size:10px;letter-spacing:.22em;color:${BR.soft};margin-bottom:6px">${F.cashOnly ? 'CASH PRICE' : F.disc && !F.promo ? 'PRICE ON THIS PLAN' : 'UNIT PRICE'}</div>${priceBlock}</div>
           <div style="text-align:right;font-size:10px;color:${BR.soft};letter-spacing:.1em;line-height:1.6">OFFER VALID UNTIL<br><b style="color:#fff;font-size:12px;letter-spacing:.04em">${validUntil}</b></div></div>
         ${pay}</div>
       <div style="padding:24px 34px 0">
         <div style="font-family:Michroma;font-size:12.5px;color:${BR.dark};display:flex;align-items:center;gap:12px">YOUR PAYMENT PLAN<span style="flex:1;height:1px;background:linear-gradient(90deg,${BR.line},transparent)"></span></div>
-        <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px">${rows.map((r,i)=>`<tr><td style="padding:8px 0;border-bottom:1px solid #eee5d8;color:${i===2&&!F.cashOnly?BR.hotText:'#1d2b36'}">${r[0]}</td><td style="padding:8px 0;border-bottom:1px solid #eee5d8;text-align:right;font-weight:600;color:${i===2&&!F.cashOnly?BR.hotText:BR.dark}">${r[1]}</td></tr>`).join('')}</table>
+        <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px">${rows.map((r,i)=>`<tr><td style="padding:8px 0;border-bottom:1px solid #eee5d8;color:${i===2&&(!F.cashOnly||F.cashChoice)?BR.hotText:'#1d2b36'}">${r[0]}</td><td style="padding:8px 0;border-bottom:1px solid #eee5d8;text-align:right;font-weight:600;color:${i===2&&(!F.cashOnly||F.cashChoice)?BR.hotText:BR.dark}">${r[1]}</td></tr>`).join('')}</table>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px 16px;margin-top:24px">${why.map(w=>`<div style="border-left:2px solid ${BR.line};padding-left:9px"><div style="font-size:11.5px;font-weight:600;color:${BR.dark}">${w[0]}</div><div style="font-size:9.5px;color:#6c7a86;margin-top:2px">${w[1]}</div></div>`).join('')}</div>
-        <div style="position:absolute;left:34px;right:34px;bottom:88px;font-size:7.8px;color:#93a0ab;line-height:1.45">Prices and availability are subject to change. ${FX.note}Installments are paid quarterly, starting 3 months after the contract date. ${F.promo ? 'The 5% launch discount applies to the first 20 units sold in Building B only. ' : ''}Images are indicative. ${BR.nextNote}</div></div>
+        <div style="position:absolute;left:34px;right:34px;bottom:88px;font-size:7.8px;color:#93a0ab;line-height:1.45">Prices and availability are subject to change. ${FX.note}Installments are paid quarterly, starting 3 months after the contract date. ${F.promo ? 'The 5% launch discount applies to the first 20 units sold in Building B only. ' : ''}Images are indicative. ${F.cashOnly ? BR.nextNote.replace('payment schedule, ','').replace('location, layout and floor plan','location, layout and floor plan') : BR.nextNote}</div></div>
     </div>
     <div style="position:absolute;left:0;right:0;bottom:0;height:74px;box-sizing:border-box;background:${BR.darker};color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 34px">
       <div><div style="font-size:9px;letter-spacing:.2em;color:${BR.soft}">YOUR CONSULTANT</div><div style="font-size:15px;font-weight:600;margin-top:3px">${who}</div><div style="font-size:8.5px;color:${BR.soft};margin-top:3px">${stamp}</div></div>
@@ -4023,10 +4050,10 @@ function offerScheduleHtml(u, F, stamp){
   const cell = (l, v, hot) => `<div style="flex:1;padding:12px 16px;border-radius:10px;background:${hot?BR.hotBg:'#f6f0e7'};border:1px solid ${hot?BR.hotBorder:'#e6ddd0'}"><div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#6c7a86">${l}</div><div style="font-family:Michroma;font-size:15px;color:${hot?BR.hotText:BR.dark};margin-top:6px;white-space:nowrap">${v}</div></div>`;
   return `<div style="width:1123px;height:794px;background:#fff;font-family:Inter,Arial,sans-serif;position:relative;overflow:hidden">
     <div style="height:70px;background:${BR.dark};display:flex;align-items:center;justify-content:space-between;padding:0 34px;color:#fff">
-      <div><div style="font-family:Michroma;font-size:20px">UNIT ${lbl} · PAYMENT PLAN</div><div style="font-size:10.5px;color:${BR.soft2};margin-top:4px">${F.dpPct}% down payment · ${F.n} quarterly installments over ${F.years} years${F.promo ? ' · 5% launch discount' : ''}</div></div>
+      <div><div style="font-family:Michroma;font-size:20px">UNIT ${lbl} · PAYMENT PLAN</div><div style="font-size:10.5px;color:${BR.soft2};margin-top:4px">${F.dpPct}% down payment · ${F.n} quarterly installments over ${F.years} year${F.years === 1 ? '' : 's'}${F.promo ? ' · 5% launch discount' : F.disc ? ' · ' + F.disc + '% discount' : ''}</div></div>
       <img src="${OFFER_BASE}${BR.logo}" data-link="${CASTELLO_SITE}" style="height:${BR.logoH2}px"></div>
     <div style="padding:20px 34px 0">
-      <div style="display:flex;gap:12px">${cell(F.promo ? 'Price after 5% discount' : 'Unit price', offerNum(F.eff) + ' EGP' + (FX.on ? '<div style="font-family:Inter;font-size:11px;color:#8a7a6a;margin-top:3px">≈ ' + FX.f(F.eff) + '</div>' : ''))}${cell('Down payment (' + F.dpPct + '%)', offerNum(dp) + ' EGP' + (FX.on ? '<div style="font-family:Inter;font-size:11px;color:#8a7a6a;margin-top:3px">≈ ' + FX.f(dp) + '</div>' : ''))}${cell('Quarterly installment', offerNum(base) + ' EGP' + (FX.on ? '<div style="font-family:Inter;font-size:11px;color:#8a7a6a;margin-top:3px">≈ ' + FX.f(base) + '</div>' : ''), true)}${cell('Maintenance (10%, at delivery)', offerNum(F.maint) + ' EGP' + (FX.on ? '<div style="font-family:Inter;font-size:11px;color:#8a7a6a;margin-top:3px">≈ ' + FX.f(F.maint) + '</div>' : ''))}</div>
+      <div style="display:flex;gap:12px">${cell(F.promo ? 'Price after 5% discount' : F.disc ? 'Price after ' + F.disc + '% discount' : 'Unit price', offerNum(F.eff) + ' EGP' + (FX.on ? '<div style="font-family:Inter;font-size:11px;color:#8a7a6a;margin-top:3px">≈ ' + FX.f(F.eff) + '</div>' : ''))}${cell('Down payment (' + F.dpPct + '%)', offerNum(dp) + ' EGP' + (FX.on ? '<div style="font-family:Inter;font-size:11px;color:#8a7a6a;margin-top:3px">≈ ' + FX.f(dp) + '</div>' : ''))}${cell('Quarterly installment', offerNum(base) + ' EGP' + (FX.on ? '<div style="font-family:Inter;font-size:11px;color:#8a7a6a;margin-top:3px">≈ ' + FX.f(base) + '</div>' : ''), true)}${cell('Maintenance (10%, at delivery)', offerNum(F.maint) + ' EGP' + (FX.on ? '<div style="font-family:Inter;font-size:11px;color:#8a7a6a;margin-top:3px">≈ ' + FX.f(F.maint) + '</div>' : ''))}</div>
       <div style="display:flex;gap:28px;margin-top:20px"><div style="flex:1">${table(rows.slice(0, half))}</div><div style="flex:1">${table(rows.slice(half))}</div></div>
       <div style="margin-top:12px;font-size:10.5px;color:${BR.dark};text-align:right">Total: <b>${offerNum(total)} EGP</b>${FX.on ? ' (≈ ' + FX.f(total) + ')' : ''} &nbsp;·&nbsp; Or pay cash: <b>${offerNum(F.cash)} EGP</b>${FX.on ? ' (≈ ' + FX.f(F.cash) + ')' : ''} (${F.cashPct}% off${F.promo ? ' the discounted price' : ''})</div></div>
     <div style="position:absolute;left:34px;right:34px;bottom:14px;display:flex;justify-content:space-between;font-size:8.5px;color:#8a96a0"><span>${stamp}</span><span>${FX.note}Dates assume a contract signed today. The maintenance fee is paid separately at delivery.</span></div>
@@ -4049,7 +4076,7 @@ function offerPlace(pdf, cv, q){
   pdf.addImage(cv.toDataURL('image/jpeg', q), 'JPEG', 0, 0, 841.89, 595.28);
   (cv.links || []).forEach(l=> pdf.link(l.x*k, l.y*k, l.w*k, l.h*k, { url: l.url }));
 }
-async function downloadOffer(u, btn){
+async function downloadOffer(u, btn, choice, mode){
   if(!u || !u.price) return;
   if(typeof html2canvas === 'undefined' || !(window.jspdf && window.jspdf.jsPDF)){
     alert('Could not prepare the offer: the PDF tools did not load. Check the internet connection, then refresh the page and try again.'); return;
@@ -4060,9 +4087,9 @@ async function downloadOffer(u, btn){
   host.style.cssText = 'position:fixed;left:-12000px;top:0;width:1123px;z-index:-1;';
   document.body.appendChild(host);
   try{
-    try{ track('offer_download', unitLabelForTrack(u)); }catch(e){}
+    try{ track(mode === 'print' ? 'offer_print' : 'offer_download', unitLabelForTrack(u)); }catch(e){}
     await offerFonts();
-    const F = offerFigures(u), who = sessionStorage.getItem('castelloFullName') || currentAgentName() || 'Castello Sales';
+    const F = offerFigures(u, choice), who = sessionStorage.getItem('castelloFullName') || currentAgentName() || 'Castello Sales';
     const vd = new Date(); vd.setDate(vd.getDate() + 14);
     const validUntil = vd.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
     const stamp = dlStamp();
@@ -4088,7 +4115,8 @@ async function downloadOffer(u, btn){
         offerPlace(pdf, page2, 0.92);
       }
     }catch(e){ console.warn('offer: layout/location page skipped', e); try{ track('offer_error', unitLabelForTrack(u) + ' · plans page · ' + (e && e.message || e)); }catch(_){} }
-    pdf.save(`${offerBrand(u).file}_Offer_${String(dispNo(u)).replace(/\s+/g,'_')}.pdf`);
+    const fname = `${offerBrand(u).file}_Offer_${String(dispNo(u)).replace(/\s+/g,'_')}.pdf`;
+    if(mode === 'print') offerPrint(pdf, fname); else pdf.save(fname);
   }catch(e){
     console.error(e);
     const why = (e && (e.message || e.name)) || String(e);
@@ -4099,6 +4127,43 @@ async function downloadOffer(u, btn){
     if(btn){ btn.innerHTML = old; btn.disabled = false; }
   }
 }
+// Print the offer: the PDF opens in a hidden frame and the print window comes up (phones: the PDF opens in a new tab to print from there)
+function offerPrint(pdf, fname){
+  const url = URL.createObjectURL(pdf.output('blob'));
+  const mobile = navigator.maxTouchPoints > 1 || /iPhone|iPad|Android/i.test(navigator.userAgent);
+  if(mobile){ const w = window.open(url, '_blank'); if(!w) pdf.save(fname); return; }
+  let f = document.getElementById('offerPrintFrame'); if(f) f.remove();
+  f = document.createElement('iframe'); f.id = 'offerPrintFrame';
+  f.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0';
+  f.onload = ()=>{ setTimeout(()=>{ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ window.open(url, '_blank'); } }, 300); };
+  f.src = url; document.body.appendChild(f);
+}
+// Offer menu: choose the payment plan, then download or print
+function offerChoices(u){
+  const pl = plansFor(u), opts = (pl && pl.options) || [];
+  if(u.cash_only || !opts.length) return [['cash', 'Cash price', '']];
+  const c = cashPriceFor(u);
+  return [...opts.map((o,i)=> [String(i), o.label, '']), ['cash', 'Cash payment', c.pct ? c.pct + '% off' : '']];
+}
+function openOfferMenu(u, b){
+  let pop = document.getElementById('dlPop');
+  if(pop){ const same = pop.dataset.for === 'of'; pop.remove(); if(same) return; }
+  const ch = offerChoices(u), canPrint = featureOn('can_offer_print');
+  pop = document.createElement('div'); pop.id = 'dlPop'; pop.className = 'dl-pop of-pop'; pop.dataset.for = 'of';
+  pop.innerHTML = `<div class="of-h">Payment plan for this offer</div>` +
+    ch.map(([k,t,n], i)=> `<label class="of-opt"><input type="radio" name="ofPlan" value="${k}" ${i===0?'checked':''}><span>${t}</span>${n ? `<small>${n}</small>` : ''}</label>`).join('') +
+    `<div class="of-go"><button data-m="pdf">${DL_ICON}Download</button>${canPrint ? `<button data-m="print">${PR_ICON}Print</button>` : ''}</div>`;
+  b.parentNode.style.position = 'relative'; b.parentNode.appendChild(pop);
+  const r = b.getBoundingClientRect(), pr = b.parentNode.getBoundingClientRect(), w = Math.min(300, pr.width);
+  pop.style.width = w + 'px'; pop.style.left = Math.max(0, Math.min(r.left - pr.left, pr.width - w)) + 'px';
+  pop.addEventListener('click', ev=>{
+    ev.stopPropagation();
+    const m = ev.target.closest('button[data-m]'); if(!m) return;
+    const choice = (pop.querySelector('input[name=ofPlan]:checked') || {}).value || '0';
+    pop.remove(); downloadOffer(u, b, choice, m.dataset.m);
+  });
+}
+document.addEventListener('pointerdown', e=>{ const pop = document.getElementById('dlPop'); if(pop && !pop.contains(e.target) && !e.target.closest('#layActions button[data-act]')) pop.remove(); });
 function layStep(d){ const list = layList(); const i = list.indexOf(layCur); const n = list[i + d]; if(n) openLayout(n); }
 document.getElementById('layPrev').addEventListener('click', ()=> layStep(-1));
 document.getElementById('layNext').addEventListener('click', ()=> layStep(1));
@@ -4106,7 +4171,7 @@ document.getElementById('layActions').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b || !layCur) return;
   const u = layCur;
   if(b.dataset.act === 'share'){ shareUnit(u, b); return; }
-  if(b.dataset.act === 'of'){ downloadOffer(u, b); return; }
+  if(b.dataset.act === 'of'){ openOfferMenu(u, b); return; }
   if(b.dataset.act === 'dl' || b.dataset.act === 'pr'){
     const action = b.dataset.act === 'pr' ? 'print' : 'pdf';
     let pop = document.getElementById('dlPop');
