@@ -7327,11 +7327,12 @@ html[data-theme="gold-atelier"] .lay-stage .lay-modes,html[data-theme="gold-atel
 html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; }
 html[data-theme="gold-atelier"] .seal{ min-height:112px; padding:10px 12px 10px; border-radius:10px; }
 html[data-theme="gold-atelier"] .seal-row{ gap:10px !important; }
-html[data-theme="gold-atelier"] .seal .medallion{ width:96px !important; height:34px !important; padding:0 !important; margin:0 !important; border:none !important; border-radius:0 !important; background:none !important; backdrop-filter:none !important; justify-content:flex-start !important; }
-html[data-theme="gold-atelier"] .seal .medallion img{ max-height:34px; max-width:96px; object-position:left center; opacity:1; filter:drop-shadow(0 1px 3px rgba(0,0,0,.75)); }
+html[data-theme="gold-atelier"] .seal .medallion{ position:absolute !important; top:12px; left:12px; z-index:2; width:110px !important; height:30px !important; padding:0 !important; margin:0 !important; align-items:center !important; border:none !important; border-radius:0 !important; background:none !important; backdrop-filter:none !important; justify-content:flex-start !important; }
+html[data-theme="gold-atelier"] .seal .medallion img{ height:30px; width:auto; max-height:30px; max-width:110px; object-position:left center; opacity:1; filter:drop-shadow(0 1px 3px rgba(0,0,0,.75)); }
 html[data-theme="gold-atelier"] .seal[data-key^="Atlantis"] .medallion img{ filter:brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,.8)) !important; }
 html[data-theme="gold-atelier"] .seal .pname{ font-size:18px !important; margin-top:6px !important; }
-html[data-theme="gold-atelier"] .seal .psub{ font-size:10.5px; min-height:0; }
+html[data-theme="gold-atelier"] .seal .psub{ font-size:10.5px; min-height:14px; }
+html[data-theme="gold-atelier"] .seal{ padding-top:50px !important; }
 html[data-theme="gold-atelier"] .seal .pmeta{ font-size:10.5px !important; margin-top:2px !important; }
 html[data-theme="gold-atelier"] .seal .ptag{ border-radius:999px; font-size:9px !important; margin-top:5px !important; padding:1px 7px !important; }
 @media (max-width:1400px){ html[data-theme="gold-atelier"] .seal-row{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
