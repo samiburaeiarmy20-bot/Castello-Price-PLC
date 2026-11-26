@@ -3824,6 +3824,9 @@ layStage.addEventListener('wheel', e=>{ e.preventDefault(); const r = layStage.g
 })();
 const DL_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>';
 const OF_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>';
+const PLAN_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3M8 17h6"/></svg>';
+const ROI_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/><path d="M14 7h4v4"/></svg>';
+const SH_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.3 10.8l7.4-4.1M8.3 13.2l7.4 4.1"/></svg>';
 const PR_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6H7z"/><circle cx="17" cy="12" r=".6" fill="currentColor"/></svg>';
 const LAY_KINDS = { rec:['Reception','#e8a948'], room:['Bedroom','#9d8cff'], bath:['Bathroom','#4cc3ee'], kit:['Kitchen','#4fd6a0'] };
 let layCur = null;
@@ -3923,8 +3926,8 @@ async function openLayout(u, navList, mode){
   // quick actions
   const acts = [];
   if(!u.__unavailable){
-  if(featureOn('can_payment_plan') && !u.cash_only) acts.push(['plan','Payment Plan', true]);
-  if(featureOn('can_roi')) acts.push(['roi','ROI Calc', false]);
+  if(featureOn('can_payment_plan') && !u.cash_only) acts.push(['plan','Payment plan', true]);
+  if(featureOn('can_roi')) acts.push(['roi','ROI', false]);
   if(featureOn('can_share')) acts.push(['share','Share', false]);
   }
   const anyInk = featureOn('can_dl_colour') || featureOn('can_dl_black');
@@ -3935,7 +3938,12 @@ async function openLayout(u, navList, mode){
   if(layMode === 'location' && okLoc && anyInk && featureOn('can_print_masterplan')) acts.push(['pr','Print', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
-  box.innerHTML = acts.map(([k,t,p])=>`<button data-act="${k}" class="${p?'primary':''}${k==='dl'||k==='pr'||k==='of'?' ic':''}" title="${k==='of'?'Client offer PDF: price, payment plan, layout and location':k==='dl'?(layMode==='location'?'Download master plan (A4 landscape)':'Download layout (A4 portrait)'):k==='pr'?(layMode==='location'?'Print master plan (A4 landscape)':'Print layout (A4 portrait)'):''}">${k==='dl'?DL_ICON:k==='pr'?PR_ICON:k==='of'?OF_ICON:''}<span>${t}</span></button>`).join('');
+  const ICONS_ACT = { plan:PLAN_ICON, roi:ROI_ICON, share:SH_ICON, of:OF_ICON, dl:DL_ICON, pr:PR_ICON };
+  const TIPS_ACT = { plan:'Installment schedule for this unit', roi:'Rental return and resale estimate', share:'Send this unit to a client', of:'Client offer PDF: price, payment plan, layout and location',
+    dl: layMode==='location' ? 'Download master plan (A4 landscape)' : 'Download layout (A4 portrait)', pr: layMode==='location' ? 'Print master plan (A4 landscape)' : 'Print layout (A4 portrait)' };
+  const btn = ([k,t,p]) => `<button data-act="${k}" class="ic${p?' primary':''}" title="${TIPS_ACT[k]||''}">${ICONS_ACT[k]||''}<span>${t}</span></button>`;
+  const grp = (keys, cls) => { const g = acts.filter(a=> keys.includes(a[0])); return g.length ? `<div class="la-grp ${cls}">${g.map(btn).join('')}</div>` : ''; };
+  box.innerHTML = [grp(['plan'],'la-main'), grp(['roi','share'],'la-tools'), grp(['of','dl','pr'],'la-docs')].filter(Boolean).join('');
   layT = { s:1, x:0, y:0 }; layApply();
   layPan.innerHTML = `<div class="lay-msg">Loading ${layMode === 'location' ? 'floor plan' : 'layout'}…</div>`;
   layoutOverlay.classList.add('open');
@@ -4448,7 +4456,7 @@ document.getElementById('layActions').addEventListener('click', e=>{
     pop.innerHTML = `<button data-m="colour"><i class="sw c"></i>Colour <small>as the CAD file</small></button><button data-m="black"><i class="sw b"></i>Black <small>for printing</small></button>`;
     b.parentNode.style.position = 'relative'; b.parentNode.appendChild(pop);
     const r = b.getBoundingClientRect(), pr = b.parentNode.getBoundingClientRect();
-    pop.style.left = ((r.left - pr.left)/pz()) + 'px'; pop.style.width = (r.width/pz()) + 'px';
+    { const Z = pz(), pw = Math.max(230, r.width/Z); pop.style.width = pw + 'px'; pop.style.left = Math.max(0, (r.right - pr.left)/Z - pw) + 'px'; }
     pop.addEventListener('click', ev=>{ const m = ev.target.closest('button'); if(!m) return; ev.stopPropagation(); pop.remove();
       if(layMode === 'location') downloadMasterPlan(u, b, m.dataset.m, action); else downloadLayout(u, b, m.dataset.m, action); });
     return;
@@ -8552,6 +8560,28 @@ html.np-currency .currency-toggle, html.np-price #priceDd, html.np-sort .sortbox
 .pos-mem{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:12.5px; color:var(--stone); }
 .pos-mem em{ font-style:normal; font-size:12.5px; color:var(--cream); border:1px solid var(--line); border-radius:999px; padding:3px 10px; }
 @media (max-width:900px){ .pos-wrap{ grid-template-columns:minmax(0,1fr); } .pos-list{ position:static; } .pos-btns{ margin-left:0; } .pos-name input{ width:100%; } }
+/* ===== Unit window: fixed height so the plan never covers the buttons; tidy button groups ===== */
+@media (min-width:901px){
+  html[data-theme][data-theme] .lay-card{ display:flex !important; flex-direction:column; height:min(880px, calc(94vh / var(--pz))) !important; max-height:none !important; overflow:hidden !important; }
+  html[data-theme][data-theme] .lay-hero{ flex:none; }
+  html[data-theme][data-theme] .lay-main{ flex:1 1 auto !important; min-height:0 !important; display:flex !important; flex-direction:row !important; }
+  html[data-theme][data-theme] .lay-main .lay-stage{ flex:1 1 auto !important; min-height:0 !important; height:auto !important; }
+  html[data-theme][data-theme] .lay-side{ max-height:none !important; min-height:0; overflow:auto; }
+  html[data-theme][data-theme] .lay-actions, html[data-theme][data-theme] .lay-note{ flex:none; }
+}
+html[data-theme][data-theme] .lay-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 22px 6px !important; }
+.la-grp{ display:flex; gap:8px; align-items:center; }
+.la-grp + .la-grp{ padding-left:10px; border-left:1px solid var(--line-soft); }
+.la-docs{ margin-left:auto; padding-left:0 !important; border-left:0 !important; }
+html[data-theme][data-theme] .lay-actions button.ic{ flex:0 0 auto !important; min-width:0 !important; height:42px; padding:0 18px !important; display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:999px !important; font-size:13.5px !important; font-weight:600; white-space:nowrap; }
+html[data-theme][data-theme] .lay-actions .la-main button.ic{ padding:0 24px !important; }
+@media (max-width:760px){
+  html[data-theme][data-theme] .lay-actions{ gap:8px; padding:12px 14px 6px !important; }
+  .la-grp{ flex:1 1 100%; }
+  .la-grp + .la-grp{ padding-left:0; border-left:0; }
+  .la-docs{ margin-left:0; }
+  html[data-theme][data-theme] .lay-actions .la-grp button.ic{ flex:1 1 0 !important; padding:0 10px !important; }
+}
 /* ================= Gold Atelier — type and the phone layout ================= */
 html[data-theme][data-theme] body{ font-family:var(--font-body); font-variant-numeric:lining-nums; }
 html[data-theme][data-theme] .hero h1,html[data-theme][data-theme] .lay-hero h3,html[data-theme][data-theme] .pm-hero h3{ font-weight:500 !important; letter-spacing:-0.01em !important; }
