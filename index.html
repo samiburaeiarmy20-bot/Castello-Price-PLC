@@ -2952,6 +2952,17 @@ document.getElementById('afTags').addEventListener('click', e=>{
 // "more" menu on each row: a copy of the row's hidden menu is shown on top of the page (so the table's
 // scroll box and row effects never clip it); each item clicks the real button in the row.
 /* page zoom on wide screens (body{zoom:.9}): screen coordinates must be divided by it before use in styles */
+// html2canvas (offers, price-list PDF, prints) can't handle the wide-screen body{zoom:.9}: render its copy of the page at 100%
+(function(){ try{ const orig = window.html2canvas; if(!orig || orig.__noZoom) return;
+  const wrapped = async (el, opts) => {
+    const Z = (typeof pz === 'function') ? pz() : 1;
+    if(Z === 1) return orig(el, opts);
+    const prev = document.body.style.getPropertyValue('zoom'), prevP = document.body.style.getPropertyPriority('zoom');
+    document.body.style.setProperty('zoom', '1', 'important');
+    try{ return await orig(el, opts); }
+    finally{ if(prev) document.body.style.setProperty('zoom', prev, prevP); else document.body.style.removeProperty('zoom'); }
+  };
+  wrapped.__noZoom = true; window.html2canvas = wrapped; }catch(e){} })();
 function pz(){ try{ return parseFloat(getComputedStyle(document.body).zoom) || 1; }catch(e){ return 1; } }
 let morePop = null, moreBtn = null;
 function closeMore(){ if(morePop){ morePop.remove(); morePop = null; } if(moreBtn){ moreBtn.setAttribute('aria-expanded','false'); moreBtn = null; } }
@@ -4300,7 +4311,7 @@ async function offerShot(host, html){
   host.innerHTML = html;
   await Promise.all([...host.querySelectorAll('img')].map(i=> i.complete ? 0 : new Promise(r=>{ i.onload = i.onerror = r; })));
   const page = host.firstElementChild, o = page.getBoundingClientRect();
-  const links = [...page.querySelectorAll('[data-link]')].map(e=>{ const r = e.getBoundingClientRect(); return { url: e.dataset.link, x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height }; });
+  const Zl = pz(); const links = [...page.querySelectorAll('[data-link]')].map(e=>{ const r = e.getBoundingClientRect(); return { url: e.dataset.link, x: (r.left - o.left)/Zl, y: (r.top - o.top)/Zl, w: r.width/Zl, h: r.height/Zl }; });
   const cv = await html2canvas(page, { scale:OFFER_SCALE, useCORS:true, backgroundColor:'#ffffff', logging:false, width:1123, height:794, windowWidth:1123,
     ignoreElements: el => el.parentElement === document.body && el !== host });
   cv.links = links;
@@ -6700,7 +6711,7 @@ async function downloadPdfFromPrintArea(filename, triggerBtn){
   el.style.background = '#ffffff';
   try{
     const eo = el.getBoundingClientRect();
-    const linkBoxes = [...el.querySelectorAll('[data-link]')].map(a=>{ const r = (a.querySelector('img') || a).getBoundingClientRect(); return { url: a.dataset.link, x: r.left - eo.left, y: r.top - eo.top, w: r.width, h: r.height }; });
+    const Zb = pz(); const linkBoxes = [...el.querySelectorAll('[data-link]')].map(a=>{ const r = (a.querySelector('img') || a).getBoundingClientRect(); return { url: a.dataset.link, x: (r.left - eo.left)/Zb, y: (r.top - eo.top)/Zb, w: r.width/Zb, h: r.height/Zb }; });
     const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', windowWidth: 780 });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'pt', 'a4');
