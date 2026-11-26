@@ -2952,17 +2952,32 @@ document.getElementById('afTags').addEventListener('click', e=>{
 // "more" menu on each row: a copy of the row's hidden menu is shown on top of the page (so the table's
 // scroll box and row effects never clip it); each item clicks the real button in the row.
 /* page zoom on wide screens (body{zoom:.9}): screen coordinates must be divided by it before use in styles */
-// html2canvas (offers, price-list PDF, prints) can't handle the wide-screen body{zoom:.9}: render its copy of the page at 100%
+// html2canvas (offers, price-list PDF, prints) breaks under the wide-screen body{zoom:.9}: its working copy of the
+// page lands inside the zoomed <body>. So on wide screens each capture is drawn inside a separate, unzoomed frame
+// holding a copy of the page's styles -- the page on screen never changes size.
 (function(){ try{ const orig = window.html2canvas; if(!orig || orig.__noZoom) return;
   const wrapped = async (el, opts) => {
+    opts = opts || {};
     const Z = (typeof pz === 'function') ? pz() : 1;
     if(Z === 1) return orig(el, opts);
-    const prev = document.body.style.getPropertyValue('zoom'), prevP = document.body.style.getPropertyPriority('zoom');
-    document.body.style.setProperty('zoom', '1', 'important');
-    try{ return await orig(el, opts); }
-    finally{ if(prev) document.body.style.setProperty('zoom', prev, prevP); else document.body.style.removeProperty('zoom'); }
+    const w = Math.ceil(opts.windowWidth || el.offsetWidth || 1200), h = Math.ceil(Math.max(opts.height || 0, el.scrollHeight || 0, el.offsetHeight || 0, 600));
+    const fr = document.createElement('iframe'); fr.setAttribute('aria-hidden', 'true'); fr.tabIndex = -1;
+    fr.style.cssText = `position:fixed;left:-30000px;top:0;width:${w}px;height:${h}px;border:0;pointer-events:none;`;
+    document.documentElement.appendChild(fr);
+    try{
+      const d = fr.contentDocument, root = document.documentElement;
+      const styles = [...document.querySelectorAll('style, link[rel="stylesheet"]')].filter(n=> !el.contains(n)).map(n=> n.outerHTML).join('');
+      d.open(); d.write(`<!DOCTYPE html><html data-theme="${root.getAttribute('data-theme')||''}" class="${root.className}"><head><meta charset="utf-8"><base href="${location.href}">${styles}<style>html,body{zoom:1 !important;margin:0;background:#fff;}</style></head><body></body></html>`); d.close();
+      const copy = d.importNode(el, true);
+      copy.style.position = 'static'; copy.style.left = '0'; copy.style.top = '0';
+      d.body.appendChild(copy);
+      await Promise.all([...copy.querySelectorAll('img')].map(i=> i.complete ? 0 : new Promise(r=>{ i.onload = i.onerror = r; setTimeout(r, 8000); })));
+      try{ if(d.fonts && d.fonts.ready) await Promise.race([d.fonts.ready, new Promise(r=> setTimeout(r, 4000))]); }catch(e){}
+      const ig = opts.ignoreElements;
+      return await orig(copy, Object.assign({}, opts, { ignoreElements: n => ig ? ig(n) : false }));
+    } finally { fr.remove(); }
   };
-  wrapped.__noZoom = true; window.html2canvas = wrapped; }catch(e){} })();
+  wrapped.__noZoom = true; wrapped.__orig = orig; window.html2canvas = wrapped; }catch(e){} })();
 function pz(){ try{ return parseFloat(getComputedStyle(document.body).zoom) || 1; }catch(e){ return 1; } }
 let morePop = null, moreBtn = null;
 function closeMore(){ if(morePop){ morePop.remove(); morePop = null; } if(moreBtn){ moreBtn.setAttribute('aria-expanded','false'); moreBtn = null; } }
@@ -4311,7 +4326,7 @@ async function offerShot(host, html){
   host.innerHTML = html;
   await Promise.all([...host.querySelectorAll('img')].map(i=> i.complete ? 0 : new Promise(r=>{ i.onload = i.onerror = r; })));
   const page = host.firstElementChild, o = page.getBoundingClientRect();
-  const Zl = pz(); const links = [...page.querySelectorAll('[data-link]')].map(e=>{ const r = e.getBoundingClientRect(); return { url: e.dataset.link, x: (r.left - o.left)/Zl, y: (r.top - o.top)/Zl, w: r.width/Zl, h: r.height/Zl }; });
+  const Zl = document.body.contains(page) ? pz() : 1; const links = [...page.querySelectorAll('[data-link]')].map(e=>{ const r = e.getBoundingClientRect(); return { url: e.dataset.link, x: (r.left - o.left)/Zl, y: (r.top - o.top)/Zl, w: r.width/Zl, h: r.height/Zl }; });
   const cv = await html2canvas(page, { scale:OFFER_SCALE, useCORS:true, backgroundColor:'#ffffff', logging:false, width:1123, height:794, windowWidth:1123,
     ignoreElements: el => el.parentElement === document.body && el !== host });
   cv.links = links;
@@ -4332,7 +4347,7 @@ async function downloadOffer(u, btn, choice, mode){
   if(btn){ btn.innerHTML = '<span>Preparing…</span>'; btn.disabled = true; }
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:-12000px;top:0;width:1123px;z-index:-1;';
-  document.body.appendChild(host);
+  document.documentElement.appendChild(host);   // outside <body>, so the wide-screen zoom never touches it
   try{
     try{ track(mode === 'print' ? 'offer_print' : 'offer_download', unitLabelForTrack(u)); }catch(e){}
     await offerFonts();
@@ -5469,7 +5484,7 @@ async function exportPriceListPdf(projectKey, filename, triggerBtn, onlyKeys){
   if(triggerBtn){ triggerBtn.textContent = 'Generating PDF…'; triggerBtn.disabled = true; }
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed; left:-10000px; top:0; width:794px; background:#fff; z-index:-1;';
-  document.body.appendChild(host);
+  document.documentElement.appendChild(host);
   try{
     if(document.fonts && document.fonts.ready) await document.fonts.ready;
     const { jsPDF } = window.jspdf;
@@ -6598,7 +6613,7 @@ async function downloadPriceListPdf(projectKey, filename, triggerBtn){
     // Hidden offscreen sandbox used to render + capture each page-chunk one at a time.
     const sandbox = document.createElement('div');
     sandbox.style.cssText = `position:fixed; left:-9999px; top:0; width:${captureWidthPx}px; background:#ffffff;`;
-    document.body.appendChild(sandbox);
+    document.documentElement.appendChild(sandbox);
 
     let firstChunkOverall = true;
 
@@ -6683,7 +6698,7 @@ async function downloadPriceListPdf(projectKey, filename, triggerBtn){
       }
     }
 
-    document.body.removeChild(sandbox);
+    sandbox.remove();
     pdf.save(filename);
   } catch(err){
     console.warn('Price list PDF generation failed, falling back to print dialog.', err);
