@@ -1743,7 +1743,7 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
     <div class="modal-head">
       <div>
         <h3>Export Price List</h3>
-        <div class="msub">Downloads as a formatted PDF</div>
+        <div class="msub">Download or print it as a formatted PDF</div>
       </div>
       <button class="modal-close" id="exportPriceListClose">×</button>
     </div>
@@ -1764,6 +1764,7 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
       <div class="epl-summary" id="eplSummary"></div>
       <div class="reauth-actions">
         <button class="reauth-cancel" id="exportPriceListCancelBtn">Cancel</button>
+        <button class="reauth-cancel epl-print" id="exportPriceListPrintBtn" type="button"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v6H7z"/></svg>Print</button>
         <button class="reauth-confirm" id="exportPriceListGenBtn">Download PDF</button>
       </div>
     </div>
@@ -3314,6 +3315,7 @@ const PERM_SECTIONS = [
     { k:'can_compare', l:'Compare units', d:'Side by side, up to 3 units' },
     { k:'can_share', l:'Share a unit', d:'Send a unit’s details to a client' },
     { k:'can_price_tags', l:'Price change tags', d:'See when a price went up or down' },
+    { k:'can_print_pricelist', l:'Print the price list', d:'Print button in Export price list (only for projects they can export)' },
   ]},
   { id:'unit', icon:'🔑', title:'Unit actions', desc:'What they can do with a unit.', items:[
     { k:'can_hold', col:true, l:'Hold units', d:'Put a unit on hold for a client' },
@@ -5477,8 +5479,8 @@ function plWaitImages(root){
     new Promise(res => { img.onload = img.onerror = res; })));
 }
 
-async function exportPriceListPdf(projectKey, filename, triggerBtn, onlyKeys){
-  try{ track('export_pricelist', projectKey); }catch(e){}
+async function exportPriceListPdf(projectKey, filename, triggerBtn, onlyKeys, mode){
+  try{ track(mode === 'print' ? 'print_pricelist' : 'export_pricelist', projectKey); }catch(e){}
   const keys = (projectKey === '__all__' ? (onlyKeys || PROJECTS.map(p=>p.key)) : [projectKey]).filter(k=> canExportProject(k));
   const pages = []; keys.forEach(k => pages.push(...buildPriceListPages(k)));
   if(!pages.length){ alert('There are no released units to export for this selection.'); return; }
@@ -5489,7 +5491,8 @@ async function exportPriceListPdf(projectKey, filename, triggerBtn, onlyKeys){
     return;
   }
   const originalText = triggerBtn ? triggerBtn.textContent : null;
-  if(triggerBtn){ triggerBtn.textContent = 'Generating PDF…'; triggerBtn.disabled = true; }
+  const originalHtml = triggerBtn ? triggerBtn.innerHTML : null;
+  if(triggerBtn){ triggerBtn.textContent = mode === 'print' ? 'Preparing…' : 'Generating PDF…'; triggerBtn.disabled = true; }
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed; left:-10000px; top:0; width:794px; background:#fff; z-index:-1;';
   document.documentElement.appendChild(host);
@@ -5506,14 +5509,14 @@ async function exportPriceListPdf(projectKey, filename, triggerBtn, onlyKeys){
       if(i > 0) pdf.addPage();
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 595.28, 841.89);
     }
-    pdf.save(filename);
+    if(mode === 'print') offerPrint(pdf, filename); else pdf.save(filename);
   } catch(err){
     console.error('Price list export failed:', err);
     document.getElementById('printArea').innerHTML = pages.join('');
     window.print();
   } finally {
     host.remove();
-    if(triggerBtn){ triggerBtn.textContent = originalText; triggerBtn.disabled = false; }
+    if(triggerBtn){ triggerBtn.innerHTML = originalHtml; triggerBtn.disabled = false; }
   }
 }
 
@@ -5540,6 +5543,7 @@ function eplRefresh(){
     ? (n ? `📄 <span><b>${n}</b> of ${boxes.length} projects will be in the PDF</span>` : '⚠️ <span>Tick at least one project</span>')
     : '📄 <span>One project will be in the PDF</span>';
   document.getElementById('exportPriceListGenBtn').disabled = all && n === 0;
+  const pb = document.getElementById('exportPriceListPrintBtn'); pb.disabled = all && n === 0; pb.style.display = featureOn('can_print_pricelist') ? '' : 'none';
 }
 document.getElementById('epl_project').addEventListener('change', eplRefresh);
 document.getElementById('epl_except_list').addEventListener('change', eplRefresh);
@@ -5548,7 +5552,7 @@ document.getElementById('eplNone').addEventListener('click', ()=>{ document.quer
 document.getElementById('exportPriceListClose').addEventListener('click', ()=> exportPriceListOverlay.classList.remove('open'));
 document.getElementById('exportPriceListCancelBtn').addEventListener('click', ()=> exportPriceListOverlay.classList.remove('open'));
 exportPriceListOverlay.addEventListener('click', e=>{ if(e.target===exportPriceListOverlay) exportPriceListOverlay.classList.remove('open'); });
-document.getElementById('exportPriceListGenBtn').addEventListener('click', async (e)=>{
+async function eplRun(e, mode){
   const btn = e.currentTarget;
   const projectKey = document.getElementById('epl_project').value;
   const stamp = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
@@ -5560,9 +5564,11 @@ document.getElementById('exportPriceListGenBtn').addEventListener('click', async
     onlyKeys = [...document.querySelectorAll('.epl-inc:checked')].map(c=>c.value);
     if(!onlyKeys.length){ alert('Tick at least one project to export.'); return; }
   }
-  await exportPriceListPdf(projectKey, filename, btn, onlyKeys);
+  await exportPriceListPdf(projectKey, filename, btn, onlyKeys, mode);
   exportPriceListOverlay.classList.remove('open');
-});
+}
+document.getElementById('exportPriceListGenBtn').addEventListener('click', e=> eplRun(e, 'pdf'));
+document.getElementById('exportPriceListPrintBtn').addEventListener('click', e=> eplRun(e, 'print'));
 
 document.getElementById('adminAnalyticsBtn').addEventListener('click', ()=>{
   analyticsOverlay.classList.add('open');
@@ -5606,7 +5612,7 @@ const unitLabelForTrack = u => `${u.project}${u.subtitle?' · '+u.subtitle:''} �
 
 /* Admin view */
 function actEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const ACT_LABELS = { login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', masterplan_download:'Master plans downloaded', layout_print:'Layouts printed', offer_download:'Offers downloaded', offer_error:'Offer errors', masterplan_print:'Master plans printed', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
+const ACT_LABELS = { print_pricelist:'Price lists printed', login:'Sign-ins', payment_plan:'Payment plans opened', pp_download:'Plan PDFs downloaded', roi_calc:'ROI calculations', hold_click:'Hold clicks', share_unit:'Units shared', compare_units:'Comparisons', saved_filter_use:'Saved filters used', shortlist:'Shortlisted', search:'Searches', export_pricelist:'Price list exports', unit_layout:'Layouts viewed', unit_location:'Locations viewed', layout_download:'Layouts downloaded', masterplan_download:'Master plans downloaded', layout_print:'Layouts printed', offer_download:'Offers downloaded', offer_error:'Offer errors', masterplan_print:'Master plans printed', project_map_open:'Project map opened', project_map_unit:'Map units opened' };
 async function loadActivity(days){
   const box = document.getElementById('activityBody');
   box.innerHTML = '<div class="analytics-loading">Loading…</div>';
@@ -8522,6 +8528,7 @@ html.np-currency .currency-toggle, html.np-price #priceDd, html.np-sort .sortbox
 .pm2-more{ grid-template-columns:repeat(auto-fit,minmax(280px,1fr)) !important; }
 #usersOverlay .modal-card{ max-width:1500px !important; }
 .pm2-more{ gap:12px !important; }
+.epl-print{ display:inline-flex !important; align-items:center; justify-content:center; gap:7px; }
 .pm2-more .uc-group{ border-radius:16px; background:var(--bg); padding:16px; border-color:var(--line-soft); }
 .pm2-more .uc-group-title{ font-size:14.5px; font-weight:700; letter-spacing:0; text-transform:none; color:var(--cream); margin-bottom:10px; font-family:inherit !important; }
 .pm2-more .uc-group-title small{ display:block; margin:3px 0 0; font-size:12px; color:var(--stone); font-weight:400; }
