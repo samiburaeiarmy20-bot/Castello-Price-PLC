@@ -3273,6 +3273,7 @@ function fmtCur(v){
 // ---------- unit holds (shared, via Apps Script) ----------
 let holdsMap = {}; // unitKey -> {heldBy, expiresAt}
 function unitKey(u){ return u.sheet + '::' + u.unit_no; }
+function authToken(){ return sessionStorage.getItem('castelloToken') || ''; }   // sign-in session token (from the login function)
 function currentAgentName(){ return sessionStorage.getItem('castelloAuthedUser') || ''; }
 function isAdminUser(){ return (sessionStorage.getItem('castelloRole')||'') === 'admin'; }
 function isTestUser(){ return (sessionStorage.getItem('castelloRole')||'') === 'test'; }
@@ -3512,7 +3513,7 @@ async function fetchPromo(){
   const pill = document.getElementById('promoPill');
   if(!isAdminUser()){ pill.classList.remove('show'); return; }
   try{
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/promo_admin_status`, { method:'POST', headers, cache:'no-store', body: JSON.stringify({ p_user_id: sessionStorage.getItem('castelloUserId') || '' }) });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/promo_admin_status`, { method:'POST', headers, cache:'no-store', body: JSON.stringify({ p_user_id: authToken() }) });
     const d = await r.json();
     if(!r.ok || d.error || d.limit == null){ pill.classList.remove('show'); return; }
     pill.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.2"/></svg>' + (d.active ? `Building B offer <b>${d.remaining} / ${d.limit} left</b>` : `Building B offer <b>ended</b>`);
@@ -3536,7 +3537,7 @@ async function loadLiveInventory(){
     // Units and projects come only through dashboard_data, which checks this is a signed-in, active user
     // (and leaves out projects they can't see and archived units they can't manage).
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/dashboard_data`, { method:'POST', headers:{ ...headers, 'Content-Type':'application/json' }, cache:'no-store',
-      body: JSON.stringify({ p_user_id: sessionStorage.getItem('castelloUserId') || '' }) });
+      body: JSON.stringify({ p_user_id: authToken() }) });
     if(!res.ok) throw new Error('fetch failed');
     const data = await res.json();
     if(!data || data.error) throw new Error(data && data.error || 'no data');
@@ -3692,7 +3693,7 @@ async function fetchHolds(){
     const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization': 'Bearer ' + SUPABASE_PUBLISHABLE_KEY };
     // Server hides everyone else's name: only admins get the holder, others just get "is it mine?".
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/holds_live`, { method:'POST', headers:{ ...headers, 'Content-Type':'application/json' }, cache:'no-store',
-      body: JSON.stringify({ p_user_id: sessionStorage.getItem('castelloUserId') || '00000000-0000-0000-0000-000000000000' }) });
+      body: JSON.stringify({ p_user_id: authToken() || '00000000-0000-0000-0000-000000000000' }) });
     if(!res.ok) throw new Error('fetch failed');
     const rows = await res.json();
     const map = {};
@@ -5642,7 +5643,7 @@ function track(event, detail){
   if(actQueue.length >= 20) flushActivity();
 }
 function flushActivity(){
-  const uid = sessionStorage.getItem('castelloUserId');
+  const uid = authToken();
   if(!uid || actQueue.length === 0) return;
   const batch = actQueue.splice(0, 50);
   try{
@@ -5675,7 +5676,7 @@ async function loadActivity(days){
   try{
     const res = await fetch(ACT_RPC + 'activity_summary', { method:'POST',
       headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY },
-      body: JSON.stringify({ p_user_id: sessionStorage.getItem('castelloUserId') || '', p_days: days }) });
+      body: JSON.stringify({ p_user_id: authToken(), p_days: days }) });
     const d = await res.json();
     if(!res.ok || d.error){ box.innerHTML = '<div class="analytics-error">Activity data is not available yet. Run castello_erp_activity_log.sql in Supabase.</div>'; return; }
     const tbl = (head, rows) => `<div style="overflow-x:auto"><table class="um-table" style="width:100%"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${head.length}" style="opacity:.6">Nothing yet</td></tr>`}</tbody></table></div>`;
@@ -5710,7 +5711,7 @@ const anName = u => { const p = ((AN.team&&AN.team.people)||[]).find(x=>x.userna
 const anTeam = t => t==='Alaraby' ? 'Mohamed Alaraby team' : t ? t+' team' : 'No team';
 function anRpc(fn, extra){
   return fetch(ACT_RPC + fn, { method:'POST', headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY },
-    body: JSON.stringify({ p_user_id: sessionStorage.getItem('castelloUserId') || '', p_days: AN.days, ...(extra||{}) }) }).then(r=>r.json());
+    body: JSON.stringify({ p_user_id: authToken(), p_days: AN.days, ...(extra||{}) }) }).then(r=>r.json());
 }
 function anCanPeople(){ return isAdminUser() || featureOn('can_analytics_people'); }
 
@@ -6993,7 +6994,9 @@ let sessionCheckTimer = null;
 
 // Ends the session and returns to the login screen, optionally with a reason.
 function forceSignOut(message){
-  ['castelloAuthed','castelloAuthedUser','castelloFullName','castelloRole','castelloPerms','castelloUserId','castelloTeam','castelloLoginAt','castelloLastActive'].forEach(k=> sessionStorage.removeItem(k));
+  try{ const t = authToken(); if(t) fetch(`${SUPABASE_URL}/rest/v1/rpc/end_session`, { method:'POST', keepalive:true, headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ p_token: t }) }).catch(()=>{}); }catch(e){}
+  ['castelloAuthed','castelloAuthedUser','castelloFullName','castelloRole','castelloPerms','castelloUserId','castelloToken','castelloTeam','castelloLoginAt','castelloLastActive'].forEach(k=> sessionStorage.removeItem(k));
+  try{ cxGuard(); }catch(e){}
   if(holdsPollTimer){ clearInterval(holdsPollTimer); holdsPollTimer = null; }
   if(inventoryPollTimer){ clearInterval(inventoryPollTimer); inventoryPollTimer = null; }
   if(sessionCheckTimer){ clearInterval(sessionCheckTimer); sessionCheckTimer = null; }
@@ -7011,8 +7014,8 @@ function forceSignOut(message){
 // active" or "no such account" answer ends the session.
 async function verifySession(){
   if(sessionStorage.getItem('castelloAuthed') !== 'yes') return;
-  const id = sessionStorage.getItem('castelloUserId');
-  if(!id){ forceSignOut('Please sign in again.'); return; }   // session predates this check
+  const id = authToken();
+  if(!id){ forceSignOut('Please sign in again.'); return; }   // signed in before sessions existed, or the session was cleared
   try{
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/session_state`, {
       method:'POST', cache:'no-store',
@@ -7022,7 +7025,8 @@ async function verifySession(){
     if(!res.ok) return;
     const rows = await res.json();
     const st = Array.isArray(rows) ? rows[0] : rows;
-    if(!st || st.is_active === false){
+    if(!st){ forceSignOut('Your session has ended. Please sign in again.'); return; }
+    if(st.is_active === false){
       forceSignOut('This account has been suspended. Please contact your administrator.');
       return;
     }
@@ -7077,6 +7081,13 @@ document.getElementById('pwSave').addEventListener('click', async ()=>{
       body: JSON.stringify({ username: currentAgentName(), password: cur, newPassword: n1 }) });
     const data = await res.json().catch(()=>({}));
     if(!res.ok){ err.textContent = data.error || 'Could not change the password.'; return; }
+    // a new password ends every open session -- start a fresh one with the new password
+    try{
+      const lr = await fetch(LOGIN_FUNCTION_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY, 'apikey': SUPABASE_PUBLISHABLE_KEY },
+        body: JSON.stringify({ username: currentAgentName(), password: n1 }) });
+      const ld = await lr.json().catch(()=>({}));
+      if(lr.ok && ld.session) sessionStorage.setItem('castelloToken', String(ld.session));
+    }catch(e){}
     closePasswordModal(); pwForced = false;
     try{ shareToast('Password changed'); }catch(e){}
   }catch(e){ err.textContent = 'Network error — nothing was changed.'; }
@@ -7153,6 +7164,7 @@ loginForm.addEventListener('submit', async (e)=>{
     sessionStorage.setItem('castelloRole', result.role || 'sales');
     sessionStorage.setItem('castelloPerms', JSON.stringify(result.permissions || {}));
     sessionStorage.setItem('castelloUserId', String(result.id || ''));
+    sessionStorage.setItem('castelloToken', String(result.session || ''));
     if(enforceAdminOnly(latestAccessCfg)) return;
     gate.style.display = 'none';
     root.classList.add('visible');
