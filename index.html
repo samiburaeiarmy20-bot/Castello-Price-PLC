@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://nzojoticksiiidvzmlvx.supabase.co https://gist.githubusercontent.com; frame-src 'self' blob: about:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<script>/* never inside someone else's page (clickjacking) */ if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = 'none'; } }</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#110f0c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,8 +22,8 @@
   }catch(e){ document.documentElement.setAttribute('data-theme', 'desert-sand'); }
 })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="lib/html2canvas-1.4.1.min.js"></script>
+<script src="lib/jspdf-4.2.1.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Lato:ital,wght@0,400;0,700;1,400;1,700&display=swap');
@@ -1949,8 +1953,7 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
       <div id="anInventory" hidden>
         <h4 class="analytics-section-head">Inventory breakdown</h4>
         <div id="inventoryBody"></div>
-        <h4 class="analytics-section-head">Sign-ins from the Google Sheet</h4>
-        <div id="analyticsBody"><div class="analytics-loading">Loading…</div></div>
+        <div id="analyticsBody" hidden></div>
       </div>
     </div>
   </div>
@@ -3273,6 +3276,8 @@ function fmtCur(v){
 // ---------- unit holds (shared, via Apps Script) ----------
 let holdsMap = {}; // unitKey -> {heldBy, expiresAt}
 function unitKey(u){ return u.sheet + '::' + u.unit_no; }
+// Text that came from the database is shown inside the page's HTML: strip anything that could become markup
+function cleanTxt(v){ return v == null ? v : String(v).replace(/[<>"'`\u0000-\u001f]/g, ''); }
 function authToken(){ return sessionStorage.getItem('castelloToken') || ''; }   // sign-in session token (from the login function)
 function currentAgentName(){ return sessionStorage.getItem('castelloAuthedUser') || ''; }
 function isAdminUser(){ return (sessionStorage.getItem('castelloRole')||'') === 'admin'; }
@@ -3548,14 +3553,14 @@ async function loadLiveInventory(){
     const newUnits = unitRows.map(r=>{
       const proj = r.projects || {};
       return {
-        project: proj.name || r.project_id,
-        subtitle: proj.subtitle || '',
-        sheet: proj.key || '',
-        section: r.section || '',
-        unit_no: r.unit_no,
-        unit_type: r.unit_type,
-        floor: r.floor || '',
-        view: r.view || '',
+        project: cleanTxt(proj.name || r.project_id),
+        subtitle: cleanTxt(proj.subtitle || ''),
+        sheet: cleanTxt(proj.key || ''),
+        section: cleanTxt(r.section || ''),
+        unit_no: cleanTxt(r.unit_no),
+        unit_type: cleanTxt(r.unit_type),
+        floor: cleanTxt(r.floor || ''),
+        view: cleanTxt(r.view || ''),
         area: r.area,
         price_m2: r.price_m2,
         price: r.price,
@@ -3614,80 +3619,6 @@ async function loadLiveInventory(){
   }
 }
 
-function fetchHolds(){
-  if(!VISIT_LOG_URL) return;
-  const url = VISIT_LOG_URL + '?type=holds&cb=' + Date.now();
-  fetch(url, { cache:'no-store' })
-    .then(r=>r.json())
-    .then(data=>{
-      const map = {};
-      (data.holds||[]).forEach(h=>{ map[h.unitKey] = h; });
-      holdsMap = map;
-      render();
-    })
-    .catch(()=>{ /* holds are best-effort; leave existing state as-is */ });
-}
-
-const HOLD_FUNCTION_URL = 'https://nzojoticksiiidvzmlvx.supabase.co/functions/v1/hold';
-
-async function performHoldAction(action, key, u, expiresAt, password){
-  const label = `${u.project}${u.subtitle?' · '+u.subtitle:''} — Unit ${u.unit_no}`;
-  try{
-    const res = await fetch(HOLD_FUNCTION_URL, {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY,
-        'apikey': SUPABASE_PUBLISHABLE_KEY
-      },
-      body: JSON.stringify({ username: currentAgentName(), password, action, unitKey:key, expiresAt })
-    });
-    const data = await res.json();
-    if(!res.ok){
-      alert(data.error || 'Could not complete this action.');
-      return;
-    }
-    if(action === 'hold'){
-      holdsMap[key] = { unitKey:key, unitLabel:label, isMine:true, heldBy: currentAgentName(), heldAt: new Date().toISOString(), expiresAt };
-      render();
-      const d = new Date();
-      const dateStr = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
-      openNotifyModal(`${u.project}${u.subtitle ? ' ' + u.subtitle : ''} - ${u.unit_no} - Hold - ${dateStr}`);
-    } else {
-      delete holdsMap[key];
-      render();
-    }
-  } catch(err){
-    alert('Network error -- could not reach the server. The hold was NOT changed.');
-  }
-}
-
-function handleHoldClick(u){
-  try{ track('hold_click', unitLabelForTrack(u)); }catch(e){}
-  const key = unitKey(u);
-  const h = holdsMap[key];
-  const now = Date.now();
-  const label = `${u.project}${u.subtitle?' · '+u.subtitle:''} — Unit ${u.unit_no}`;
-
-  if(h && h.expiresAt && new Date(h.expiresAt).getTime() > now){
-    const mine = isMineHold(h);
-    if(!mine && !isAdminUser()) return; // held by someone else, not admin -- no action
-    openReAuthModal(
-      mine ? `Confirm releasing your hold on ${label}.` : `Confirm releasing ${h.heldBy || 'this'} hold on ${label}.`,
-      (password)=>{ performHoldAction('release', key, u, null, password); }
-    );
-    return;
-  }
-
-  openReAuthModal(
-    `Confirm placing a 24-hour hold on ${label} under your name (${currentAgentName()}).`,
-    (password)=>{
-      const expiresAt = new Date(now + 24*60*60*1000).toISOString();
-      performHoldAction('hold', key, u, expiresAt, password);
-    }
-  );
-}
-
 async function fetchHolds(){
   try{
     const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization': 'Bearer ' + SUPABASE_PUBLISHABLE_KEY };
@@ -3699,7 +3630,7 @@ async function fetchHolds(){
     const map = {};
     (rows||[]).forEach(r=>{
       if(!r.unit_key) return;
-      map[r.unit_key] = { unitKey: r.unit_key, isMine: !!r.is_mine, heldBy: r.holder || '', heldAt: r.held_at, expiresAt: r.expires_at };
+      map[r.unit_key] = { unitKey: r.unit_key, isMine: !!r.is_mine, heldBy: cleanTxt(r.holder || ''), heldAt: r.held_at, expiresAt: r.expires_at };
     });
     holdsMap = map;
     render();
@@ -5912,7 +5843,7 @@ function anSetTab(t){
   document.querySelectorAll('#anTabs button').forEach(b=> b.classList.toggle('on', b.dataset.t===t));
   ['overview','people','inventory'].forEach(k=> document.getElementById('an'+k[0].toUpperCase()+k.slice(1)).hidden = (k!==t));
   if(t==='people') anRenderPeople();
-  if(t==='inventory'){ renderInventoryBreakdown(); loadAnalytics(); }
+  if(t==='inventory'){ renderInventoryBreakdown(); }
   const body = document.querySelector('#analyticsOverlay .an-body'); if(body) body.scrollTop = 0;
 }
 async function anLoad(){
@@ -6950,7 +6881,7 @@ const root = document.getElementById('dashboardRoot');
 const loginForm = document.getElementById('loginForm');
 const loginError = document.getElementById('loginError');
 // Passwords no longer live here -- see checkLoginWithServer() below.
-const VISIT_LOG_URL = 'https://script.google.com/macros/s/AKfycby84jIkBtOcNIo9wkx9N1pa83i5f918xSMaFfLiF4y8FwruwMvskWX-VolSLuyR3OxO/exec';
+const VISIT_LOG_URL = '';   // the old Google Sheet visit log is switched off: sign-ins are recorded in Analytics (activity log)
 
 function logVisit(name){
   if(!VISIT_LOG_URL) return;
@@ -7160,7 +7091,7 @@ loginForm.addEventListener('submit', async (e)=>{
     sessionStorage.setItem('castelloLoginAt', String(Date.now()));
     sessionStorage.setItem('castelloLastActive', String(Date.now()));
     sessionStorage.setItem('castelloAuthedUser', result.username);
-    try{ sessionStorage.setItem('castelloFullName', result.full_name || result.username); }catch(e){}
+    try{ sessionStorage.setItem('castelloFullName', cleanTxt(result.full_name || result.username)); }catch(e){}
     sessionStorage.setItem('castelloRole', result.role || 'sales');
     sessionStorage.setItem('castelloPerms', JSON.stringify(result.permissions || {}));
     sessionStorage.setItem('castelloUserId', String(result.id || ''));
