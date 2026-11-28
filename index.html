@@ -8868,6 +8868,17 @@ html.vid-lock, html.vid-lock body{ overflow:hidden; }
   .vid-frame, .vid-card.wide .vid-frame{ flex:1 1 auto; width:100%; height:auto; min-width:0; aspect-ratio:auto; max-height:none; }
   .vid-wide{ display:none; }
 }
+
+/* ===== Smooth scrolling: no live blur on the long list, background painted once on its own layer ===== */
+.table-scroll, thead th, #tbody tr{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+thead th{ background:color-mix(in srgb, var(--surface) 94%, transparent) !important; }
+html.bg-moved body{ background:transparent !important; }
+#pageBg{ position:fixed; inset:0; z-index:-1; pointer-events:none; transform:translateZ(0); will-change:transform; }
+#cxWatermark{ transform:translateZ(0); will-change:transform; contain:strict; }
+@media (max-width:760px){
+  #tbody tr{ background:color-mix(in srgb, var(--surface) 82%, transparent) !important; }
+  .filterbar{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important; background:color-mix(in srgb, var(--bg) 94%, transparent) !important; }
+}
 </style>
 <script id="cxSceneScript">
 (function(){
@@ -8903,4 +8914,30 @@ html.vid-lock, html.vid-lock body{ overflow:hidden; }
 })();
 </script>
 
+
+<script>
+// The page background used to be "fixed" on <body>, which makes the browser repaint the whole screen on every scroll step.
+// Paint it once on its own fixed layer instead, and keep it in step with the theme.
+(function(){
+  function sync(){
+    try{
+      const root = document.documentElement;
+      root.classList.remove('bg-moved');
+      const cs = getComputedStyle(document.body);
+      let el = document.getElementById('pageBg');
+      if(!el){ el = document.createElement('div'); el.id = 'pageBg'; el.setAttribute('aria-hidden','true'); document.body.insertBefore(el, document.body.firstChild); }
+      el.style.backgroundColor = cs.backgroundColor;
+      el.style.backgroundImage = cs.backgroundImage;
+      el.style.backgroundSize = cs.backgroundSize;
+      el.style.backgroundPosition = cs.backgroundPosition;
+      el.style.backgroundRepeat = cs.backgroundRepeat;
+      el.style.backgroundAttachment = 'scroll';
+      root.classList.add('bg-moved');
+    }catch(e){ document.documentElement.classList.remove('bg-moved'); }
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync); else sync();
+  new MutationObserver(sync).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  window.addEventListener('resize', ()=>{ clearTimeout(sync._t); sync._t = setTimeout(sync, 200); });
+})();
+</script>
 </body></html>
