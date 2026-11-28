@@ -2074,6 +2074,7 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
           <button role="menuitem" class="acct-item" id="changePwBtn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/></svg>Change password</button>
           <a role="menuitem" class="acct-item" href="https://www.castelloeg.com" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9s1-6.5 3.5-9"/></svg>castelloeg.com</a>
           <span role="menuitem" class="acct-item hotline"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Hotline 15423</span>
+          <button role="menuitem" class="acct-item" id="cxReloadBtn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>Refresh dashboard</button>
           <button role="menuitem" class="acct-item out" id="signOutBtn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>Sign out</button>
         </div>
       </div>
@@ -3564,7 +3565,7 @@ async function loadLiveInventory(){
     if(!data || data.error) throw new Error(data && data.error || 'no data');
     const projRows = data.projects || [];
     const unitRows = data.units || [];
-    if(!Array.isArray(unitRows) || unitRows.length === 0) return; // never blow away a good local list with an empty/broken result
+    if(!Array.isArray(unitRows) || unitRows.length === 0){ cxLoadFailed(); return; } // never blow away a good local list with an empty/broken result
 
     const newUnits = unitRows.map(r=>{
       const proj = r.projects || {};
@@ -3632,8 +3633,28 @@ async function loadLiveInventory(){
     // Fail silently -- keep showing the last-known-good embedded snapshot
     // rather than breaking the page over a network hiccup.
     console.warn('Live inventory fetch failed, using embedded snapshot.', err);
+    cxLoadFailed();
+    return;
   }
+  cxLoadOk();
 }
+// When the units can't be loaded (bad connection, server busy), say so and keep retrying instead of showing an empty page.
+let cxRetryT = null, cxRetryN = 0;
+function cxLoadFailed(){
+  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return;
+  if(ALL_UNITS && ALL_UNITS.length) return;      // keep showing what we have; the 5-minute refresh tries again
+  let bar = document.getElementById('cxLoadBar');
+  if(!bar){
+    bar = document.createElement('div'); bar.id = 'cxLoadBar'; bar.setAttribute('role','status');
+    bar.innerHTML = '<span>Couldn\u2019t load the units. Trying again\u2026</span><button type="button">Retry now</button>';
+    bar.querySelector('button').addEventListener('click', ()=>{ clearTimeout(cxRetryT); cxRetryN = 0; loadLiveInventory(); });
+    document.body.appendChild(bar);
+  }
+  bar.classList.add('show');
+  clearTimeout(cxRetryT);
+  cxRetryT = setTimeout(()=> loadLiveInventory(), Math.min(60000, 4000 * Math.pow(2, cxRetryN++)));
+}
+function cxLoadOk(){ cxRetryN = 0; clearTimeout(cxRetryT); const bar = document.getElementById('cxLoadBar'); if(bar) bar.classList.remove('show'); }
 
 async function fetchHolds(){
   try{
@@ -6916,7 +6937,7 @@ const ACCESS_EXPIRY = '2027-08-12'; // dashboard stops working after this date r
 // This dashboard's build stamp. Bump it (any new unique string) every time a new
 // version is uploaded, and update the matching "version" field in the same Gist
 // used for the kill switch below -- that's what lets open tabs detect an update.
-const BUILD_VERSION = '2026-11-16T00';
+const BUILD_VERSION = '2026-11-28T15';   // the status file's "version": copies older than it are stopped and asked to refresh
 
 // 2) Remote kill switch — a tiny JSON file you control, e.g. a GitHub Gist raw URL.
 //    Format expected: {"enabled": true, "message": ""}
@@ -7231,7 +7252,7 @@ document.getElementById('signOutBtn').addEventListener('click', ()=>{
 })();
 
 function checkForUpdate(cfg){
-  if(cfg && cfg.version && cfg.version !== BUILD_VERSION){
+  if(cfg && cfg.version && String(cfg.version) > BUILD_VERSION){   // only copies OLDER than the published version are stopped
     // A newer version has been published -- this copy is now suspended,
     // not just "notified". This applies whether it's the very first load
     // or a tab that's been open since before the new version went out.
@@ -7247,6 +7268,31 @@ function checkForUpdate(cfg){
   return false;
 }
 document.getElementById('updateRefreshBtn').addEventListener('click', ()=> location.reload());
+document.getElementById('cxReloadBtn').addEventListener('click', ()=> location.reload());
+// Picks up a newly published dashboard by itself (the home-screen app has no reload button):
+// compares the page on the server with the copy that is running. Reloads straight away when the
+// person comes back to the app or has been idle, otherwise shows the "Refresh now" bar.
+(function(){
+  const mine = Date.parse(document.lastModified);
+  let ready = false;
+  const busy = () => !!document.querySelector('.modal-overlay.open, #layoutOverlay.open, #vidOverlay.open, .pm-overlay.open') || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
+  async function check(fromResume){
+    try{
+      if(!ready){
+        const r = await fetch(location.pathname + '?cxv=' + Date.now(), { method:'HEAD', cache:'no-store' });
+        const lm = Date.parse(r.headers.get('last-modified') || '');
+        if(!(lm && mine && lm - mine > 60000)) return;
+        ready = true;
+      }
+      const idle = Date.now() - Number(AUTH_STORE.getItem('castelloLastActive') || 0) > 3 * 60 * 1000;
+      if((fromResume || idle) && !busy()){ location.reload(); return; }
+      const b = document.getElementById('updateBanner'); if(b) b.classList.add('show');
+    }catch(e){}
+  }
+  setInterval(()=> check(false), 3 * 60 * 1000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) check(true); });
+  window.addEventListener('pageshow', e=>{ if(e.persisted) check(true); });
+})();
 document.getElementById('updateDismissBtn').addEventListener('click', ()=>{
   document.getElementById('updateBanner').classList.remove('show');
 });
@@ -8892,6 +8938,10 @@ html.bg-moved body{ background:transparent !important; }
   #tbody tr{ background:color-mix(in srgb, var(--surface) 82%, transparent) !important; }
   .filterbar{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important; background:color-mix(in srgb, var(--bg) 94%, transparent) !important; }
 }
+
+#cxLoadBar{ position:fixed; left:50%; bottom:max(18px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:650; display:none; align-items:center; gap:12px; padding:10px 12px 10px 16px; border-radius:14px; background:var(--surface); color:var(--cream); border:1px solid var(--line-soft); box-shadow:0 12px 30px rgba(0,0,0,.25); font-size:13px; max-width:calc(100vw - 24px); }
+#cxLoadBar.show{ display:flex; }
+#cxLoadBar button{ border:0; border-radius:10px; padding:8px 12px; background:var(--gold); color:#1a1610; font-weight:600; cursor:pointer; white-space:nowrap; }
 </style>
 <script id="cxSceneScript">
 (function(){
