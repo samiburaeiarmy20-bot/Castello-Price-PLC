@@ -2539,6 +2539,18 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
 </div>
 
 <script>
+// Sign-in is kept on this device (all tabs, survives closing the browser) until Sign out, 8 h idle, or 7 days.
+const AUTH_KEYS = ['castelloAuthed','castelloAuthedUser','castelloFullName','castelloRole','castelloPerms','castelloUserId','castelloToken','castelloTeam','castelloLoginAt','castelloLastActive'];
+const AUTH_STORE = (function(){
+  try{ const t = '__cx'; localStorage.setItem(t, '1'); localStorage.removeItem(t); }catch(e){ return sessionStorage; }
+  try{ // people signed in before this change: carry their tab's session over
+    if(sessionStorage.getItem('castelloAuthed') === 'yes' && localStorage.getItem('castelloAuthed') !== 'yes')
+      AUTH_KEYS.forEach(k=>{ const v = sessionStorage.getItem(k); if(v !== null) localStorage.setItem(k, v); });
+  }catch(e){}
+  return localStorage;
+})();
+</script>
+<script>
 // Casual-save deterrent -- blocks the right-click menu and common
 // save/view-source shortcuts. This is NOT real security: anyone with
 // browser dev tools, or who knows the live URL, can still get this page.
@@ -3281,17 +3293,17 @@ let holdsMap = {}; // unitKey -> {heldBy, expiresAt}
 function unitKey(u){ return u.sheet + '::' + u.unit_no; }
 // Text that came from the database is shown inside the page's HTML: strip anything that could become markup
 function cleanTxt(v){ return v == null ? v : String(v).replace(/[<>"'`\u0000-\u001f]/g, ''); }
-function authToken(){ return sessionStorage.getItem('castelloToken') || ''; }   // sign-in session token (from the login function)
-function currentAgentName(){ return sessionStorage.getItem('castelloAuthedUser') || ''; }
-function isAdminUser(){ return (sessionStorage.getItem('castelloRole')||'') === 'admin'; }
-function isTestUser(){ return (sessionStorage.getItem('castelloRole')||'') === 'test'; }
+function authToken(){ return AUTH_STORE.getItem('castelloToken') || ''; }   // sign-in session token (from the login function)
+function currentAgentName(){ return AUTH_STORE.getItem('castelloAuthedUser') || ''; }
+function isAdminUser(){ return (AUTH_STORE.getItem('castelloRole')||'') === 'admin'; }
+function isTestUser(){ return (AUTH_STORE.getItem('castelloRole')||'') === 'test'; }
 // Archiving is allowed for admins, plus this one specifically named account --
 // checked client-side for UI purposes, and independently re-checked on the
 // server for the actual write (see archive_unit_edge_function.ts).
 // Per-user permissions come with the login response and are re-checked on
 // the server for every real action. Admins have everything; test accounts
 // are view-only; sales accounts use whatever an admin has granted them.
-function userPerms(){ try{ return JSON.parse(sessionStorage.getItem('castelloPerms') || '{}') || {}; }catch(e){ return {}; } }
+function userPerms(){ try{ return JSON.parse(AUTH_STORE.getItem('castelloPerms') || '{}') || {}; }catch(e){ return {}; } }
 function canHold(){ return isAdminUser() || (!isTestUser() && userPerms().can_hold !== false); }
 function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms().can_archive === true); }
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
@@ -3459,7 +3471,7 @@ function updateHoldBanner(){
   if(!b){ b = document.createElement('div'); b.id = 'holdBanner'; const sf = document.getElementById('savedFilters'); sf.parentNode.insertBefore(b, sf); }
   const me = currentAgentName().toLowerCase();
   const mine = Object.values(holdsMap).filter(h=> isMineHold(h) && holdLeftMs(h) > 0);
-  if(!featureOn('can_hold_alerts') || !mine.length || sessionStorage.getItem('castelloAuthed') !== 'yes'){ b.style.display = 'none'; return; }
+  if(!featureOn('can_hold_alerts') || !mine.length || AUTH_STORE.getItem('castelloAuthed') !== 'yes'){ b.style.display = 'none'; return; }
   mine.sort((a,c)=> holdLeftMs(a) - holdLeftMs(c));
   const soon = mine.filter(h=> holdLeftMs(h) <= HOLD_WARN_MS);
   const label = h => String(h.unitLabel || h.unitKey || '').replace('::',' · ').replace(/[<>&"]/g,'');
@@ -4009,7 +4021,7 @@ const DL_STYLE = {
   colour: { bg:'#1e232b', ink:'#ffffff', style:'.cs{opacity:.35}.ft text{fill:#9aa3ad !important}', stamp:[170,175,182] }
 };
 function dlStamp(){
-  const who = sessionStorage.getItem('castelloFullName') || currentAgentName() || 'Unknown';
+  const who = AUTH_STORE.getItem('castelloFullName') || currentAgentName() || 'Unknown';
   const when = new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true });
   return `Downloaded by ${who}  ·  ${when}`;
 }
@@ -4331,7 +4343,7 @@ async function downloadOffer(u, btn, choice, mode){
   try{
     try{ track(mode === 'print' ? 'offer_print' : 'offer_download', unitLabelForTrack(u)); }catch(e){}
     await offerFonts();
-    const F = offerFigures(u, choice), who = sessionStorage.getItem('castelloFullName') || currentAgentName() || 'Castello Sales';
+    const F = offerFigures(u, choice), who = AUTH_STORE.getItem('castelloFullName') || currentAgentName() || 'Castello Sales';
     const vd = new Date(); vd.setDate(vd.getDate() + 14);
     const validUntil = vd.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
     const stamp = dlStamp();
@@ -4880,7 +4892,7 @@ document.getElementById('ppWaBtn').addEventListener('click', ()=>{
 function renderPPPrintArea(){
   if(!lastPPCalc || !lastPPCalc.scheduleRows) return;
   const { unit, plan, effPrice, dpAmt, dpPct, installmentAmt, n, scheduleRows } = lastPPCalc;
-  const agent = sessionStorage.getItem('castelloAuthedUser') || '';
+  const agent = AUTH_STORE.getItem('castelloAuthedUser') || '';
   const today = new Date().toLocaleDateString('en-GB');
   const curNote = currency==='EGP' ? '' : ` (approx. in ${currency})`;
 
@@ -5174,10 +5186,10 @@ function applyUiPerms(){
   try{ if(!featureOn('can_filter_price')){ const a = document.getElementById('minPrice'), b = document.getElementById('maxPrice'); if((a&&a.value)||(b&&b.value)){ a.value = ''; b.value = ''; render(); } } }catch(e){}
 }
 /* ===== Anti-copy: name watermark on screen, a traceable reference on every PDF, and copying tools off (not for admins) ===== */
-function cxWho(){ return { name: sessionStorage.getItem('castelloFullName') || currentAgentName() || '', user: currentAgentName() || '', id: sessionStorage.getItem('castelloUserId') || '' }; }
+function cxWho(){ return { name: AUTH_STORE.getItem('castelloFullName') || currentAgentName() || '', user: currentAgentName() || '', id: AUTH_STORE.getItem('castelloUserId') || '' }; }
 function cxStamp(){ const d = new Date(), p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
 function cxGuard(){
-  const authed = sessionStorage.getItem('castelloAuthed') === 'yes';
+  const authed = AUTH_STORE.getItem('castelloAuthed') === 'yes';
   const on = authed && !isAdminUser();
   document.documentElement.classList.toggle('cx-guard', on);
   let wm = document.getElementById('cxWatermark');
@@ -5240,7 +5252,7 @@ function refreshAdminUI(){
   document.getElementById('adminUsersBtn').classList.toggle('show', isAdmin);
   document.getElementById('adminReservedBtn').classList.toggle('show', canViewReserved());
   document.getElementById('projectMapBtn').classList.toggle('show', featureOn('can_project_map') && (typeof planProjects === 'function') && planProjects().length > 0);
-  const accKey = JSON.stringify([sessionStorage.getItem('castelloRole'), sessionStorage.getItem('castelloPerms')]);
+  const accKey = JSON.stringify([AUTH_STORE.getItem('castelloRole'), AUTH_STORE.getItem('castelloPerms')]);
   if(accKey !== window.__accKey){ window.__accKey = accKey; applyColumnAccess(); applyProjectAccess(true); }
 }
 refreshAdminUI();
@@ -5607,7 +5619,7 @@ document.getElementById('adminAnalyticsBtn').addEventListener('click', ()=>{
 const ACT_RPC = SUPABASE_URL + '/rest/v1/rpc/';
 let actQueue = [];
 function track(event, detail){
-  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return;
+  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return;
   actQueue.push({ event, detail: detail ? String(detail).slice(0,200) : '' });
   if(actQueue.length >= 20) flushActivity();
 }
@@ -6599,7 +6611,7 @@ document.getElementById('spCompareBtn').addEventListener('click', ()=>{
 function renderPrintArea(){
   const units = [...shortlist].map(i=>UNITS[i]);
   const today = new Date().toLocaleDateString('en-GB');
-  const agent = sessionStorage.getItem('castelloAuthedUser') || '';
+  const agent = AUTH_STORE.getItem('castelloAuthedUser') || '';
   const curNote = currency==='EGP' ? '' : ` · Prices shown in ${currency} (approx.)`;
   let html = `<div class="print-header"><img class="print-logo" src="${LOGOS.company}"><h1>Castello Development — Shortlist</h1><div class="print-meta">Prepared by ${agent} on ${today}${curNote}</div></div>`;
   units.forEach(u=>{
@@ -6809,7 +6821,7 @@ document.getElementById('spPrintTextBtn').addEventListener('click', ()=>{
 });
 document.getElementById('spPrintBtn').addEventListener('click', (e)=>{
   renderPrintArea();
-  const agent = sessionStorage.getItem('castelloAuthedUser') || 'shortlist';
+  const agent = AUTH_STORE.getItem('castelloAuthedUser') || 'shortlist';
   downloadPdfFromPrintArea(`Castello-Shortlist-${agent}.pdf`, e.currentTarget);
 });
 
@@ -6948,7 +6960,7 @@ let latestAccessCfg = null;
 // at login and, for already-open sessions, within the next 5-minute check.
 function enforceAdminOnly(cfg){
   if(!cfg || cfg.adminOnly !== true) return false;
-  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return false;
+  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return false;
   if(isAdminUser()) return false;
   const msg = (cfg.maintenanceMessage && String(cfg.maintenanceMessage).trim())
     ? String(cfg.maintenanceMessage).trim()
@@ -6964,7 +6976,7 @@ let sessionCheckTimer = null;
 // Ends the session and returns to the login screen, optionally with a reason.
 function forceSignOut(message){
   try{ const t = authToken(); if(t) fetch(`${SUPABASE_URL}/rest/v1/rpc/end_session`, { method:'POST', keepalive:true, headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ p_token: t }) }).catch(()=>{}); }catch(e){}
-  ['castelloAuthed','castelloAuthedUser','castelloFullName','castelloRole','castelloPerms','castelloUserId','castelloToken','castelloTeam','castelloLoginAt','castelloLastActive'].forEach(k=> sessionStorage.removeItem(k));
+  ['castelloAuthed','castelloAuthedUser','castelloFullName','castelloRole','castelloPerms','castelloUserId','castelloToken','castelloTeam','castelloLoginAt','castelloLastActive'].forEach(k=>{ AUTH_STORE.removeItem(k); try{ sessionStorage.removeItem(k); }catch(e){} });
   try{ cxGuard(); }catch(e){}
   if(holdsPollTimer){ clearInterval(holdsPollTimer); holdsPollTimer = null; }
   if(inventoryPollTimer){ clearInterval(inventoryPollTimer); inventoryPollTimer = null; }
@@ -6982,7 +6994,7 @@ function forceSignOut(message){
 // live. Network hiccups are ignored (fail open); only an explicit "not
 // active" or "no such account" answer ends the session.
 async function verifySession(){
-  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return;
+  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return;
   const id = authToken();
   if(!id){ forceSignOut('Please sign in again.'); return; }   // signed in before sessions existed, or the session was cleared
   try{
@@ -7005,11 +7017,11 @@ async function verifySession(){
       return;
     }
     const newPerms = JSON.stringify({ can_hold: st.can_hold, can_archive: st.can_archive, can_export: st.can_export, can_view_analytics: st.can_view_analytics, title: st.title || null, features: st.features || {} });
-    if(st.team !== undefined) sessionStorage.setItem('castelloTeam', st.team || '');
-    const changed = (st.role && st.role !== sessionStorage.getItem('castelloRole')) || newPerms !== sessionStorage.getItem('castelloPerms');
+    if(st.team !== undefined) AUTH_STORE.setItem('castelloTeam', st.team || '');
+    const changed = (st.role && st.role !== AUTH_STORE.getItem('castelloRole')) || newPerms !== AUTH_STORE.getItem('castelloPerms');
     if(changed){
-      if(st.role) sessionStorage.setItem('castelloRole', st.role);
-      sessionStorage.setItem('castelloPerms', newPerms);
+      if(st.role) AUTH_STORE.setItem('castelloRole', st.role);
+      AUTH_STORE.setItem('castelloPerms', newPerms);
       refreshAdminUI();
       render();
     }
@@ -7055,7 +7067,7 @@ document.getElementById('pwSave').addEventListener('click', async ()=>{
       const lr = await fetch(LOGIN_FUNCTION_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY, 'apikey': SUPABASE_PUBLISHABLE_KEY },
         body: JSON.stringify({ username: currentAgentName(), password: n1 }) });
       const ld = await lr.json().catch(()=>({}));
-      if(lr.ok && ld.session) sessionStorage.setItem('castelloToken', String(ld.session));
+      if(lr.ok && ld.session) AUTH_STORE.setItem('castelloToken', String(ld.session));
     }catch(e){}
     closePasswordModal(); pwForced = false;
     try{ shareToast('Password changed'); }catch(e){}
@@ -7064,24 +7076,25 @@ document.getElementById('pwSave').addEventListener('click', async ()=>{
 });
 
 /* ---- Login expiry: idle timeout + maximum session length ---- */
-const IDLE_LIMIT_MS = 30 * 60 * 1000;        // signed out after 30 min of no activity
-const MAX_SESSION_MS = 12 * 60 * 60 * 1000;  // and always after 12 hours
+const IDLE_LIMIT_MS = 8 * 60 * 60 * 1000;    // signed out after 8 hours of no activity
+const MAX_SESSION_MS = 7 * 24 * 60 * 60 * 1000;  // and always after 7 days (the server session's life)
 function markActive(){
-  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return;
+  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return;
   const now = Date.now();
-  if(now - Number(sessionStorage.getItem('castelloLastActive') || 0) > 5000) sessionStorage.setItem('castelloLastActive', String(now));
+  if(now - Number(AUTH_STORE.getItem('castelloLastActive') || 0) > 5000) AUTH_STORE.setItem('castelloLastActive', String(now));
 }
 ['click','keydown','mousemove','touchstart','scroll'].forEach(ev=> window.addEventListener(ev, markActive, { passive:true }));
 function checkSessionExpiry(){
-  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return false;
+  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return false;
   const now = Date.now();
-  const last = Number(sessionStorage.getItem('castelloLastActive') || 0);
-  const started = Number(sessionStorage.getItem('castelloLoginAt') || 0);
-  if(last && now - last > IDLE_LIMIT_MS){ forceSignOut('You were signed out after 30 minutes of inactivity. Please sign in again.'); return true; }
+  const last = Number(AUTH_STORE.getItem('castelloLastActive') || 0);
+  const started = Number(AUTH_STORE.getItem('castelloLoginAt') || 0);
+  if(last && now - last > IDLE_LIMIT_MS){ forceSignOut('You were signed out after 8 hours of inactivity. Please sign in again.'); return true; }
   if(started && now - started > MAX_SESSION_MS){ forceSignOut('Your session expired. Please sign in again.'); return true; }
   return false;
 }
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkSessionExpiry(); });
+window.addEventListener('storage', e=>{ if(e.key === 'castelloAuthed' && e.newValue !== 'yes' && root.classList.contains('visible')) forceSignOut('You signed out in another tab.'); if(e.key === 'castelloAuthed' && e.newValue === 'yes' && !root.classList.contains('visible')) location.reload(); });
 function startSessionCheck(){
   if(sessionCheckTimer) return;
   sessionCheckTimer = setInterval(()=>{ if(!checkSessionExpiry()) verifySession(); }, 30 * 1000);
@@ -7089,7 +7102,7 @@ function startSessionCheck(){
 
 function startLoginFlow(){
   blocked.style.display = 'none';
-  if(sessionStorage.getItem('castelloAuthed') === 'yes'){
+  if(AUTH_STORE.getItem('castelloAuthed') === 'yes'){
     if(checkSessionExpiry()) return;
     if(enforceAdminOnly(latestAccessCfg)) return;
     gate.style.display = 'none';
@@ -7125,15 +7138,15 @@ loginForm.addEventListener('submit', async (e)=>{
     return;
   }
   if(result){
-    sessionStorage.setItem('castelloAuthed', 'yes');
-    sessionStorage.setItem('castelloLoginAt', String(Date.now()));
-    sessionStorage.setItem('castelloLastActive', String(Date.now()));
-    sessionStorage.setItem('castelloAuthedUser', result.username);
-    try{ sessionStorage.setItem('castelloFullName', cleanTxt(result.full_name || result.username)); }catch(e){}
-    sessionStorage.setItem('castelloRole', result.role || 'sales');
-    sessionStorage.setItem('castelloPerms', JSON.stringify(result.permissions || {}));
-    sessionStorage.setItem('castelloUserId', String(result.id || ''));
-    sessionStorage.setItem('castelloToken', String(result.session || ''));
+    AUTH_STORE.setItem('castelloAuthed', 'yes');
+    AUTH_STORE.setItem('castelloLoginAt', String(Date.now()));
+    AUTH_STORE.setItem('castelloLastActive', String(Date.now()));
+    AUTH_STORE.setItem('castelloAuthedUser', result.username);
+    try{ AUTH_STORE.setItem('castelloFullName', cleanTxt(result.full_name || result.username)); }catch(e){}
+    AUTH_STORE.setItem('castelloRole', result.role || 'sales');
+    AUTH_STORE.setItem('castelloPerms', JSON.stringify(result.permissions || {}));
+    AUTH_STORE.setItem('castelloUserId', String(result.id || ''));
+    AUTH_STORE.setItem('castelloToken', String(result.session || ''));
     if(enforceAdminOnly(latestAccessCfg)) return;
     gate.style.display = 'none';
     root.classList.add('visible');
@@ -7160,7 +7173,7 @@ function updateSessionLabel(){
   document.getElementById('sessionUserLabel').textContent = name ? `Signed in as ${name}` : '';
   try{
     document.getElementById('acctName').textContent = name || '';
-    document.getElementById('acctMenuName').textContent = sessionStorage.getItem('castelloFullName') || name || '';
+    document.getElementById('acctMenuName').textContent = AUTH_STORE.getItem('castelloFullName') || name || '';
     document.getElementById('acctInitial').textContent = (name || '·').trim().charAt(0).toUpperCase();
   }catch(e){}
 }
