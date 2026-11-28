@@ -2074,7 +2074,6 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
           <button role="menuitem" class="acct-item" id="changePwBtn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/></svg>Change password</button>
           <a role="menuitem" class="acct-item" href="https://www.castelloeg.com" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9s1-6.5 3.5-9"/></svg>castelloeg.com</a>
           <span role="menuitem" class="acct-item hotline"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Hotline 15423</span>
-          <button role="menuitem" class="acct-item" id="cxReloadBtn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>Refresh dashboard</button>
           <button role="menuitem" class="acct-item out" id="signOutBtn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>Sign out</button>
         </div>
       </div>
@@ -2539,18 +2538,6 @@ html:not(.cxo-ready) #loginGate .login-stack, html:not(.cxo-ready) #accessBlocke
 </div>
 </div>
 
-<script>
-// Sign-in is kept on this device (all tabs, survives closing the browser) until Sign out, 8 h idle, or 7 days.
-const AUTH_KEYS = ['castelloAuthed','castelloAuthedUser','castelloFullName','castelloRole','castelloPerms','castelloUserId','castelloToken','castelloTeam','castelloLoginAt','castelloLastActive'];
-const AUTH_STORE = (function(){
-  try{ const t = '__cx'; localStorage.setItem(t, '1'); localStorage.removeItem(t); }catch(e){ return sessionStorage; }
-  try{ // people signed in before this change: carry their tab's session over
-    if(sessionStorage.getItem('castelloAuthed') === 'yes' && localStorage.getItem('castelloAuthed') !== 'yes')
-      AUTH_KEYS.forEach(k=>{ const v = sessionStorage.getItem(k); if(v !== null) localStorage.setItem(k, v); });
-  }catch(e){}
-  return localStorage;
-})();
-</script>
 <script>
 // Casual-save deterrent -- blocks the right-click menu and common
 // save/view-source shortcuts. This is NOT real security: anyone with
@@ -3291,17 +3278,17 @@ let holdsMap = {}; // unitKey -> {heldBy, expiresAt}
 function unitKey(u){ return u.sheet + '::' + u.unit_no; }
 // Text that came from the database is shown inside the page's HTML: strip anything that could become markup
 function cleanTxt(v){ return v == null ? v : String(v).replace(/[<>"'`\u0000-\u001f]/g, ''); }
-function authToken(){ return AUTH_STORE.getItem('castelloToken') || ''; }   // sign-in session token (from the login function)
-function currentAgentName(){ return AUTH_STORE.getItem('castelloAuthedUser') || ''; }
-function isAdminUser(){ return (AUTH_STORE.getItem('castelloRole')||'') === 'admin'; }
-function isTestUser(){ return (AUTH_STORE.getItem('castelloRole')||'') === 'test'; }
+function authToken(){ return sessionStorage.getItem('castelloToken') || ''; }   // sign-in session token (from the login function)
+function currentAgentName(){ return sessionStorage.getItem('castelloAuthedUser') || ''; }
+function isAdminUser(){ return (sessionStorage.getItem('castelloRole')||'') === 'admin'; }
+function isTestUser(){ return (sessionStorage.getItem('castelloRole')||'') === 'test'; }
 // Archiving is allowed for admins, plus this one specifically named account --
 // checked client-side for UI purposes, and independently re-checked on the
 // server for the actual write (see archive_unit_edge_function.ts).
 // Per-user permissions come with the login response and are re-checked on
 // the server for every real action. Admins have everything; test accounts
 // are view-only; sales accounts use whatever an admin has granted them.
-function userPerms(){ try{ return JSON.parse(AUTH_STORE.getItem('castelloPerms') || '{}') || {}; }catch(e){ return {}; } }
+function userPerms(){ try{ return JSON.parse(sessionStorage.getItem('castelloPerms') || '{}') || {}; }catch(e){ return {}; } }
 function canHold(){ return isAdminUser() || (!isTestUser() && userPerms().can_hold !== false); }
 function canArchiveUnit(){ return isAdminUser() || (!isTestUser() && userPerms().can_archive === true); }
 function canExport(){ return isAdminUser() || (!isTestUser() && userPerms().can_export === true); }
@@ -3468,7 +3455,7 @@ function updateHoldBanner(){
   if(!b){ b = document.createElement('div'); b.id = 'holdBanner'; const sf = document.getElementById('savedFilters'); sf.parentNode.insertBefore(b, sf); }
   const me = currentAgentName().toLowerCase();
   const mine = Object.values(holdsMap).filter(h=> isMineHold(h) && holdLeftMs(h) > 0);
-  if(!featureOn('can_hold_alerts') || !mine.length || AUTH_STORE.getItem('castelloAuthed') !== 'yes'){ b.style.display = 'none'; return; }
+  if(!featureOn('can_hold_alerts') || !mine.length || sessionStorage.getItem('castelloAuthed') !== 'yes'){ b.style.display = 'none'; return; }
   mine.sort((a,c)=> holdLeftMs(a) - holdLeftMs(c));
   const soon = mine.filter(h=> holdLeftMs(h) <= HOLD_WARN_MS);
   const label = h => String(h.unitLabel || h.unitKey || '').replace('::',' · ').replace(/[<>&"]/g,'');
@@ -3561,7 +3548,7 @@ async function loadLiveInventory(){
     if(!data || data.error) throw new Error(data && data.error || 'no data');
     const projRows = data.projects || [];
     const unitRows = data.units || [];
-    if(!Array.isArray(unitRows) || unitRows.length === 0){ cxLoadFailed(); return; } // never blow away a good local list with an empty/broken result
+    if(!Array.isArray(unitRows) || unitRows.length === 0) return; // never blow away a good local list with an empty/broken result
 
     const newUnits = unitRows.map(r=>{
       const proj = r.projects || {};
@@ -3629,28 +3616,8 @@ async function loadLiveInventory(){
     // Fail silently -- keep showing the last-known-good embedded snapshot
     // rather than breaking the page over a network hiccup.
     console.warn('Live inventory fetch failed, using embedded snapshot.', err);
-    cxLoadFailed();
-    return;
   }
-  cxLoadOk();
 }
-// When the units can't be loaded (bad connection, server busy), say so and keep retrying instead of showing an empty page.
-let cxRetryT = null, cxRetryN = 0;
-function cxLoadFailed(){
-  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return;
-  if(ALL_UNITS && ALL_UNITS.length) return;      // keep showing what we have; the 5-minute refresh tries again
-  let bar = document.getElementById('cxLoadBar');
-  if(!bar){
-    bar = document.createElement('div'); bar.id = 'cxLoadBar'; bar.setAttribute('role','status');
-    bar.innerHTML = '<span>Couldn\u2019t load the units. Trying again\u2026</span><button type="button">Retry now</button>';
-    bar.querySelector('button').addEventListener('click', ()=>{ clearTimeout(cxRetryT); cxRetryN = 0; loadLiveInventory(); });
-    document.body.appendChild(bar);
-  }
-  bar.classList.add('show');
-  clearTimeout(cxRetryT);
-  cxRetryT = setTimeout(()=> loadLiveInventory(), Math.min(60000, 4000 * Math.pow(2, cxRetryN++)));
-}
-function cxLoadOk(){ cxRetryN = 0; clearTimeout(cxRetryT); const bar = document.getElementById('cxLoadBar'); if(bar) bar.classList.remove('show'); }
 
 async function fetchHolds(){
   try{
@@ -4005,7 +3972,7 @@ const DL_STYLE = {
   colour: { bg:'#1e232b', ink:'#ffffff', style:'.cs{opacity:.35}.ft text{fill:#9aa3ad !important}', stamp:[170,175,182] }
 };
 function dlStamp(){
-  const who = AUTH_STORE.getItem('castelloFullName') || currentAgentName() || 'Unknown';
+  const who = sessionStorage.getItem('castelloFullName') || currentAgentName() || 'Unknown';
   const when = new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true });
   return `Downloaded by ${who}  ·  ${when}`;
 }
@@ -4327,7 +4294,7 @@ async function downloadOffer(u, btn, choice, mode){
   try{
     try{ track(mode === 'print' ? 'offer_print' : 'offer_download', unitLabelForTrack(u)); }catch(e){}
     await offerFonts();
-    const F = offerFigures(u, choice), who = AUTH_STORE.getItem('castelloFullName') || currentAgentName() || 'Castello Sales';
+    const F = offerFigures(u, choice), who = sessionStorage.getItem('castelloFullName') || currentAgentName() || 'Castello Sales';
     const vd = new Date(); vd.setDate(vd.getDate() + 14);
     const validUntil = vd.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
     const stamp = dlStamp();
@@ -4875,7 +4842,7 @@ document.getElementById('ppWaBtn').addEventListener('click', ()=>{
 function renderPPPrintArea(){
   if(!lastPPCalc || !lastPPCalc.scheduleRows) return;
   const { unit, plan, effPrice, dpAmt, dpPct, installmentAmt, n, scheduleRows } = lastPPCalc;
-  const agent = AUTH_STORE.getItem('castelloAuthedUser') || '';
+  const agent = sessionStorage.getItem('castelloAuthedUser') || '';
   const today = new Date().toLocaleDateString('en-GB');
   const curNote = currency==='EGP' ? '' : ` (approx. in ${currency})`;
 
@@ -5169,10 +5136,10 @@ function applyUiPerms(){
   try{ if(!featureOn('can_filter_price')){ const a = document.getElementById('minPrice'), b = document.getElementById('maxPrice'); if((a&&a.value)||(b&&b.value)){ a.value = ''; b.value = ''; render(); } } }catch(e){}
 }
 /* ===== Anti-copy: name watermark on screen, a traceable reference on every PDF, and copying tools off (not for admins) ===== */
-function cxWho(){ return { name: AUTH_STORE.getItem('castelloFullName') || currentAgentName() || '', user: currentAgentName() || '', id: AUTH_STORE.getItem('castelloUserId') || '' }; }
+function cxWho(){ return { name: sessionStorage.getItem('castelloFullName') || currentAgentName() || '', user: currentAgentName() || '', id: sessionStorage.getItem('castelloUserId') || '' }; }
 function cxStamp(){ const d = new Date(), p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
 function cxGuard(){
-  const authed = AUTH_STORE.getItem('castelloAuthed') === 'yes';
+  const authed = sessionStorage.getItem('castelloAuthed') === 'yes';
   const on = authed && !isAdminUser();
   document.documentElement.classList.toggle('cx-guard', on);
   let wm = document.getElementById('cxWatermark');
@@ -5235,7 +5202,7 @@ function refreshAdminUI(){
   document.getElementById('adminUsersBtn').classList.toggle('show', isAdmin);
   document.getElementById('adminReservedBtn').classList.toggle('show', canViewReserved());
   document.getElementById('projectMapBtn').classList.toggle('show', featureOn('can_project_map') && (typeof planProjects === 'function') && planProjects().length > 0);
-  const accKey = JSON.stringify([AUTH_STORE.getItem('castelloRole'), AUTH_STORE.getItem('castelloPerms')]);
+  const accKey = JSON.stringify([sessionStorage.getItem('castelloRole'), sessionStorage.getItem('castelloPerms')]);
   if(accKey !== window.__accKey){ window.__accKey = accKey; applyColumnAccess(); applyProjectAccess(true); }
 }
 refreshAdminUI();
@@ -5602,7 +5569,7 @@ document.getElementById('adminAnalyticsBtn').addEventListener('click', ()=>{
 const ACT_RPC = SUPABASE_URL + '/rest/v1/rpc/';
 let actQueue = [];
 function track(event, detail){
-  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return;
+  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return;
   actQueue.push({ event, detail: detail ? String(detail).slice(0,200) : '' });
   if(actQueue.length >= 20) flushActivity();
 }
@@ -6594,7 +6561,7 @@ document.getElementById('spCompareBtn').addEventListener('click', ()=>{
 function renderPrintArea(){
   const units = [...shortlist].map(i=>UNITS[i]);
   const today = new Date().toLocaleDateString('en-GB');
-  const agent = AUTH_STORE.getItem('castelloAuthedUser') || '';
+  const agent = sessionStorage.getItem('castelloAuthedUser') || '';
   const curNote = currency==='EGP' ? '' : ` · Prices shown in ${currency} (approx.)`;
   let html = `<div class="print-header"><img class="print-logo" src="${LOGOS.company}"><h1>Castello Development — Shortlist</h1><div class="print-meta">Prepared by ${agent} on ${today}${curNote}</div></div>`;
   units.forEach(u=>{
@@ -6804,7 +6771,7 @@ document.getElementById('spPrintTextBtn').addEventListener('click', ()=>{
 });
 document.getElementById('spPrintBtn').addEventListener('click', (e)=>{
   renderPrintArea();
-  const agent = AUTH_STORE.getItem('castelloAuthedUser') || 'shortlist';
+  const agent = sessionStorage.getItem('castelloAuthedUser') || 'shortlist';
   downloadPdfFromPrintArea(`Castello-Shortlist-${agent}.pdf`, e.currentTarget);
 });
 
@@ -6899,7 +6866,7 @@ const ACCESS_EXPIRY = '2027-08-12'; // dashboard stops working after this date r
 // This dashboard's build stamp. Bump it (any new unique string) every time a new
 // version is uploaded, and update the matching "version" field in the same Gist
 // used for the kill switch below -- that's what lets open tabs detect an update.
-const BUILD_VERSION = '2026-11-28T15';   // the status file's "version": copies older than it are stopped and asked to refresh
+const BUILD_VERSION = '2026-11-16T00';
 
 // 2) Remote kill switch — a tiny JSON file you control, e.g. a GitHub Gist raw URL.
 //    Format expected: {"enabled": true, "message": ""}
@@ -6943,7 +6910,7 @@ let latestAccessCfg = null;
 // at login and, for already-open sessions, within the next 5-minute check.
 function enforceAdminOnly(cfg){
   if(!cfg || cfg.adminOnly !== true) return false;
-  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return false;
+  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return false;
   if(isAdminUser()) return false;
   const msg = (cfg.maintenanceMessage && String(cfg.maintenanceMessage).trim())
     ? String(cfg.maintenanceMessage).trim()
@@ -6959,7 +6926,7 @@ let sessionCheckTimer = null;
 // Ends the session and returns to the login screen, optionally with a reason.
 function forceSignOut(message){
   try{ const t = authToken(); if(t) fetch(`${SUPABASE_URL}/rest/v1/rpc/end_session`, { method:'POST', keepalive:true, headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ p_token: t }) }).catch(()=>{}); }catch(e){}
-  ['castelloAuthed','castelloAuthedUser','castelloFullName','castelloRole','castelloPerms','castelloUserId','castelloToken','castelloTeam','castelloLoginAt','castelloLastActive'].forEach(k=>{ AUTH_STORE.removeItem(k); try{ sessionStorage.removeItem(k); }catch(e){} });
+  ['castelloAuthed','castelloAuthedUser','castelloFullName','castelloRole','castelloPerms','castelloUserId','castelloToken','castelloTeam','castelloLoginAt','castelloLastActive'].forEach(k=> sessionStorage.removeItem(k));
   try{ cxGuard(); }catch(e){}
   if(holdsPollTimer){ clearInterval(holdsPollTimer); holdsPollTimer = null; }
   if(inventoryPollTimer){ clearInterval(inventoryPollTimer); inventoryPollTimer = null; }
@@ -6977,7 +6944,7 @@ function forceSignOut(message){
 // live. Network hiccups are ignored (fail open); only an explicit "not
 // active" or "no such account" answer ends the session.
 async function verifySession(){
-  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return;
+  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return;
   const id = authToken();
   if(!id){ forceSignOut('Please sign in again.'); return; }   // signed in before sessions existed, or the session was cleared
   try{
@@ -7000,11 +6967,11 @@ async function verifySession(){
       return;
     }
     const newPerms = JSON.stringify({ can_hold: st.can_hold, can_archive: st.can_archive, can_export: st.can_export, can_view_analytics: st.can_view_analytics, title: st.title || null, features: st.features || {} });
-    if(st.team !== undefined) AUTH_STORE.setItem('castelloTeam', st.team || '');
-    const changed = (st.role && st.role !== AUTH_STORE.getItem('castelloRole')) || newPerms !== AUTH_STORE.getItem('castelloPerms');
+    if(st.team !== undefined) sessionStorage.setItem('castelloTeam', st.team || '');
+    const changed = (st.role && st.role !== sessionStorage.getItem('castelloRole')) || newPerms !== sessionStorage.getItem('castelloPerms');
     if(changed){
-      if(st.role) AUTH_STORE.setItem('castelloRole', st.role);
-      AUTH_STORE.setItem('castelloPerms', newPerms);
+      if(st.role) sessionStorage.setItem('castelloRole', st.role);
+      sessionStorage.setItem('castelloPerms', newPerms);
       refreshAdminUI();
       render();
     }
@@ -7050,7 +7017,7 @@ document.getElementById('pwSave').addEventListener('click', async ()=>{
       const lr = await fetch(LOGIN_FUNCTION_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY, 'apikey': SUPABASE_PUBLISHABLE_KEY },
         body: JSON.stringify({ username: currentAgentName(), password: n1 }) });
       const ld = await lr.json().catch(()=>({}));
-      if(lr.ok && ld.session) AUTH_STORE.setItem('castelloToken', String(ld.session));
+      if(lr.ok && ld.session) sessionStorage.setItem('castelloToken', String(ld.session));
     }catch(e){}
     closePasswordModal(); pwForced = false;
     try{ shareToast('Password changed'); }catch(e){}
@@ -7059,25 +7026,24 @@ document.getElementById('pwSave').addEventListener('click', async ()=>{
 });
 
 /* ---- Login expiry: idle timeout + maximum session length ---- */
-const IDLE_LIMIT_MS = 8 * 60 * 60 * 1000;    // signed out after 8 hours of no activity
-const MAX_SESSION_MS = 7 * 24 * 60 * 60 * 1000;  // and always after 7 days (the server session's life)
+const IDLE_LIMIT_MS = 30 * 60 * 1000;        // signed out after 30 min of no activity
+const MAX_SESSION_MS = 12 * 60 * 60 * 1000;  // and always after 12 hours
 function markActive(){
-  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return;
+  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return;
   const now = Date.now();
-  if(now - Number(AUTH_STORE.getItem('castelloLastActive') || 0) > 5000) AUTH_STORE.setItem('castelloLastActive', String(now));
+  if(now - Number(sessionStorage.getItem('castelloLastActive') || 0) > 5000) sessionStorage.setItem('castelloLastActive', String(now));
 }
 ['click','keydown','mousemove','touchstart','scroll'].forEach(ev=> window.addEventListener(ev, markActive, { passive:true }));
 function checkSessionExpiry(){
-  if(AUTH_STORE.getItem('castelloAuthed') !== 'yes') return false;
+  if(sessionStorage.getItem('castelloAuthed') !== 'yes') return false;
   const now = Date.now();
-  const last = Number(AUTH_STORE.getItem('castelloLastActive') || 0);
-  const started = Number(AUTH_STORE.getItem('castelloLoginAt') || 0);
-  if(last && now - last > IDLE_LIMIT_MS){ forceSignOut('You were signed out after 8 hours of inactivity. Please sign in again.'); return true; }
+  const last = Number(sessionStorage.getItem('castelloLastActive') || 0);
+  const started = Number(sessionStorage.getItem('castelloLoginAt') || 0);
+  if(last && now - last > IDLE_LIMIT_MS){ forceSignOut('You were signed out after 30 minutes of inactivity. Please sign in again.'); return true; }
   if(started && now - started > MAX_SESSION_MS){ forceSignOut('Your session expired. Please sign in again.'); return true; }
   return false;
 }
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkSessionExpiry(); });
-window.addEventListener('storage', e=>{ if(e.key === 'castelloAuthed' && e.newValue !== 'yes' && root.classList.contains('visible')) forceSignOut('You signed out in another tab.'); if(e.key === 'castelloAuthed' && e.newValue === 'yes' && !root.classList.contains('visible')) location.reload(); });
 function startSessionCheck(){
   if(sessionCheckTimer) return;
   sessionCheckTimer = setInterval(()=>{ if(!checkSessionExpiry()) verifySession(); }, 30 * 1000);
@@ -7085,7 +7051,7 @@ function startSessionCheck(){
 
 function startLoginFlow(){
   blocked.style.display = 'none';
-  if(AUTH_STORE.getItem('castelloAuthed') === 'yes'){
+  if(sessionStorage.getItem('castelloAuthed') === 'yes'){
     if(checkSessionExpiry()) return;
     if(enforceAdminOnly(latestAccessCfg)) return;
     gate.style.display = 'none';
@@ -7121,15 +7087,15 @@ loginForm.addEventListener('submit', async (e)=>{
     return;
   }
   if(result){
-    AUTH_STORE.setItem('castelloAuthed', 'yes');
-    AUTH_STORE.setItem('castelloLoginAt', String(Date.now()));
-    AUTH_STORE.setItem('castelloLastActive', String(Date.now()));
-    AUTH_STORE.setItem('castelloAuthedUser', result.username);
-    try{ AUTH_STORE.setItem('castelloFullName', cleanTxt(result.full_name || result.username)); }catch(e){}
-    AUTH_STORE.setItem('castelloRole', result.role || 'sales');
-    AUTH_STORE.setItem('castelloPerms', JSON.stringify(result.permissions || {}));
-    AUTH_STORE.setItem('castelloUserId', String(result.id || ''));
-    AUTH_STORE.setItem('castelloToken', String(result.session || ''));
+    sessionStorage.setItem('castelloAuthed', 'yes');
+    sessionStorage.setItem('castelloLoginAt', String(Date.now()));
+    sessionStorage.setItem('castelloLastActive', String(Date.now()));
+    sessionStorage.setItem('castelloAuthedUser', result.username);
+    try{ sessionStorage.setItem('castelloFullName', cleanTxt(result.full_name || result.username)); }catch(e){}
+    sessionStorage.setItem('castelloRole', result.role || 'sales');
+    sessionStorage.setItem('castelloPerms', JSON.stringify(result.permissions || {}));
+    sessionStorage.setItem('castelloUserId', String(result.id || ''));
+    sessionStorage.setItem('castelloToken', String(result.session || ''));
     if(enforceAdminOnly(latestAccessCfg)) return;
     gate.style.display = 'none';
     root.classList.add('visible');
@@ -7156,7 +7122,7 @@ function updateSessionLabel(){
   document.getElementById('sessionUserLabel').textContent = name ? `Signed in as ${name}` : '';
   try{
     document.getElementById('acctName').textContent = name || '';
-    document.getElementById('acctMenuName').textContent = AUTH_STORE.getItem('castelloFullName') || name || '';
+    document.getElementById('acctMenuName').textContent = sessionStorage.getItem('castelloFullName') || name || '';
     document.getElementById('acctInitial').textContent = (name || '·').trim().charAt(0).toUpperCase();
   }catch(e){}
 }
@@ -7214,7 +7180,7 @@ document.getElementById('signOutBtn').addEventListener('click', ()=>{
 })();
 
 function checkForUpdate(cfg){
-  if(cfg && cfg.version && String(cfg.version) > BUILD_VERSION){   // only copies OLDER than the published version are stopped
+  if(cfg && cfg.version && String(cfg.version) > '2026-11-28T15'){   // safety: the status file may already say 2026-11-28T15
     // A newer version has been published -- this copy is now suspended,
     // not just "notified". This applies whether it's the very first load
     // or a tab that's been open since before the new version went out.
@@ -7230,31 +7196,6 @@ function checkForUpdate(cfg){
   return false;
 }
 document.getElementById('updateRefreshBtn').addEventListener('click', ()=> location.reload());
-document.getElementById('cxReloadBtn').addEventListener('click', ()=> location.reload());
-// Picks up a newly published dashboard by itself (the home-screen app has no reload button):
-// compares the page on the server with the copy that is running. Reloads straight away when the
-// person comes back to the app or has been idle, otherwise shows the "Refresh now" bar.
-(function(){
-  const mine = Date.parse(document.lastModified);
-  let ready = false;
-  const busy = () => !!document.querySelector('.modal-overlay.open, #layoutOverlay.open, .pm-overlay.open') || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
-  async function check(fromResume){
-    try{
-      if(!ready){
-        const r = await fetch(location.pathname + '?cxv=' + Date.now(), { method:'HEAD', cache:'no-store' });
-        const lm = Date.parse(r.headers.get('last-modified') || '');
-        if(!(lm && mine && lm - mine > 60000)) return;
-        ready = true;
-      }
-      const idle = Date.now() - Number(AUTH_STORE.getItem('castelloLastActive') || 0) > 3 * 60 * 1000;
-      if((fromResume || idle) && !busy()){ location.reload(); return; }
-      const b = document.getElementById('updateBanner'); if(b) b.classList.add('show');
-    }catch(e){}
-  }
-  setInterval(()=> check(false), 3 * 60 * 1000);
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) check(true); });
-  window.addEventListener('pageshow', e=>{ if(e.persisted) check(true); });
-})();
 document.getElementById('updateDismissBtn').addEventListener('click', ()=>{
   document.getElementById('updateBanner').classList.remove('show');
 });
@@ -8865,21 +8806,6 @@ html body #loginGate .login-card, html body #accessBlocked .login-card{
 @media (prefers-reduced-motion: reduce){ #loginGate .login-card, #loginGate .login-card *{ animation:none !important; } }
 
 @media (max-width:480px){ #loginGate .login-card p.sub{ letter-spacing:.16em !important; font-size:10px !important; } html body #loginGate .login-card{ padding:26px 24px 22px !important; } }
-
-/* ===== Smooth scrolling: no live blur on the long list, background painted once on its own layer ===== */
-.table-scroll, thead th, #tbody tr{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
-thead th{ background:color-mix(in srgb, var(--surface) 94%, transparent) !important; }
-html.bg-moved body{ background:transparent !important; }
-#pageBg{ position:fixed; inset:0; z-index:-1; pointer-events:none; transform:translateZ(0); will-change:transform; }
-#cxWatermark{ transform:translateZ(0); will-change:transform; contain:strict; }
-@media (max-width:760px){
-  #tbody tr{ background:color-mix(in srgb, var(--surface) 82%, transparent) !important; }
-  .filterbar{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important; background:color-mix(in srgb, var(--bg) 94%, transparent) !important; }
-}
-
-#cxLoadBar{ position:fixed; left:50%; bottom:max(18px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:650; display:none; align-items:center; gap:12px; padding:10px 12px 10px 16px; border-radius:14px; background:var(--surface); color:var(--cream); border:1px solid var(--line-soft); box-shadow:0 12px 30px rgba(0,0,0,.25); font-size:13px; max-width:calc(100vw - 24px); }
-#cxLoadBar.show{ display:flex; }
-#cxLoadBar button{ border:0; border-radius:10px; padding:8px 12px; background:var(--gold); color:#1a1610; font-weight:600; cursor:pointer; white-space:nowrap; }
 </style>
 <script id="cxSceneScript">
 (function(){
@@ -8915,30 +8841,4 @@ html.bg-moved body{ background:transparent !important; }
 })();
 </script>
 
-
-<script>
-// The page background used to be "fixed" on <body>, which makes the browser repaint the whole screen on every scroll step.
-// Paint it once on its own fixed layer instead, and keep it in step with the theme.
-(function(){
-  function sync(){
-    try{
-      const root = document.documentElement;
-      root.classList.remove('bg-moved');
-      const cs = getComputedStyle(document.body);
-      let el = document.getElementById('pageBg');
-      if(!el){ el = document.createElement('div'); el.id = 'pageBg'; el.setAttribute('aria-hidden','true'); document.body.insertBefore(el, document.body.firstChild); }
-      el.style.backgroundColor = cs.backgroundColor;
-      el.style.backgroundImage = cs.backgroundImage;
-      el.style.backgroundSize = cs.backgroundSize;
-      el.style.backgroundPosition = cs.backgroundPosition;
-      el.style.backgroundRepeat = cs.backgroundRepeat;
-      el.style.backgroundAttachment = 'scroll';
-      root.classList.add('bg-moved');
-    }catch(e){ document.documentElement.classList.remove('bg-moved'); }
-  }
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync); else sync();
-  new MutationObserver(sync).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
-  window.addEventListener('resize', ()=>{ clearTimeout(sync._t); sync._t = setTimeout(sync, 200); });
-})();
-</script>
 </body></html>
