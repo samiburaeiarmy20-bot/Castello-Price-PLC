@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://nzojoticksiiidvzmlvx.supabase.co https://gist.githubusercontent.com; frame-src 'self' blob: about:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://nzojoticksiiidvzmlvx.supabase.co https://gist.githubusercontent.com; frame-src 'self' blob: about: https://drive.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <script>/* never inside someone else's page (clickjacking) */ if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = 'none'; } }</script>
@@ -3073,7 +3073,8 @@ const ROW_ICONS = {
   compare:'<path d="M7 7h12M15 3l4 4-4 4M17 17H5M9 13l-4 4 4 4"/>',
   share:'<rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>',
   layout:'<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 11h8M11.5 3.5v11M11.5 14.5h9M16 14.5v6"/>',
-  pin:'<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>'
+  pin:'<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>',
+  play:'<rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/>'
 };
 function menuItem(cls, idx, label, name){
   return `<button class="${cls} mi" data-idx="${idx}" title="${label}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ROW_ICONS[name]}</svg>${label}</button>`;
@@ -3143,6 +3144,7 @@ function render(){
       <td class="actions-cell"><div class="act-row">
         ${u.cash_only ? `<span class="act-cash" title="Cash only — 10% minimum fee is calculated on the original price">Cash only · fee ${fmtCur(u.maintenance_fee)}</span>` : (featureOn('can_payment_plan') ? `<button class="act-btn act-plan" data-idx="${u.__idx}">Payment plan</button>` : '')}
         ${canLay(u) ? rowIcon('star-btn lay-btn act-ic', u.__idx, 'Layout', 'layout') : (canLoc(u) ? rowIcon('star-btn loc-btn act-ic', u.__idx, 'Location on the floor plan', 'pin') : '')}
+        ${unitVideo(u) ? rowIcon('star-btn vid-btn act-ic', u.__idx, 'Unit video', 'play') : ''}
         ${canHold() ? holdButtonHtml(u) : ''}
         <div class="row-more"><button class="act-ic more-btn" type="button" aria-haspopup="true" aria-expanded="false" title="More actions" aria-label="More actions"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
           <div class="more-pop" hidden>
@@ -3172,11 +3174,12 @@ function render(){
   tbody.querySelectorAll('.act-plan').forEach(btn=>{
     btn.addEventListener('click', ()=> openPaymentModal(UNITS[Number(btn.dataset.idx)]));
   });
-  tbody.querySelectorAll('.star-btn:not(.share-btn):not(.cmp-btn):not(.lay-btn):not(.loc-btn)').forEach(btn=>{
+  tbody.querySelectorAll('.star-btn:not(.share-btn):not(.cmp-btn):not(.lay-btn):not(.loc-btn):not(.vid-btn)').forEach(btn=>{
     btn.addEventListener('click', ()=> toggleShortlist(Number(btn.dataset.idx)));
   });
   tbody.querySelectorAll('.cmp-btn').forEach(btn=>{ btn.addEventListener('click', ()=> toggleCompare(Number(btn.dataset.idx), btn)); });
   tbody.querySelectorAll('.lay-btn').forEach(btn=>{ btn.addEventListener('click', ()=> openLayout(UNITS[Number(btn.dataset.idx)], null, 'layout')); });
+  tbody.querySelectorAll('.vid-btn').forEach(btn=>{ btn.addEventListener('click', ()=> openUnitVideo(UNITS[Number(btn.dataset.idx)])); });
   tbody.querySelectorAll('.loc-btn').forEach(btn=>{ btn.addEventListener('click', ()=> openLayout(UNITS[Number(btn.dataset.idx)], null, 'location')); });
   tbody.querySelectorAll('.share-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> shareUnit(UNITS[Number(btn.dataset.idx)], btn));
@@ -3330,6 +3333,7 @@ const PERM_SECTIONS = [
     { k:'can_payment_plan', l:'Payment plan', d:'Open the installment schedule' },
     { k:'can_download_plan', l:'Download payment plan PDF', d:'', parent:'can_payment_plan' },
     { k:'can_roi', l:'ROI calculator', d:'Rental return and resale estimate' },
+    { k:'can_unit_video', l:'Unit videos', d:'Watch the walkthrough video of units that have one (▶ icon)' },
   ]},
   { id:'offer', icon:'📄', title:'Client offer', desc:'The branded offer PDF for a client.', items:[
     { k:'can_offer', l:'Client offer (PDF)', d:'Download the offer with photos and the chosen plan' },
@@ -3762,6 +3766,36 @@ const OF_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" str
 const PLAN_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3M8 17h6"/></svg>';
 const ROI_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/><path d="M14 7h4v4"/></svg>';
 const SH_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.3 10.8l7.4-4.1M8.3 13.2l7.4 4.1"/></svg>';
+const VID_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></svg>';
+// Unit walkthrough videos (Google Drive, shared "anyone with the link"), by project sheet and unit number.
+const UNIT_VIDEOS = {"Atlantis PH1":{"A2218":"1LNfQhErsLjQ4a8KTsGB_gY8_eQ73hnrz","A2118":"1Rp0K7C0titVS6vP0UixGE5TGDBsdM_xr","A2116":"1sTg7Qijvkk94Lu63MhXyudLVfWSBid_2","A2114":"1jSlWj-bwykQ_pa7JmbkhKO5jXBCq2DhT","A2318":"13EfS06-gtaeQNxH9QUGv0anbwbEZTFhq","A2316":"1gdzMeL-IUXSbv2TapUaTfDv_7WBePBWb","A2304":"1da88GDWbCZkYiBpb5l7k-VQvA595kGZp","A2202":"1EBLlPFIPBlcBdDQtdzCQXNscpEhI3CXx","A2106":"1qfE_ljAdacS0eAbtmPk5k7isUw3xvtb0","A2102":"15vSKgRHrTyJ2da26vOIVpfkYGEChYcwa","B3510":"1piSZ_aN3Lp6uSQSioUZkdJ9nzkgRWxW_","B3501":"1zW52pGvH27xtbTxeN9Gg3xAOMKYZBXKx","B3410":"152LggEnErySUY28TayUxIWV_eDoEaNRR","B3408":"1Pz_t2RCSAIzsE95bP5ytPipnZKbMTPA9","B3319":"1QBCTmViduYr1FrZY-G8c7ekkzY0uybPb","B3310":"1ZJWtzPxZk6BNMMywJP7F-loiCaaq9E0s","B3220":"1d862rweaPSA3dH-Ngc7Y08BgjBwrHytT","B3210":"13JVux9pqTTFy4Z-gm5akPao5loEx7JUL","B3208":"1SMS65o_kwN5Yokg3wYuk976T6wSjwl3y","B3120":"1MiEMTdcJmXGOSnzWVMdFLOz3FV6R2BAj","B3111":"1jbCOjZtaukWdGP5jFPsRnipu-uVyW_2g","B3108":"1I8ACEBc_di5Oi22KfNsOY6KNbcZ3Mu2L","B3102":"1wbXh-DFGOOcGP0Mso3IbR3XhBGAuZgRn","B2201":"1SzoUx-hIT9CFtZd8EPAeKbL3jlgB_KAq","B1403B":"1KE2nlbFP9QCCAQ-iK4NVoS0bQP-ZHsSH","B1403A":"1qhMKJGtvN9oclqfAthOWkyFI7ih7QAA4","B1303B":"1lJStNUxHtSl2aOJbBZ-njCRsrOx_yX0l"},"Storia Del Mare":{"C335":"1Dls8BvqHjSnX2v9GsIvUZs6wzej8cc6d","C334":"1kKwMNWb15udp5wbJ69pahwLSdl-jIK00","C336":"1YwC_RpLiSsbvdAXVtnUC90tKdUgBZzr6","C337":"1BXfKxsmrMT8sJwFi6BeGelX6ztE5km2f","Y10":"1OX5bWwMZN56HoDjTnFsAz-0h6xhePVXH","Y11":"1Uzc6bGI7dGZ4J1ShFF8p1QxgI729tzr2","Y12":"1R5HderWpkbrCXv7eklJ28E4wP9LODIWu","B026":"10cBwDyrcntzxrPBNViBH4KFaFz_hezPk","C130":"1brZpr5dV2HTj6uqT0_U323nxanxelZR_","B151":"1Xp9yiiRaUTzmr1zRx9lXU0xNEDqHDtWd","B247":"1pPkb35KttOoxuTsJ0RWreSmw46pHDG6T","C231":"1uez2EsP4pofVXtsdRz052ioEmi3MFeiz","Y21":"18ji9Aeqvg5qaagfveXDcxvmVT8XWvLL0","Y20":"1YJ6O8ZiVGi_fEenHhjX4hZV21Jfzqr-m","Y28":"1pzSJ-IyTx_l-Gz0oroxqSdPx7S7LO4Zp","Y18":"1KIOMMHwztCUlBA61tgXuOHSolVFcRm1x","Y05":"19UMMu2AwB7jFPgHBMSwJQEDVajpw40Q7","C526":"1Q7S1jjk319T5IwaMphnE8nwMMgnz70R5","C527":"1lbpYShtD1eCBEYJcW1HHJdL8JMthqBq3","C429":"1lXpjS8sih6Bd6y70gU08PB6VOxe3yJ4A","B611":"14uKs-KJ6RllfIAd9IrmVY62Sqsa3xpsC","B606":"1MecN9nsOXfaUxaTdfn5Gi5jXBboafv_H","B601":"1ppZjzuyqaI6XIWLsQ5RLW4yqBj7XcTOA","B425":"1HvMBA6uqs9ZE4HKroWpfABtiy0eWzleV"}};
+function unitVideo(u){
+  if(!u || !featureOn('can_unit_video')) return null;
+  const m = UNIT_VIDEOS[u.sheet]; if(!m) return null;
+  const id = m[String(u.unit_no||'').trim().toUpperCase()];
+  return id && /^[\w-]{20,60}$/.test(id) ? id : null;
+}
+function openUnitVideo(u){
+  const id = unitVideo(u); if(!id) return;
+  try{ track('unit_video', unitLabelForTrack(u)); }catch(e){}
+  let ov = document.getElementById('vidOverlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'vidOverlay'; ov.className = 'vid-overlay';
+    ov.innerHTML = '<div class="vid-card" role="dialog" aria-modal="true" aria-labelledby="vidTitle"><div class="vid-head"><b id="vidTitle"></b><button class="vid-x" aria-label="Close video">✕</button></div><div class="vid-frame"><div class="vid-load">Loading video…</div></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ if(e.target === ov || e.target.closest('.vid-x')) closeUnitVideo(); });
+    document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && ov.classList.contains('open')){ e.stopPropagation(); closeUnitVideo(); } }, true);
+  }
+  ov.querySelector('#vidTitle').textContent = 'Unit ' + dispNo(u) + ' · video';
+  const fr = ov.querySelector('.vid-frame');
+  fr.innerHTML = '<div class="vid-load">Loading video…</div>';
+  const ifr = document.createElement('iframe');
+  ifr.src = 'https://drive.google.com/file/d/' + id + '/preview';
+  ifr.allow = 'autoplay; fullscreen'; ifr.allowFullscreen = true; ifr.referrerPolicy = 'no-referrer'; ifr.title = 'Unit ' + dispNo(u) + ' video';
+  fr.appendChild(ifr);
+  ov.classList.add('open');
+}
+function closeUnitVideo(){ const ov = document.getElementById('vidOverlay'); if(!ov) return; ov.classList.remove('open'); ov.querySelector('.vid-frame').innerHTML = ''; }
 const PR_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6H7z"/><circle cx="17" cy="12" r=".6" fill="currentColor"/></svg>';
 const LAY_KINDS = { rec:['Reception','#e8a948'], room:['Bedroom','#9d8cff'], bath:['Bathroom','#4cc3ee'], kit:['Kitchen','#4fd6a0'] };
 let layCur = null;
@@ -3865,6 +3899,7 @@ async function openLayout(u, navList, mode){
   if(featureOn('can_roi')) acts.push(['roi','ROI', false]);
   if(featureOn('can_share')) acts.push(['share','Share', false]);
   }
+  if(unitVideo(u)) acts.push(['vid','Video', false]);
   const anyInk = featureOn('can_dl_colour') || featureOn('can_dl_black');
   if(!u.__unavailable && u.price && OFFER_SHEETS.includes(u.sheet) && featureOn('can_offer')) acts.push(['of','Offer', false]);
   if(layMode === 'layout' && okLay && anyInk && featureOn('can_dl_layout')) acts.push(['dl','Download', false]);
@@ -3873,12 +3908,12 @@ async function openLayout(u, navList, mode){
   if(layMode === 'location' && okLoc && anyInk && featureOn('can_print_masterplan')) acts.push(['pr','Print', false]);
   const box = document.getElementById('layActions');
   box.style.display = acts.length ? 'flex' : 'none';
-  const ICONS_ACT = { plan:PLAN_ICON, roi:ROI_ICON, share:SH_ICON, of:OF_ICON, dl:DL_ICON, pr:PR_ICON };
-  const TIPS_ACT = { plan:'Installment schedule for this unit', roi:'Rental return and resale estimate', share:'Send this unit to a client', of:'Client offer PDF: price, payment plan, layout and location',
+  const ICONS_ACT = { vid:VID_ICON, plan:PLAN_ICON, roi:ROI_ICON, share:SH_ICON, of:OF_ICON, dl:DL_ICON, pr:PR_ICON };
+  const TIPS_ACT = { vid:'Walkthrough video of this unit', plan:'Installment schedule for this unit', roi:'Rental return and resale estimate', share:'Send this unit to a client', of:'Client offer PDF: price, payment plan, layout and location',
     dl: layMode==='location' ? 'Download master plan (A4 landscape)' : 'Download layout (A4 portrait)', pr: layMode==='location' ? 'Print master plan (A4 landscape)' : 'Print layout (A4 portrait)' };
   const btn = ([k,t,p]) => `<button data-act="${k}" class="ic${p?' primary':''}" title="${TIPS_ACT[k]||''}">${ICONS_ACT[k]||''}<span>${t}</span></button>`;
   const grp = (keys, cls) => { const g = acts.filter(a=> keys.includes(a[0])); return g.length ? `<div class="la-grp ${cls}">${g.map(btn).join('')}</div>` : ''; };
-  box.innerHTML = [grp(['plan'],'la-main'), grp(['roi','share'],'la-tools'), grp(['of','dl','pr'],'la-docs')].filter(Boolean).join('');
+  box.innerHTML = [grp(['plan'],'la-main'), grp(['vid','roi','share'],'la-tools'), grp(['of','dl','pr'],'la-docs')].filter(Boolean).join('');
   layT = { s:1, x:0, y:0 }; layApply();
   layPan.innerHTML = `<div class="lay-msg">Loading ${layMode === 'location' ? 'floor plan' : 'layout'}…</div>`;
   layoutOverlay.classList.add('open');
@@ -4375,6 +4410,7 @@ document.getElementById('layNext').addEventListener('click', ()=> layStep(1));
 document.getElementById('layActions').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b || !layCur) return;
   const u = layCur;
+  if(b.dataset.act === 'vid'){ openUnitVideo(u); return; }
   if(b.dataset.act === 'share'){ shareUnit(u, b); return; }
   if(b.dataset.act === 'of'){ openOfferMenu(u, b); return; }
   if(b.dataset.act === 'dl' || b.dataset.act === 'pr'){
@@ -4495,7 +4531,7 @@ function pmRender(){
       const dim = (pmState.types.size && !pmState.types.has(u.unit_type)) ? 'dim' : '';
       const held = isHeld(unitKey(u));
       const badge = held ? '<span class="pm-badge hold">HOLD</span>' : (u.cash_only ? '<span class="pm-badge cash">CASH</span>' : (isNewUnit(u) ? '<span class="pm-badge">NEW</span>' : ''));
-      html += `<button class="pm-cell avail ${held?'hold':''} ${dim}" ${thumb.replace('style="','style="--tc:'+tc+';')} data-no="${no}" aria-label="Unit ${no}">${badge}${th}<span class="pm-no">${pmI(no).label}</span><span class="pm-meta">${u.area ? u.area + ' m²' : ''}</span></button>`;
+      html += `<button class="pm-cell avail ${held?'hold':''} ${dim}" ${thumb.replace('style="','style="--tc:'+tc+';')} data-no="${no}" aria-label="Unit ${no}">${badge}${unitVideo(u) ? '<span class="pm-vid" title="Has a video">▶</span>' : ''}${th}<span class="pm-no">${pmI(no).label}</span><span class="pm-meta">${u.area ? u.area + ' m²' : ''}</span></button>`;
     });
     html += '</div>';
   });
@@ -8806,6 +8842,20 @@ html body #loginGate .login-card, html body #accessBlocked .login-card{
 @media (prefers-reduced-motion: reduce){ #loginGate .login-card, #loginGate .login-card *{ animation:none !important; } }
 
 @media (max-width:480px){ #loginGate .login-card p.sub{ letter-spacing:.16em !important; font-size:10px !important; } html body #loginGate .login-card{ padding:26px 24px 22px !important; } }
+
+/* unit walkthrough videos */
+.vid-btn{ opacity:.85; } .vid-btn:hover{ opacity:1; color:var(--gold); }
+.pm-vid{ position:absolute; top:5px; left:5px; width:16px; height:16px; border-radius:50%; display:grid; place-items:center; font-size:7.5px; line-height:1; padding-left:1px; background:var(--gold); color:#1a1610; box-shadow:0 1px 4px rgba(0,0,0,.3); }
+.vid-overlay{ position:fixed; inset:0; z-index:700; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(8,8,10,.72); backdrop-filter:blur(6px); }
+.vid-overlay.open{ display:flex; }
+.vid-card{ width:min(1100px, calc(96vw / var(--pz,1))); max-height:calc(94vh / var(--pz,1)); display:flex; flex-direction:column; border-radius:18px; overflow:hidden; background:var(--surface); border:1px solid var(--line-soft); box-shadow:0 30px 80px rgba(0,0,0,.5); }
+.vid-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; color:var(--cream); font-size:15px; }
+.vid-x{ width:34px; height:34px; border-radius:50%; border:1px solid var(--line-soft); background:transparent; color:var(--cream); cursor:pointer; font-size:14px; }
+.vid-x:hover{ border-color:var(--gold); color:var(--gold); }
+.vid-frame{ position:relative; aspect-ratio:16/9; max-height:calc(94vh / var(--pz,1) - 60px); background:#000; }
+.vid-frame iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+.vid-load{ position:absolute; inset:0; display:grid; place-items:center; color:#bbb; font-size:13px; }
+@media (max-width:760px){ .vid-overlay{ padding:0; } .vid-card{ width:100vw; max-height:100vh; border-radius:0; } }
 </style>
 <script id="cxSceneScript">
 (function(){
