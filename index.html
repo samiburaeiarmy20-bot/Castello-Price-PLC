@@ -5142,13 +5142,7 @@ function cxGuard(){
   const authed = sessionStorage.getItem('castelloAuthed') === 'yes';
   const on = authed && !isAdminUser();
   document.documentElement.classList.toggle('cx-guard', on);
-  let wm = document.getElementById('cxWatermark');
-  if(!on){ if(wm) wm.remove(); return; }
-  const w = cxWho(), txt = `${w.name}${w.user && w.user !== w.name ? ' · @' + w.user : ''} · ${cxStamp().slice(0,10)} · CONFIDENTIAL`;
-  const esc = t => String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="240"><text x="210" y="125" text-anchor="middle" transform="rotate(-24 210 120)" font-family="Arial, sans-serif" font-size="15" font-weight="600" fill="rgb(128,128,128)" fill-opacity="0.13">${esc(txt)}</text></svg>`;
-  if(!wm){ wm = document.createElement('div'); wm.id = 'cxWatermark'; wm.setAttribute('aria-hidden','true'); document.documentElement.appendChild(wm); }
-  wm.style.backgroundImage = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`;
+  const old = document.getElementById('cxWatermark'); if(old) old.remove();   // no on-screen name watermark for anyone
 }
 (function(){
   const editable = t => t && t.closest && t.closest('input, textarea, select, [contenteditable="true"]');
