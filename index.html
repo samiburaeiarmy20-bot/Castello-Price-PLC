@@ -3619,6 +3619,66 @@ async function loadLiveInventory(){
   }
 }
 
+const HOLD_FUNCTION_URL = 'https://nzojoticksiiidvzmlvx.supabase.co/functions/v1/hold';
+
+async function performHoldAction(action, key, u, expiresAt, password){
+  const label = `${u.project}${u.subtitle?' · '+u.subtitle:''} — Unit ${u.unit_no}`;
+  try{
+    const res = await fetch(HOLD_FUNCTION_URL, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer ' + SUPABASE_PUBLISHABLE_KEY,
+        'apikey': SUPABASE_PUBLISHABLE_KEY
+      },
+      body: JSON.stringify({ username: currentAgentName(), password, action, unitKey:key, expiresAt })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      alert(data.error || 'Could not complete this action.');
+      return;
+    }
+    if(action === 'hold'){
+      holdsMap[key] = { unitKey:key, unitLabel:label, isMine:true, heldBy: currentAgentName(), heldAt: new Date().toISOString(), expiresAt };
+      render();
+      const d = new Date();
+      const dateStr = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+      openNotifyModal(`${u.project}${u.subtitle ? ' ' + u.subtitle : ''} - ${u.unit_no} - Hold - ${dateStr}`);
+    } else {
+      delete holdsMap[key];
+      render();
+    }
+  } catch(err){
+    alert('Network error -- could not reach the server. The hold was NOT changed.');
+  }
+}
+
+function handleHoldClick(u){
+  try{ track('hold_click', unitLabelForTrack(u)); }catch(e){}
+  const key = unitKey(u);
+  const h = holdsMap[key];
+  const now = Date.now();
+  const label = `${u.project}${u.subtitle?' · '+u.subtitle:''} — Unit ${u.unit_no}`;
+
+  if(h && h.expiresAt && new Date(h.expiresAt).getTime() > now){
+    const mine = isMineHold(h);
+    if(!mine && !isAdminUser()) return; // held by someone else, not admin -- no action
+    openReAuthModal(
+      mine ? `Confirm releasing your hold on ${label}.` : `Confirm releasing ${h.heldBy || 'this'} hold on ${label}.`,
+      (password)=>{ performHoldAction('release', key, u, null, password); }
+    );
+    return;
+  }
+
+  openReAuthModal(
+    `Confirm placing a 24-hour hold on ${label} under your name (${currentAgentName()}).`,
+    (password)=>{
+      const expiresAt = new Date(now + 24*60*60*1000).toISOString();
+      performHoldAction('hold', key, u, expiresAt, password);
+    }
+  );
+}
+
 async function fetchHolds(){
   try{
     const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization': 'Bearer ' + SUPABASE_PUBLISHABLE_KEY };
