@@ -3781,9 +3781,9 @@ function openUnitVideo(u){
   let ov = document.getElementById('vidOverlay');
   if(!ov){
     ov = document.createElement('div'); ov.id = 'vidOverlay'; ov.className = 'vid-overlay';
-    ov.innerHTML = '<div class="vid-card" role="dialog" aria-modal="true" aria-labelledby="vidTitle"><div class="vid-head"><b id="vidTitle"></b><button class="vid-x" aria-label="Close video">✕</button></div><div class="vid-frame"><div class="vid-load">Loading video…</div></div></div>';
+    ov.innerHTML = '<div class="vid-card" role="dialog" aria-modal="true" aria-labelledby="vidTitle"><div class="vid-head"><b id="vidTitle"></b><span class="vid-tools"><button class="vid-wide" title="Switch between tall and wide video" aria-label="Switch video shape">⇔</button><button class="vid-x" aria-label="Close video">✕</button></span></div><div class="vid-frame"><div class="vid-load">Loading video…</div></div></div>';
     document.body.appendChild(ov);
-    ov.addEventListener('click', e=>{ if(e.target === ov || e.target.closest('.vid-x')) closeUnitVideo(); });
+    ov.addEventListener('click', e=>{ if(e.target.closest('.vid-wide')){ ov.querySelector('.vid-card').classList.toggle('wide'); return; } if(e.target === ov || e.target.closest('.vid-x')) closeUnitVideo(); });
     document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && ov.classList.contains('open')){ e.stopPropagation(); closeUnitVideo(); } }, true);
   }
   ov.querySelector('#vidTitle').textContent = 'Unit ' + dispNo(u) + ' · video';
@@ -3793,9 +3793,11 @@ function openUnitVideo(u){
   ifr.src = 'https://drive.google.com/file/d/' + id + '/preview';
   ifr.allow = 'autoplay; fullscreen'; ifr.allowFullscreen = true; ifr.referrerPolicy = 'no-referrer'; ifr.title = 'Unit ' + dispNo(u) + ' video';
   fr.appendChild(ifr);
+  ov.querySelector('.vid-card').classList.remove('wide');
+  document.documentElement.classList.add('vid-lock');
   ov.classList.add('open');
 }
-function closeUnitVideo(){ const ov = document.getElementById('vidOverlay'); if(!ov) return; ov.classList.remove('open'); ov.querySelector('.vid-frame').innerHTML = ''; }
+function closeUnitVideo(){ const ov = document.getElementById('vidOverlay'); if(!ov) return; ov.classList.remove('open'); document.documentElement.classList.remove('vid-lock'); ov.querySelector('.vid-frame').innerHTML = ''; }
 const PR_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6H7z"/><circle cx="17" cy="12" r=".6" fill="currentColor"/></svg>';
 const LAY_KINDS = { rec:['Reception','#e8a948'], room:['Bedroom','#9d8cff'], bath:['Bathroom','#4cc3ee'], kit:['Kitchen','#4fd6a0'] };
 let layCur = null;
@@ -8846,16 +8848,26 @@ html body #loginGate .login-card, html body #accessBlocked .login-card{
 /* unit walkthrough videos */
 .vid-btn{ opacity:.85; } .vid-btn:hover{ opacity:1; color:var(--gold); }
 .pm-vid{ position:absolute; top:5px; left:5px; width:16px; height:16px; border-radius:50%; display:grid; place-items:center; font-size:7.5px; line-height:1; padding-left:1px; background:var(--gold); color:#1a1610; box-shadow:0 1px 4px rgba(0,0,0,.3); }
-.vid-overlay{ position:fixed; inset:0; z-index:700; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(8,8,10,.72); backdrop-filter:blur(6px); }
+html.vid-lock, html.vid-lock body{ overflow:hidden; }
+.vid-overlay{ position:fixed; inset:0; z-index:700; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(8,8,10,.78); backdrop-filter:blur(6px); }
 .vid-overlay.open{ display:flex; }
-.vid-card{ width:min(1100px, calc(96vw / var(--pz,1))); max-height:calc(94vh / var(--pz,1)); display:flex; flex-direction:column; border-radius:18px; overflow:hidden; background:var(--surface); border:1px solid var(--line-soft); box-shadow:0 30px 80px rgba(0,0,0,.5); }
-.vid-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; color:var(--cream); font-size:15px; }
-.vid-x{ width:34px; height:34px; border-radius:50%; border:1px solid var(--line-soft); background:transparent; color:var(--cream); cursor:pointer; font-size:14px; }
-.vid-x:hover{ border-color:var(--gold); color:var(--gold); }
-.vid-frame{ position:relative; aspect-ratio:16/9; max-height:calc(94vh / var(--pz,1) - 60px); background:#000; }
+/* the walkthroughs are filmed upright on a phone: a tall frame by default, ⇔ for a wide one */
+.vid-card{ --vh:calc(90vh / var(--pz,1) - 58px); display:flex; flex-direction:column; border-radius:18px; overflow:hidden; background:var(--surface); border:1px solid var(--line-soft); box-shadow:0 30px 80px rgba(0,0,0,.5); }
+.vid-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px 10px 16px; min-height:58px; box-sizing:border-box; color:var(--cream); font-size:15px; }
+.vid-tools{ display:flex; gap:8px; }
+.vid-x, .vid-wide{ width:36px; height:36px; border-radius:50%; border:1px solid var(--line-soft); background:transparent; color:var(--cream); cursor:pointer; font-size:15px; display:grid; place-items:center; }
+.vid-x:hover, .vid-wide:hover{ border-color:var(--gold); color:var(--gold); }
+.vid-frame{ position:relative; background:#000; height:var(--vh); width:calc(var(--vh) * 9 / 16); min-width:300px; }
+.vid-card.wide .vid-frame{ width:min(1100px, calc(94vw / var(--pz,1))); height:auto; aspect-ratio:16/9; max-height:var(--vh); }
 .vid-frame iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
 .vid-load{ position:absolute; inset:0; display:grid; place-items:center; color:#bbb; font-size:13px; }
-@media (max-width:760px){ .vid-overlay{ padding:0; } .vid-card{ width:100vw; max-height:100vh; border-radius:0; } }
+@media (max-width:760px){
+  .vid-overlay{ padding:0; align-items:stretch; }
+  .vid-card{ width:100vw; height:100vh; height:100dvh; border-radius:0; border:0; }
+  .vid-head{ padding-top:max(10px, env(safe-area-inset-top)); }
+  .vid-frame, .vid-card.wide .vid-frame{ flex:1 1 auto; width:100%; height:auto; min-width:0; aspect-ratio:auto; max-height:none; }
+  .vid-wide{ display:none; }
+}
 </style>
 <script id="cxSceneScript">
 (function(){
